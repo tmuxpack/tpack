@@ -16,7 +16,7 @@ func buildPluginItems(plugins []plugin.Plugin, pluginPath string, validator git.
 		dir := plugin.PluginPath(p.Name, pluginPath)
 		info, err := os.Stat(dir)
 		if err == nil && info.IsDir() && validator.IsGitRepo(dir) {
-			status = StatusInstalled
+			status = StatusChecking
 		}
 		items = append(items, PluginItem{
 			Name:   p.Name,

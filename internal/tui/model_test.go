@@ -15,7 +15,8 @@ func newTestModel(t *testing.T, plugins []plugin.Plugin) Model {
 	cloner := git.NewMockCloner()
 	puller := git.NewMockPuller()
 	validator := git.NewMockValidator()
-	return NewModel(cfg, plugins, cloner, puller, validator)
+	fetcher := git.NewMockFetcher()
+	return NewModel(cfg, plugins, cloner, puller, validator, fetcher)
 }
 
 func TestNewModel_InitialState(t *testing.T) {

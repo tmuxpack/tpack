@@ -3,6 +3,7 @@ package tui
 import (
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/progress"
+	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/tmux-plugins/tpm/internal/config"
 	"github.com/tmux-plugins/tpm/internal/git"
@@ -17,6 +18,7 @@ type Model struct {
 	cloner    git.Cloner
 	puller    git.Puller
 	validator git.Validator
+	fetcher   git.Fetcher
 
 	screen    Screen
 	operation Operation
@@ -38,6 +40,7 @@ type Model struct {
 	processing      bool
 	pendingItems    []pendingOp
 	progressBar     progress.Model
+	checkSpinner    spinner.Model
 }
 
 // NewModel creates a new Model from the resolved config and gathered plugins.
@@ -47,27 +50,43 @@ func NewModel(
 	cloner git.Cloner,
 	puller git.Puller,
 	validator git.Validator,
+	fetcher git.Fetcher,
 ) Model {
 	items := buildPluginItems(plugins, cfg.PluginPath, validator)
 	orphans := findOrphans(plugins, cfg.PluginPath)
 
+	s := spinner.New()
+	s.Spinner = spinner.Dot
+
 	return Model{
-		cfg:         cfg,
-		plugins:     items,
-		orphans:     orphans,
-		cloner:      cloner,
-		puller:      puller,
-		validator:   validator,
-		screen:      ScreenList,
-		operation:   OpNone,
-		selected:    make(map[int]bool),
-		progressBar: newProgress(),
+		cfg:          cfg,
+		plugins:      items,
+		orphans:      orphans,
+		cloner:       cloner,
+		puller:       puller,
+		validator:    validator,
+		fetcher:      fetcher,
+		screen:       ScreenList,
+		operation:    OpNone,
+		selected:     make(map[int]bool),
+		progressBar:  newProgress(),
+		checkSpinner: s,
 	}
 }
 
 // Init implements tea.Model.
 func (m Model) Init() tea.Cmd {
-	return nil
+	var cmds []tea.Cmd
+	for _, p := range m.plugins {
+		if p.Status == StatusChecking {
+			dir := plugin.PluginPath(p.Name, m.cfg.PluginPath)
+			cmds = append(cmds, checkPluginCmd(m.fetcher, p.Name, dir))
+		}
+	}
+	if len(cmds) > 0 {
+		cmds = append(cmds, m.checkSpinner.Tick)
+	}
+	return tea.Batch(cmds...)
 }
 
 // Update implements tea.Model.
@@ -106,6 +125,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, cmd
 
+	case pluginCheckResultMsg:
+		return m.handleCheckResult(msg)
+	case spinner.TickMsg:
+		return m.handleSpinnerTick(msg)
 	case pluginInstallResultMsg:
 		return m.handleInstallResult(msg)
 	case pluginUpdateResultMsg:
@@ -295,6 +318,44 @@ func (m Model) handleUninstallResult(msg pluginUninstallResultMsg) (tea.Model, t
 
 	cmd := m.dispatchNext()
 	return m, cmd
+}
+
+// handleSpinnerTick advances the spinner animation while checks are in progress.
+func (m Model) handleSpinnerTick(msg spinner.TickMsg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
+	m.checkSpinner, cmd = m.checkSpinner.Update(msg)
+	if !m.hasCheckingPlugins() {
+		return m, nil
+	}
+	return m, cmd
+}
+
+// handleCheckResult processes a background update check result.
+func (m Model) handleCheckResult(msg pluginCheckResultMsg) (tea.Model, tea.Cmd) {
+	for i := range m.plugins {
+		if m.plugins[i].Name == msg.Name {
+			switch {
+			case msg.Err != nil:
+				m.plugins[i].Status = StatusCheckFailed
+			case msg.Outdated:
+				m.plugins[i].Status = StatusOutdated
+			default:
+				m.plugins[i].Status = StatusInstalled
+			}
+			break
+		}
+	}
+	return m, nil
+}
+
+// hasCheckingPlugins returns true if any plugin is still being checked.
+func (m *Model) hasCheckingPlugins() bool {
+	for _, p := range m.plugins {
+		if p.Status == StatusChecking {
+			return true
+		}
+	}
+	return false
 }
 
 // returnToList transitions back to the list screen and refreshes state.

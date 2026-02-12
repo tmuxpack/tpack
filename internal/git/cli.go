@@ -67,3 +67,36 @@ func (c *CLIValidator) IsGitRepo(dir string) bool {
 	cmd.Dir = dir
 	return cmd.Run() == nil
 }
+
+// CLIFetcher fetches from the remote and checks outdated status using the git CLI.
+type CLIFetcher struct{}
+
+// NewCLIFetcher returns a new CLIFetcher.
+func NewCLIFetcher() *CLIFetcher {
+	return &CLIFetcher{}
+}
+
+func (c *CLIFetcher) Fetch(ctx context.Context, opts FetchOptions) error {
+	cmd := exec.CommandContext(ctx, "git", "fetch")
+	cmd.Dir = opts.Dir
+	cmd.Env = append(cmd.Environ(), "GIT_TERMINAL_PROMPT=0")
+	return cmd.Run()
+}
+
+func (c *CLIFetcher) IsOutdated(dir string) (bool, error) {
+	localCmd := exec.Command("git", "rev-parse", "HEAD") //nolint:noctx // fast local check
+	localCmd.Dir = dir
+	localOut, err := localCmd.Output()
+	if err != nil {
+		return false, err
+	}
+
+	remoteCmd := exec.Command("git", "rev-parse", "@{u}") //nolint:noctx // fast local check
+	remoteCmd.Dir = dir
+	remoteOut, err := remoteCmd.Output()
+	if err != nil {
+		return false, err
+	}
+
+	return strings.TrimSpace(string(localOut)) != strings.TrimSpace(string(remoteOut)), nil
+}

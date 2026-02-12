@@ -18,8 +18,9 @@ func IdealSize(
 	cloner git.Cloner,
 	puller git.Puller,
 	validator git.Validator,
+	fetcher git.Fetcher,
 ) (width, height int) {
-	m := NewModel(cfg, plugins, cloner, puller, validator)
+	m := NewModel(cfg, plugins, cloner, puller, validator, fetcher)
 	m.width = 80
 	m.viewHeight = len(m.plugins) + 10
 
@@ -48,8 +49,9 @@ func Run(
 	cloner git.Cloner,
 	puller git.Puller,
 	validator git.Validator,
+	fetcher git.Fetcher,
 ) error {
-	m := NewModel(cfg, plugins, cloner, puller, validator)
+	m := NewModel(cfg, plugins, cloner, puller, validator, fetcher)
 	p := tea.NewProgram(m, tea.WithAltScreen(), tea.WithMouseCellMotion())
 	if _, err := p.Run(); err != nil {
 		return fmt.Errorf("tui: %w", err)

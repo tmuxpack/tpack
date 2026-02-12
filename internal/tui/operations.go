@@ -36,6 +36,27 @@ type pluginUninstallResultMsg struct {
 	Message string
 }
 
+type pluginCheckResultMsg struct {
+	Name     string
+	Outdated bool
+	Err      error
+}
+
+// checkPluginCmd returns a tea.Cmd that fetches and checks if a plugin is outdated.
+func checkPluginCmd(fetcher git.Fetcher, name string, dir string) tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+
+		if err := fetcher.Fetch(ctx, git.FetchOptions{Dir: dir}); err != nil {
+			return pluginCheckResultMsg{Name: name, Err: err}
+		}
+
+		outdated, err := fetcher.IsOutdated(dir)
+		return pluginCheckResultMsg{Name: name, Outdated: outdated, Err: err}
+	}
+}
+
 // installPluginCmd returns a tea.Cmd that clones a plugin.
 func installPluginCmd(cloner git.Cloner, op pendingOp) tea.Cmd {
 	return func() tea.Msg {
@@ -202,7 +223,7 @@ func (m *Model) buildUpdateOps() []pendingOp {
 	var ops []pendingOp
 	for _, i := range indices {
 		p := m.plugins[i]
-		if p.Status == StatusInstalled {
+		if isInstalled(p.Status) {
 			ops = append(ops, pendingOp{
 				Name:   p.Name,
 				Spec:   p.Spec,
@@ -214,7 +235,7 @@ func (m *Model) buildUpdateOps() []pendingOp {
 	// If nothing selected and no cursor match, update all installed.
 	if len(ops) == 0 && !m.multiSelectActive {
 		for _, p := range m.plugins {
-			if p.Status == StatusInstalled {
+			if isInstalled(p.Status) {
 				ops = append(ops, pendingOp{
 					Name:   p.Name,
 					Spec:   p.Spec,
@@ -245,7 +266,7 @@ func (m *Model) buildUninstallOps() []pendingOp {
 	var ops []pendingOp
 	for _, i := range indices {
 		p := m.plugins[i]
-		if p.Status == StatusInstalled {
+		if isInstalled(p.Status) {
 			ops = append(ops, pendingOp{
 				Name: p.Name,
 				Spec: p.Spec,
@@ -254,6 +275,17 @@ func (m *Model) buildUninstallOps() []pendingOp {
 		}
 	}
 	return ops
+}
+
+// isInstalled returns true for any status that means the plugin is on disk.
+func isInstalled(s PluginStatus) bool {
+	switch s {
+	case StatusInstalled, StatusChecking, StatusOutdated, StatusCheckFailed:
+		return true
+	case StatusNotInstalled:
+		return false
+	}
+	return false
 }
 
 // targetIndices returns the indices to operate on: selected if any, else cursor.

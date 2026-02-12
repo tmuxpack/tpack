@@ -54,3 +54,26 @@ func NewMockValidator() *MockValidator {
 func (m *MockValidator) IsGitRepo(dir string) bool {
 	return m.Valid[dir]
 }
+
+// MockFetcher returns configurable results for testing.
+type MockFetcher struct {
+	mu       sync.Mutex
+	Calls    []FetchOptions
+	FetchErr error
+	Outdated map[string]bool
+}
+
+func NewMockFetcher() *MockFetcher {
+	return &MockFetcher{Outdated: make(map[string]bool)}
+}
+
+func (m *MockFetcher) Fetch(_ context.Context, opts FetchOptions) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.Calls = append(m.Calls, opts)
+	return m.FetchErr
+}
+
+func (m *MockFetcher) IsOutdated(dir string) (bool, error) {
+	return m.Outdated[dir], nil
+}

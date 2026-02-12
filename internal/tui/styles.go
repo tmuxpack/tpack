@@ -51,6 +51,12 @@ var (
 	StatusNotInstalledStyle = lipgloss.NewStyle().
 				Foreground(errorColor)
 
+	StatusOutdatedStyle = lipgloss.NewStyle().
+				Foreground(accentColor)
+
+	StatusCheckFailedStyle = lipgloss.NewStyle().
+				Foreground(accentColor)
+
 	SuccessStyle = lipgloss.NewStyle().
 			Foreground(secondaryColor).
 			Bold(true)

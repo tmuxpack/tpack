@@ -50,8 +50,8 @@ func TestBuildPluginItems_Installed(t *testing.T) {
 	if len(items) != 1 {
 		t.Fatalf("expected 1 item, got %d", len(items))
 	}
-	if items[0].Status != StatusInstalled {
-		t.Errorf("expected StatusInstalled, got %s", items[0].Status)
+	if items[0].Status != StatusChecking {
+		t.Errorf("expected StatusChecking, got %s", items[0].Status)
 	}
 }
 

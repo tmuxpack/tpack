@@ -41,6 +41,9 @@ type PluginStatus int
 const (
 	StatusInstalled PluginStatus = iota
 	StatusNotInstalled
+	StatusChecking
+	StatusOutdated
+	StatusCheckFailed
 )
 
 func (s PluginStatus) String() string {
@@ -49,6 +52,12 @@ func (s PluginStatus) String() string {
 		return "Installed"
 	case StatusNotInstalled:
 		return "Not Installed"
+	case StatusChecking:
+		return "Checking"
+	case StatusOutdated:
+		return "Outdated"
+	case StatusCheckFailed:
+		return "Check Failed"
 	default:
 		return "Unknown"
 	}

@@ -29,3 +29,14 @@ type Puller interface {
 type Validator interface {
 	IsGitRepo(dir string) bool
 }
+
+// FetchOptions configures a git fetch operation.
+type FetchOptions struct {
+	Dir string
+}
+
+// Fetcher fetches from the remote and checks if the local branch is behind.
+type Fetcher interface {
+	Fetch(ctx context.Context, opts FetchOptions) error
+	IsOutdated(dir string) (bool, error)
+}

@@ -32,12 +32,13 @@ func runTui(args []string) int {
 	cloner := git.NewCLICloner()
 	puller := git.NewCLIPuller()
 	validator := git.NewCLIValidator()
+	fetcher := git.NewCLIFetcher()
 
 	if popup {
-		return launchPopup(cfg, plugins, cloner, puller, validator)
+		return launchPopup(cfg, plugins, cloner, puller, validator, fetcher)
 	}
 
-	if err := tui.Run(cfg, plugins, cloner, puller, validator); err != nil {
+	if err := tui.Run(cfg, plugins, cloner, puller, validator, fetcher); err != nil {
 		fmt.Fprintln(os.Stderr, "tpm:", err)
 		return 1
 	}
@@ -50,8 +51,9 @@ func launchPopup(
 	cloner git.Cloner,
 	puller git.Puller,
 	validator git.Validator,
+	fetcher git.Fetcher,
 ) int {
-	w, h := tui.IdealSize(cfg, plugins, cloner, puller, validator)
+	w, h := tui.IdealSize(cfg, plugins, cloner, puller, validator, fetcher)
 
 	binary, err := os.Executable()
 	if err != nil {

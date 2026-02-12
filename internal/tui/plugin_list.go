@@ -13,17 +13,7 @@ func (m *Model) viewList() string {
 	b.WriteString(m.centerText(TitleStyle.Render("  TPM Plugin Manager  ")))
 	b.WriteString("\n")
 
-	// Subtitle: counts
-	installed := 0
-	notInstalled := 0
-	for _, p := range m.plugins {
-		if p.Status == StatusInstalled {
-			installed++
-		} else {
-			notInstalled++
-		}
-	}
-	subtitle := fmt.Sprintf("%d installed, %d not installed", installed, notInstalled)
+	subtitle := m.statusSummary()
 	b.WriteString(m.centerText(SubtitleStyle.Render(subtitle)))
 	b.WriteString("\n")
 
@@ -65,13 +55,7 @@ func (m *Model) viewList() string {
 				checkbox = renderCheckbox(m.selected[i]) + " "
 			}
 
-			// Status badge
-			var status string
-			if p.Status == StatusInstalled {
-				status = StatusInstalledStyle.Render("Installed")
-			} else {
-				status = StatusNotInstalledStyle.Render("Not Installed")
-			}
+			status := m.renderStatus(p.Status)
 
 			row := fmt.Sprintf("%s%s%-*s  %s", cursor, checkbox, m.nameColWidth(), p.Name, status)
 
@@ -127,7 +111,7 @@ func (m *Model) targetHasStatus() (hasNotInstalled, hasInstalled bool) {
 	indices := m.targetIndices()
 	for _, i := range indices {
 		switch m.plugins[i].Status {
-		case StatusInstalled:
+		case StatusInstalled, StatusChecking, StatusOutdated, StatusCheckFailed:
 			hasInstalled = true
 		case StatusNotInstalled:
 			hasNotInstalled = true
@@ -163,4 +147,44 @@ func calculateVisibleRange(offset, viewHeight, total int) (int, int) {
 		end = total
 	}
 	return start, end
+}
+
+// statusSummary returns the subtitle text with plugin counts.
+func (m *Model) statusSummary() string {
+	installed := 0
+	notInstalled := 0
+	outdated := 0
+	for _, p := range m.plugins {
+		switch p.Status {
+		case StatusInstalled, StatusChecking, StatusCheckFailed:
+			installed++
+		case StatusNotInstalled:
+			notInstalled++
+		case StatusOutdated:
+			outdated++
+		}
+	}
+	s := fmt.Sprintf("%d installed, %d not installed", installed, notInstalled)
+	if outdated > 0 {
+		s += fmt.Sprintf(", %d outdated", outdated)
+	}
+	return s
+}
+
+// renderStatus returns the styled status text for a plugin.
+func (m *Model) renderStatus(s PluginStatus) string {
+	switch s {
+	case StatusInstalled:
+		return StatusInstalledStyle.Render("Installed")
+	case StatusNotInstalled:
+		return StatusNotInstalledStyle.Render("Not Installed")
+	case StatusChecking:
+		return StatusInstalledStyle.Render("Installed") + " " + m.checkSpinner.View()
+	case StatusOutdated:
+		return StatusOutdatedStyle.Render("Outdated")
+	case StatusCheckFailed:
+		return StatusInstalledStyle.Render("Installed") + " " + StatusCheckFailedStyle.Render("⚠")
+	default:
+		return ""
+	}
 }
