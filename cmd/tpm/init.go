@@ -23,8 +23,8 @@ func runInit() int {
 	}
 	current := tmux.ParseVersionDigits(verStr)
 	if !tmux.IsVersionSupported(current, config.SupportedTmuxVersion) {
-		msg := fmt.Sprintf("Error, Tmux version unsupported! Please install Tmux version 1.9 or greater!")
-		runner.DisplayMessage(msg)
+		msg := "Error, Tmux version unsupported! Please install Tmux version 1.9 or greater!"
+		_ = runner.DisplayMessage(msg)
 		return 1
 	}
 
@@ -36,7 +36,7 @@ func runInit() int {
 	}
 
 	// Set TPM path in tmux environment.
-	runner.SetEnvironment(config.TPMEnvVar, cfg.PluginPath)
+	_ = runner.SetEnvironment(config.TPMEnvVar, cfg.PluginPath)
 
 	// Bind keys.
 	bindKeys(runner, cfg)
@@ -62,9 +62,9 @@ func bindKeys(runner tmux.Runner, cfg *config.Config) {
 	// Find the Go binary path for self-referencing.
 	binary := findBinary()
 
-	runner.BindKey(cfg.InstallKey, binary+" install --tmux-echo")
-	runner.BindKey(cfg.UpdateKey, binary+" update --tmux-echo")
-	runner.BindKey(cfg.CleanKey, binary+" clean --tmux-echo")
+	_ = runner.BindKey(cfg.InstallKey, binary+" install --tmux-echo")
+	_ = runner.BindKey(cfg.UpdateKey, binary+" update --tmux-echo")
+	_ = runner.BindKey(cfg.CleanKey, binary+" clean --tmux-echo")
 }
 
 // findBinary returns the absolute path to the tpm-go binary.

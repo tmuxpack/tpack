@@ -23,7 +23,7 @@ func runClean(args []string) int {
 	output := newOutput(tmuxEcho, runner)
 
 	if tmuxEcho {
-		runner.SourceFile(cfg.TmuxConf)
+		_ = runner.SourceFile(cfg.TmuxConf)
 	}
 
 	cloner := git.NewCLICloner()
@@ -40,7 +40,7 @@ func runClean(args []string) int {
 	mgr.Clean(plugins)
 
 	if tmuxEcho {
-		runner.SourceFile(cfg.TmuxConf)
+		_ = runner.SourceFile(cfg.TmuxConf)
 		output.EndMessage()
 	}
 

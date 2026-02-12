@@ -27,7 +27,7 @@ func runInstall(args []string) int {
 
 	if tmuxEcho {
 		// Reload tmux environment before install.
-		runner.SourceFile(cfg.TmuxConf)
+		_ = runner.SourceFile(cfg.TmuxConf)
 	}
 
 	cloner := git.NewCLICloner()
@@ -47,7 +47,7 @@ func runInstall(args []string) int {
 
 	if tmuxEcho {
 		// Reload tmux environment after install.
-		runner.SourceFile(cfg.TmuxConf)
+		_ = runner.SourceFile(cfg.TmuxConf)
 		output.EndMessage()
 	}
 

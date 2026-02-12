@@ -19,12 +19,12 @@ func NewTmuxOutput(runner tmux.Runner) *TmuxOutput {
 }
 
 func (t *TmuxOutput) Ok(msg string) {
-	t.runner.RunShell("echo '" + escapeQuotes(msg) + "'")
+	_ = t.runner.RunShell("echo '" + escapeQuotes(msg) + "'")
 }
 
 func (t *TmuxOutput) Err(msg string) {
 	t.failed.Store(true)
-	t.runner.RunShell("echo '" + escapeQuotes(msg) + "'")
+	_ = t.runner.RunShell("echo '" + escapeQuotes(msg) + "'")
 }
 
 func (t *TmuxOutput) EndMessage() {

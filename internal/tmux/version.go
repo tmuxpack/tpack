@@ -19,7 +19,7 @@ func ParseVersionDigits(s string) int {
 	return result
 }
 
-// IsVersionSupported returns true if current >= min.
-func IsVersionSupported(current, min int) bool {
-	return current >= min
+// IsVersionSupported returns true if current >= minimum.
+func IsVersionSupported(current, minimum int) bool {
+	return current >= minimum
 }

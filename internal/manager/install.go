@@ -15,8 +15,8 @@ func (m *Manager) verifyPathPermissions() {
 		m.output.Err(m.pluginPath + " is not writable!")
 		return
 	}
-	f.Close()
-	os.Remove(f.Name())
+	_ = f.Close()
+	_ = os.Remove(f.Name())
 }
 
 func (m *Manager) installPlugin(ctx context.Context, p plugin.Plugin) {

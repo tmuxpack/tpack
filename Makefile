@@ -2,7 +2,7 @@ VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev
 LDFLAGS := -ldflags "-X main.version=$(VERSION)"
 BINARY := tpm-go
 
-.PHONY: build test test-unit test-integration test-e2e vet lint clean-build
+.PHONY: build test test-unit test-integration test-e2e vet lint lint-fix coverage clean-build setup-hooks
 
 build:
 	go build $(LDFLAGS) -o dist/$(BINARY) ./cmd/tpm
@@ -26,8 +26,19 @@ test-all: test-unit test-integration test-e2e
 vet:
 	go vet ./...
 
-lint: vet
-	@if command -v staticcheck >/dev/null 2>&1; then staticcheck ./...; fi
+lint:
+	@command -v golangci-lint >/dev/null 2>&1 || { \
+		echo "golangci-lint not found. Installing..."; \
+		go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest; \
+	}
+	golangci-lint run
+
+lint-fix:
+	@command -v golangci-lint >/dev/null 2>&1 || { \
+		echo "golangci-lint not found. Installing..."; \
+		go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest; \
+	}
+	golangci-lint run --fix
 
 coverage:
 	go test -coverprofile=coverage.out ./internal/...
@@ -35,3 +46,6 @@ coverage:
 
 clean-build:
 	rm -rf dist/ coverage.out
+
+setup-hooks:
+	git config core.hooksPath .githooks

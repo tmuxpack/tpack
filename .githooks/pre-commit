@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Run golangci-lint on staged Go files.
+# Skip if no Go files are staged.
+STAGED_GO_FILES=$(git diff --cached --name-only --diff-filter=ACM -- '*.go' || true)
+if [ -z "$STAGED_GO_FILES" ]; then
+    exit 0
+fi
+
+if ! command -v golangci-lint >/dev/null 2>&1; then
+    echo "golangci-lint not found. Install it or run: go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest"
+    exit 1
+fi
+
+echo "Running golangci-lint..."
+golangci-lint run --new-from-rev=HEAD

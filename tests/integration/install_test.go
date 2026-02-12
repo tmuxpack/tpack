@@ -153,15 +153,15 @@ set -g @plugin "user/repo#develop"
 // noopRunner is a tmux.Runner that returns empty values.
 type noopRunner struct{}
 
-func (n *noopRunner) ShowOption(string) (string, error)          { return "", nil }
-func (n *noopRunner) ShowEnvironment(string) (string, error)     { return "", nil }
-func (n *noopRunner) SetEnvironment(string, string) error        { return nil }
-func (n *noopRunner) BindKey(string, string) error               { return nil }
-func (n *noopRunner) SourceFile(string) error                    { return nil }
-func (n *noopRunner) DisplayMessage(string) error                { return nil }
-func (n *noopRunner) RunShell(string) error                      { return nil }
-func (n *noopRunner) CommandPrompt(string, string) error         { return nil }
-func (n *noopRunner) Version() (string, error)                   { return "tmux 3.4", nil }
-func (n *noopRunner) StartServer() error                         { return nil }
-func (n *noopRunner) ShowWindowOption(string) (string, error)    { return "", nil }
-func (n *noopRunner) SetOption(string, string) error             { return nil }
+func (n *noopRunner) ShowOption(string) (string, error)       { return "", nil }
+func (n *noopRunner) ShowEnvironment(string) (string, error)  { return "", nil }
+func (n *noopRunner) SetEnvironment(string, string) error     { return nil }
+func (n *noopRunner) BindKey(string, string) error            { return nil }
+func (n *noopRunner) SourceFile(string) error                 { return nil }
+func (n *noopRunner) DisplayMessage(string) error             { return nil }
+func (n *noopRunner) RunShell(string) error                   { return nil }
+func (n *noopRunner) CommandPrompt(string, string) error      { return nil }
+func (n *noopRunner) Version() (string, error)                { return "tmux 3.4", nil }
+func (n *noopRunner) StartServer() error                      { return nil }
+func (n *noopRunner) ShowWindowOption(string) (string, error) { return "", nil }
+func (n *noopRunner) SetOption(string, string) error          { return nil }

@@ -40,6 +40,9 @@ linters:
       check-blank: false
       exclude-functions:
         - (io.Closer).Close
+        - (*os.File).Close
+        - fmt.Fprintln
+        - fmt.Fprintf
 
     govet:
       enable-all: true
@@ -68,7 +71,7 @@ linters:
         - name: var-naming
           disabled: false
         - name: exported
-          disabled: false
+          disabled: true  # Interface implementations are self-documenting
 
     gosec:
       excludes:

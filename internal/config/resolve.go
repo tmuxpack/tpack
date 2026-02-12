@@ -11,7 +11,7 @@ import (
 type Option func(*resolveOpts)
 
 type resolveOpts struct {
-	fs  FS
+	fs   FS
 	home string
 	xdg  string // XDG_CONFIG_HOME override
 }

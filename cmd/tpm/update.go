@@ -62,7 +62,7 @@ func runUpdate(args []string) int {
 	mgr.Update(ctx, plugins, names)
 
 	if tmuxEcho {
-		runner.SourceFile(cfg.TmuxConf)
+		_ = runner.SourceFile(cfg.TmuxConf)
 		output.EndMessage()
 	}
 
@@ -74,7 +74,7 @@ func runUpdatePrompt(runner *tmux.RealRunner, cfg *config.Config) {
 	output := ui.NewTmuxOutput(runner)
 
 	// Reload environment.
-	runner.SourceFile(cfg.TmuxConf)
+	_ = runner.SourceFile(cfg.TmuxConf)
 
 	plugins, _ := config.GatherPlugins(runner, config.RealFS{}, cfg.TmuxConf, os.Getenv("HOME"))
 
@@ -99,6 +99,6 @@ func runUpdatePrompt(runner *tmux.RealRunner, cfg *config.Config) {
 	output.Ok("- ENTER - cancels")
 
 	binary := findBinary()
-	runner.CommandPrompt("plugin update:",
+	_ = runner.CommandPrompt("plugin update:",
 		"send-keys C-c; run-shell '"+binary+" update --tmux-echo %1'")
 }

@@ -15,7 +15,7 @@ func NewRealRunner() *RealRunner {
 }
 
 func (r *RealRunner) runTmux(args ...string) (string, error) {
-	cmd := exec.Command("tmux", args...)
+	cmd := exec.Command("tmux", args...) //nolint:noctx // tmux calls are local, no cancellation needed
 	out, err := cmd.CombinedOutput()
 	return strings.TrimSpace(string(out)), err
 }

@@ -27,7 +27,7 @@ func (m *Manager) updateAll(ctx context.Context, plugins []plugin.Plugin) {
 	wg.Wait()
 }
 
-func (m *Manager) updateSpecific(ctx context.Context, plugins []plugin.Plugin, names []string) {
+func (m *Manager) updateSpecific(ctx context.Context, names []string) {
 	var wg sync.WaitGroup
 	for _, name := range names {
 		pName := plugin.PluginName(name)

@@ -29,9 +29,9 @@ func (m *Manager) sourcePlugin(dir string) {
 	}
 
 	for _, file := range matches {
-		cmd := exec.Command(file)
+		cmd := exec.Command(file) //nolint:gosec,noctx // plugin files are user-configured, no cancellation needed
 		cmd.Stdout = io.Discard
 		cmd.Stderr = io.Discard
-		cmd.Run()
+		_ = cmd.Run()
 	}
 }
