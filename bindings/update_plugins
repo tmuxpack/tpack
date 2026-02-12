@@ -8,6 +8,15 @@
 # - starts a prompt to enter the name of the plugin that will be updated
 
 CURRENT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+source "$CURRENT_DIR/../lib/find_binary.sh"
+
+TPM_GO="$(_find_tpm_go "$CURRENT_DIR/..")"
+
+if [ -n "$TPM_GO" ]; then
+	exec "$TPM_GO" update --tmux-echo "$@"
+fi
+
+# Fallback to original bash implementation
 SCRIPTS_DIR="$CURRENT_DIR/../scripts"
 HELPERS_DIR="$SCRIPTS_DIR/helpers"
 

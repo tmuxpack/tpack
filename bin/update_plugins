@@ -6,6 +6,23 @@
 # but does not need to be started in order to run this script.
 
 CURRENT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+source "$CURRENT_DIR/../lib/find_binary.sh"
+
+TPM_GO="$(_find_tpm_go "$CURRENT_DIR/..")"
+
+if [ -n "$TPM_GO" ]; then
+	if [ $# -eq 0 ]; then
+		PROGRAM_NAME="$0"
+		echo "usage:"
+		echo "  $PROGRAM_NAME all                   update all plugins"
+		echo "  $PROGRAM_NAME tmux-foo              update plugin 'tmux-foo'"
+		echo "  $PROGRAM_NAME tmux-bar tmux-baz     update multiple plugins"
+		exit 1
+	fi
+	exec "$TPM_GO" update "$@"
+fi
+
+# Fallback to original bash implementation
 SCRIPTS_DIR="$CURRENT_DIR/../scripts"
 PROGRAM_NAME="$0"
 
@@ -21,4 +38,3 @@ main() {
 	"$SCRIPTS_DIR/update_plugin.sh" --shell-echo "$*" # has correct exit code
 }
 main "$*"
-

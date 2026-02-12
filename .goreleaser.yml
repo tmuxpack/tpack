@@ -1,0 +1,57 @@
+version: 2
+
+builds:
+  - id: tpm-go
+    main: ./cmd/tpm
+    binary: tpm-go
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - freebsd
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X main.version={{.Version}}
+
+archives:
+  - id: tpm-go
+    builds:
+      - tpm-go
+    name_template: "tpm-go_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    format: tar.gz
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^ci:"
+
+brews:
+  - repository:
+      owner: tmux-plugins
+      name: homebrew-tpm
+    name: tpm
+    homepage: https://github.com/tmux-plugins/tpm
+    description: Tmux Plugin Manager
+    install: |
+      bin.install "tpm-go"
+
+nfpms:
+  - id: tpm-go
+    package_name: tpm
+    homepage: https://github.com/tmux-plugins/tpm
+    description: Tmux Plugin Manager
+    maintainer: tmux-plugins
+    license: MIT
+    formats:
+      - deb
+      - rpm
+    bindir: /usr/bin
