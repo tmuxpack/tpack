@@ -1,6 +1,9 @@
 # Shared helper for detecting the tpm-go binary.
 # Usage: source this file, then call _find_tpm_go <tpm_root_dir>
 
+FIND_BINARY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+source "$FIND_BINARY_DIR/download_binary.sh"
+
 _find_tpm_go() {
 	local root_dir="$1"
 
@@ -16,4 +19,7 @@ _find_tpm_go() {
 		command -v tpm-go
 		return
 	fi
+
+	# Auto-download from GitHub Releases
+	_download_tpm_go "$root_dir"
 }
