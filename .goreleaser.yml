@@ -34,24 +34,29 @@ changelog:
       - "^test:"
       - "^ci:"
 
-brews:
-  - repository:
-      owner: tmux-plugins
-      name: homebrew-tpm
+release:
+  github:
+    owner: AntoineGS
     name: tpm
-    homepage: https://github.com/tmux-plugins/tpm
-    description: Tmux Plugin Manager
-    install: |
-      bin.install "tpm-go"
 
-nfpms:
-  - id: tpm-go
-    package_name: tpm
-    homepage: https://github.com/tmux-plugins/tpm
-    description: Tmux Plugin Manager
-    maintainer: tmux-plugins
-    license: MIT
-    formats:
-      - deb
-      - rpm
-    bindir: /usr/bin
+# brews:
+#   - repository:
+#       owner: tmux-plugins
+#       name: homebrew-tpm
+#     name: tpm
+#     homepage: https://github.com/tmux-plugins/tpm
+#     description: Tmux Plugin Manager
+#     install: |
+#       bin.install "tpm-go"
+
+# nfpms:
+#   - id: tpm-go
+#     package_name: tpm
+#     homepage: https://github.com/tmux-plugins/tpm
+#     description: Tmux Plugin Manager
+#     maintainer: tmux-plugins
+#     license: MIT
+#     formats:
+#       - deb
+#       - rpm
+#     bindir: /usr/bin
