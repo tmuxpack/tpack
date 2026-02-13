@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sync"
 	"sync/atomic"
 )
 
 // ShellOutput writes messages to stdout/stderr for CLI usage.
 type ShellOutput struct {
+	mu     sync.Mutex
 	stdout io.Writer
 	stderr io.Writer
 	failed atomic.Bool
@@ -31,11 +33,15 @@ func NewShellOutputWithWriters(stdout, stderr io.Writer) *ShellOutput {
 }
 
 func (s *ShellOutput) Ok(msg string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	fmt.Fprintln(s.stdout, msg)
 }
 
 func (s *ShellOutput) Err(msg string) {
 	s.failed.Store(true)
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	fmt.Fprintln(s.stderr, msg)
 }
 

@@ -39,7 +39,7 @@ func TestBuildPluginItems_Installed(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Mark as valid git repo.
-	validator.Valid[dir+"/"] = true
+	validator.Valid[dir] = true
 
 	plugins := []plugin.Plugin{
 		{Name: "tmux-sensible", Spec: "tmux-plugins/tmux-sensible"},

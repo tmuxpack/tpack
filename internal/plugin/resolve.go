@@ -18,16 +18,14 @@ func PluginName(raw string) string {
 
 // PluginPath returns the directory path for a plugin.
 func PluginPath(raw, tpmPath string) string {
-	name := PluginName(raw)
-	if !strings.HasSuffix(tpmPath, "/") {
-		tpmPath += "/"
-	}
-	return tpmPath + name + "/"
+	return filepath.Join(tpmPath, PluginName(raw))
 }
 
 // NormalizeURL converts a shorthand plugin name to a full git URL.
 // If the input already has a protocol prefix or contains ":", it is returned as-is.
 // Otherwise it is expanded to a GitHub HTTPS URL.
+// The "git::@" prefix is a credential placeholder used by the original TPM
+// to prevent git from prompting for authentication on non-existent repos.
 func NormalizeURL(shorthand string) string {
 	if strings.Contains(shorthand, "://") || strings.Contains(shorthand, "git@") {
 		return shorthand

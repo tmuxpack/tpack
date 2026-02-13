@@ -30,13 +30,7 @@ type Validator interface {
 	IsGitRepo(dir string) bool
 }
 
-// FetchOptions configures a git fetch operation.
-type FetchOptions struct {
-	Dir string
-}
-
-// Fetcher fetches from the remote and checks if the local branch is behind.
+// Fetcher checks whether a local repository is behind its remote.
 type Fetcher interface {
-	Fetch(ctx context.Context, opts FetchOptions) error
-	IsOutdated(dir string) (bool, error)
+	IsOutdated(ctx context.Context, dir string) (bool, error)
 }

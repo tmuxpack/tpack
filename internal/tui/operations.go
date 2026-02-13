@@ -3,7 +3,6 @@ package tui
 import (
 	"context"
 	"os"
-	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/tmux-plugins/tpm/internal/git"
@@ -42,17 +41,13 @@ type pluginCheckResultMsg struct {
 	Err      error
 }
 
-// checkPluginCmd returns a tea.Cmd that fetches and checks if a plugin is outdated.
+// checkPluginCmd returns a tea.Cmd that checks if a plugin is outdated.
 func checkPluginCmd(fetcher git.Fetcher, name string, dir string) tea.Cmd {
 	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), CheckTimeout)
 		defer cancel()
 
-		if err := fetcher.Fetch(ctx, git.FetchOptions{Dir: dir}); err != nil {
-			return pluginCheckResultMsg{Name: name, Err: err}
-		}
-
-		outdated, err := fetcher.IsOutdated(dir)
+		outdated, err := fetcher.IsOutdated(ctx, dir)
 		return pluginCheckResultMsg{Name: name, Outdated: outdated, Err: err}
 	}
 }
@@ -60,24 +55,14 @@ func checkPluginCmd(fetcher git.Fetcher, name string, dir string) tea.Cmd {
 // installPluginCmd returns a tea.Cmd that clones a plugin.
 func installPluginCmd(cloner git.Cloner, op pendingOp) tea.Cmd {
 	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		ctx, cancel := context.WithTimeout(context.Background(), CloneTimeout)
 		defer cancel()
 
-		// Try raw URL first.
-		err := cloner.Clone(ctx, git.CloneOptions{
+		err := git.CloneWithFallback(ctx, cloner, git.CloneOptions{
 			URL:    op.Spec,
 			Dir:    op.Path,
 			Branch: op.Branch,
-		})
-		if err != nil {
-			// Fallback: expand to GitHub URL.
-			ghURL := plugin.NormalizeURL(op.Spec)
-			err = cloner.Clone(ctx, git.CloneOptions{
-				URL:    ghURL,
-				Dir:    op.Path,
-				Branch: op.Branch,
-			})
-		}
+		}, plugin.NormalizeURL)
 
 		if err != nil {
 			return pluginInstallResultMsg{
@@ -97,7 +82,7 @@ func installPluginCmd(cloner git.Cloner, op pendingOp) tea.Cmd {
 // updatePluginCmd returns a tea.Cmd that pulls updates for a plugin.
 func updatePluginCmd(puller git.Puller, op pendingOp) tea.Cmd {
 	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		ctx, cancel := context.WithTimeout(context.Background(), UpdateTimeout)
 		defer cancel()
 
 		output, err := puller.Pull(ctx, git.PullOptions{Dir: op.Path})
@@ -118,57 +103,31 @@ func updatePluginCmd(puller git.Puller, op pendingOp) tea.Cmd {
 	}
 }
 
+// removeDirCmd removes a directory and returns a message via msgFactory.
+func removeDirCmd(op pendingOp, msgFactory func(name string, success bool, message string) tea.Msg) tea.Cmd {
+	return func() tea.Msg {
+		if err := os.RemoveAll(op.Path); err != nil {
+			return msgFactory(op.Name, false, err.Error())
+		}
+		if _, statErr := os.Stat(op.Path); statErr == nil {
+			return msgFactory(op.Name, false, "directory still exists after removal")
+		}
+		return msgFactory(op.Name, true, "removed successfully")
+	}
+}
+
 // cleanPluginCmd returns a tea.Cmd that removes an orphaned directory.
 func cleanPluginCmd(op pendingOp) tea.Cmd {
-	return func() tea.Msg {
-		err := os.RemoveAll(op.Path)
-		if err != nil {
-			return pluginCleanResultMsg{
-				Name:    op.Name,
-				Success: false,
-				Message: err.Error(),
-			}
-		}
-		// Verify removal.
-		if _, statErr := os.Stat(op.Path); statErr == nil {
-			return pluginCleanResultMsg{
-				Name:    op.Name,
-				Success: false,
-				Message: "directory still exists after removal",
-			}
-		}
-		return pluginCleanResultMsg{
-			Name:    op.Name,
-			Success: true,
-			Message: "removed successfully",
-		}
-	}
+	return removeDirCmd(op, func(name string, success bool, message string) tea.Msg {
+		return pluginCleanResultMsg{Name: name, Success: success, Message: message}
+	})
 }
 
 // uninstallPluginCmd returns a tea.Cmd that removes an installed plugin directory.
 func uninstallPluginCmd(op pendingOp) tea.Cmd {
-	return func() tea.Msg {
-		err := os.RemoveAll(op.Path)
-		if err != nil {
-			return pluginUninstallResultMsg{
-				Name:    op.Name,
-				Success: false,
-				Message: err.Error(),
-			}
-		}
-		if _, statErr := os.Stat(op.Path); statErr == nil {
-			return pluginUninstallResultMsg{
-				Name:    op.Name,
-				Success: false,
-				Message: "directory still exists after removal",
-			}
-		}
-		return pluginUninstallResultMsg{
-			Name:    op.Name,
-			Success: true,
-			Message: "uninstalled successfully",
-		}
-	}
+	return removeDirCmd(op, func(name string, success bool, message string) tea.Msg {
+		return pluginUninstallResultMsg{Name: name, Success: success, Message: message}
+	})
 }
 
 // dispatchNext dispatches the next pending operation, or nil if queue is empty.
@@ -187,9 +146,9 @@ func (m *Model) dispatchNext() tea.Cmd {
 		m.processing = false
 		return nil
 	case OpInstall:
-		return installPluginCmd(m.cloner, op)
+		return installPluginCmd(m.deps.Cloner, op)
 	case OpUpdate:
-		return updatePluginCmd(m.puller, op)
+		return updatePluginCmd(m.deps.Puller, op)
 	case OpClean:
 		return cleanPluginCmd(op)
 	case OpUninstall:
@@ -223,7 +182,7 @@ func (m *Model) buildUpdateOps() []pendingOp {
 	var ops []pendingOp
 	for _, i := range indices {
 		p := m.plugins[i]
-		if isInstalled(p.Status) {
+		if p.Status.IsInstalled() {
 			ops = append(ops, pendingOp{
 				Name:   p.Name,
 				Spec:   p.Spec,
@@ -235,7 +194,7 @@ func (m *Model) buildUpdateOps() []pendingOp {
 	// If nothing selected and no cursor match, update all installed.
 	if len(ops) == 0 && !m.multiSelectActive {
 		for _, p := range m.plugins {
-			if isInstalled(p.Status) {
+			if p.Status.IsInstalled() {
 				ops = append(ops, pendingOp{
 					Name:   p.Name,
 					Spec:   p.Spec,
@@ -266,7 +225,7 @@ func (m *Model) buildUninstallOps() []pendingOp {
 	var ops []pendingOp
 	for _, i := range indices {
 		p := m.plugins[i]
-		if isInstalled(p.Status) {
+		if p.Status.IsInstalled() {
 			ops = append(ops, pendingOp{
 				Name: p.Name,
 				Spec: p.Spec,
@@ -275,17 +234,6 @@ func (m *Model) buildUninstallOps() []pendingOp {
 		}
 	}
 	return ops
-}
-
-// isInstalled returns true for any status that means the plugin is on disk.
-func isInstalled(s PluginStatus) bool {
-	switch s {
-	case StatusInstalled, StatusChecking, StatusOutdated, StatusCheckFailed:
-		return true
-	case StatusNotInstalled:
-		return false
-	}
-	return false
 }
 
 // targetIndices returns the indices to operate on: selected if any, else cursor.

@@ -12,11 +12,13 @@ import (
 func newTestModel(t *testing.T, plugins []plugin.Plugin) Model {
 	t.Helper()
 	cfg := &config.Config{PluginPath: t.TempDir() + "/"}
-	cloner := git.NewMockCloner()
-	puller := git.NewMockPuller()
-	validator := git.NewMockValidator()
-	fetcher := git.NewMockFetcher()
-	return NewModel(cfg, plugins, cloner, puller, validator, fetcher)
+	deps := Deps{
+		Cloner:    git.NewMockCloner(),
+		Puller:    git.NewMockPuller(),
+		Validator: git.NewMockValidator(),
+		Fetcher:   git.NewMockFetcher(),
+	}
+	return NewModel(cfg, plugins, deps)
 }
 
 func TestNewModel_InitialState(t *testing.T) {

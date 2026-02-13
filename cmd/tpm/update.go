@@ -7,8 +7,6 @@ import (
 	"time"
 
 	"github.com/tmux-plugins/tpm/internal/config"
-	"github.com/tmux-plugins/tpm/internal/git"
-	"github.com/tmux-plugins/tpm/internal/manager"
 	"github.com/tmux-plugins/tpm/internal/tmux"
 	"github.com/tmux-plugins/tpm/internal/ui"
 )
@@ -46,10 +44,7 @@ func runUpdate(args []string) int {
 
 	output := newOutput(tmuxEcho, runner)
 
-	cloner := git.NewCLICloner()
-	puller := git.NewCLIPuller()
-	validator := git.NewCLIValidator()
-	mgr := manager.New(cfg.PluginPath, cloner, puller, validator, output)
+	mgr := newManagerDeps(cfg.PluginPath, output)
 
 	plugins, err := config.GatherPlugins(runner, config.RealFS{}, cfg.TmuxConf, os.Getenv("HOME"))
 	if err != nil {
@@ -76,15 +71,16 @@ func runUpdatePrompt(runner *tmux.RealRunner, cfg *config.Config) {
 	// Reload environment.
 	_ = runner.SourceFile(cfg.TmuxConf)
 
-	plugins, _ := config.GatherPlugins(runner, config.RealFS{}, cfg.TmuxConf, os.Getenv("HOME"))
+	plugins, err := config.GatherPlugins(runner, config.RealFS{}, cfg.TmuxConf, os.Getenv("HOME"))
+	if err != nil {
+		output.Err("Failed to gather plugins: " + err.Error())
+		return
+	}
 
 	output.Ok("Installed plugins:")
 	output.Ok("")
 
-	cloner := git.NewCLICloner()
-	puller := git.NewCLIPuller()
-	validator := git.NewCLIValidator()
-	mgr := manager.New(cfg.PluginPath, cloner, puller, validator, output)
+	mgr := newManagerDeps(cfg.PluginPath, output)
 
 	for _, p := range plugins {
 		if mgr.IsPluginInstalled(p.Name) {

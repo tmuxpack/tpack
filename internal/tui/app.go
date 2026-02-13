@@ -7,20 +7,12 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/tmux-plugins/tpm/internal/config"
-	"github.com/tmux-plugins/tpm/internal/git"
 	"github.com/tmux-plugins/tpm/internal/plugin"
 )
 
 // IdealSize computes the ideal popup dimensions by rendering the actual view.
-func IdealSize(
-	cfg *config.Config,
-	plugins []plugin.Plugin,
-	cloner git.Cloner,
-	puller git.Puller,
-	validator git.Validator,
-	fetcher git.Fetcher,
-) (width, height int) {
-	m := NewModel(cfg, plugins, cloner, puller, validator, fetcher)
+func IdealSize(cfg *config.Config, plugins []plugin.Plugin, deps Deps) (width, height int) {
+	m := NewModel(cfg, plugins, deps)
 	m.width = 80
 	m.viewHeight = len(m.plugins) + 10
 
@@ -43,15 +35,8 @@ func IdealSize(
 }
 
 // Run launches the TUI with the given configuration and plugins.
-func Run(
-	cfg *config.Config,
-	plugins []plugin.Plugin,
-	cloner git.Cloner,
-	puller git.Puller,
-	validator git.Validator,
-	fetcher git.Fetcher,
-) error {
-	m := NewModel(cfg, plugins, cloner, puller, validator, fetcher)
+func Run(cfg *config.Config, plugins []plugin.Plugin, deps Deps) error {
+	m := NewModel(cfg, plugins, deps)
 	p := tea.NewProgram(m, tea.WithAltScreen(), tea.WithMouseCellMotion())
 	if _, err := p.Run(); err != nil {
 		return fmt.Errorf("tui: %w", err)

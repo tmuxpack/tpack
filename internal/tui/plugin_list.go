@@ -110,10 +110,9 @@ func (m *Model) viewList() string {
 func (m *Model) targetHasStatus() (hasNotInstalled, hasInstalled bool) {
 	indices := m.targetIndices()
 	for _, i := range indices {
-		switch m.plugins[i].Status {
-		case StatusInstalled, StatusChecking, StatusOutdated, StatusCheckFailed:
+		if m.plugins[i].Status.IsInstalled() {
 			hasInstalled = true
-		case StatusNotInstalled:
+		} else {
 			hasNotInstalled = true
 		}
 		if hasInstalled && hasNotInstalled {

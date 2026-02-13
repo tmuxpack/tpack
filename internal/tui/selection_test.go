@@ -39,8 +39,8 @@ func TestToggleSelection_Multiple(t *testing.T) {
 
 	m.toggleSelection(0)
 	m.toggleSelection(2)
-	if m.selectionCount() != 2 {
-		t.Errorf("expected 2 selected, got %d", m.selectionCount())
+	if len(m.selected) != 2 {
+		t.Errorf("expected 2 selected, got %d", len(m.selected))
 	}
 
 	indices := m.selectedIndices()
@@ -62,18 +62,18 @@ func TestClearSelection(t *testing.T) {
 	m.toggleSelection(1)
 	m.clearSelection()
 
-	if m.selectionCount() != 0 {
-		t.Errorf("expected 0 selected after clear, got %d", m.selectionCount())
+	if len(m.selected) != 0 {
+		t.Errorf("expected 0 selected after clear, got %d", len(m.selected))
 	}
 	if m.multiSelectActive {
 		t.Error("expected multiSelectActive to be false after clear")
 	}
 }
 
-func TestSelectionCount_Empty(t *testing.T) {
+func TestSelection_Empty(t *testing.T) {
 	m := newTestModel(t, nil)
-	if m.selectionCount() != 0 {
-		t.Errorf("expected 0 selected, got %d", m.selectionCount())
+	if len(m.selected) != 0 {
+		t.Errorf("expected 0 selected, got %d", len(m.selected))
 	}
 }
 

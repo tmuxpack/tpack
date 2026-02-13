@@ -32,61 +32,64 @@ func TestCLIValidatorImplementsValidator(t *testing.T) {
 	var _ git.Validator = (*git.CLIValidator)(nil)
 }
 
-func TestFallbackClonerPrimarySucceeds(t *testing.T) {
-	primary := git.NewMockCloner()
-	secondary := git.NewMockCloner()
-	fallback := git.NewFallbackCloner(primary, secondary)
+func TestCloneWithFallbackPrimarySucceeds(t *testing.T) {
+	cloner := git.NewMockCloner()
+	normalize := func(url string) string { return url + "-normalized" }
 
-	err := fallback.Clone(context.Background(), git.CloneOptions{
+	err := git.CloneWithFallback(context.Background(), cloner, git.CloneOptions{
 		URL: "https://example.com/repo.git",
 		Dir: "/tmp/test",
-	})
+	}, normalize)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(primary.Calls) != 1 {
-		t.Errorf("expected 1 primary call, got %d", len(primary.Calls))
-	}
-	if len(secondary.Calls) != 0 {
-		t.Errorf("expected 0 secondary calls, got %d", len(secondary.Calls))
+	if len(cloner.Calls) != 1 {
+		t.Errorf("expected 1 call, got %d", len(cloner.Calls))
 	}
 }
 
-func TestFallbackClonerFallsBack(t *testing.T) {
-	primary := git.NewMockCloner()
-	primary.Err = errors.New("primary failed")
-	secondary := git.NewMockCloner()
-	fallback := git.NewFallbackCloner(primary, secondary)
+func TestCloneWithFallbackFallsBack(t *testing.T) {
+	callCount := 0
+	cloner := &failOnceMockCloner{count: &callCount}
+	normalize := func(url string) string { return url + "-normalized" }
 
-	err := fallback.Clone(context.Background(), git.CloneOptions{
+	err := git.CloneWithFallback(context.Background(), cloner, git.CloneOptions{
 		URL: "https://example.com/repo.git",
 		Dir: "/tmp/test",
-	})
+	}, normalize)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(primary.Calls) != 1 {
-		t.Errorf("expected 1 primary call, got %d", len(primary.Calls))
-	}
-	if len(secondary.Calls) != 1 {
-		t.Errorf("expected 1 secondary call, got %d", len(secondary.Calls))
+	if callCount != 2 {
+		t.Errorf("expected 2 calls, got %d", callCount)
 	}
 }
 
-func TestFallbackClonerBothFail(t *testing.T) {
-	primary := git.NewMockCloner()
-	primary.Err = errors.New("primary failed")
-	secondary := git.NewMockCloner()
-	secondary.Err = errors.New("secondary failed")
-	fallback := git.NewFallbackCloner(primary, secondary)
+func TestCloneWithFallbackBothFail(t *testing.T) {
+	cloner := git.NewMockCloner()
+	cloner.Err = errors.New("clone failed")
+	normalize := func(url string) string { return url + "-normalized" }
 
-	err := fallback.Clone(context.Background(), git.CloneOptions{
+	err := git.CloneWithFallback(context.Background(), cloner, git.CloneOptions{
 		URL: "https://example.com/repo.git",
 		Dir: "/tmp/test",
-	})
+	}, normalize)
 	if err == nil {
-		t.Fatal("expected error when both fail")
+		t.Fatal("expected error when both attempts fail")
 	}
+}
+
+// failOnceMockCloner fails the first call and succeeds on subsequent calls.
+type failOnceMockCloner struct {
+	count *int
+}
+
+func (c *failOnceMockCloner) Clone(_ context.Context, _ git.CloneOptions) error {
+	*c.count++
+	if *c.count <= 1 {
+		return errors.New("first attempt failed")
+	}
+	return nil
 }
 
 func TestMockValidator(t *testing.T) {

@@ -28,8 +28,8 @@ func TestUpdateAll(t *testing.T) {
 	puller := git.NewMockPuller()
 	puller.Output = "Already up to date."
 	validator := git.NewMockValidator()
-	validator.Valid[filepath.Join(pluginDir, "tmux-sensible")+"/"] = true
-	validator.Valid[filepath.Join(pluginDir, "tmux-yank")+"/"] = true
+	validator.Valid[filepath.Join(pluginDir, "tmux-sensible")] = true
+	validator.Valid[filepath.Join(pluginDir, "tmux-yank")] = true
 	output := ui.NewMockOutput()
 
 	mgr := manager.New(pluginDir, cloner, puller, validator, output)
@@ -64,7 +64,7 @@ func TestUpdateSpecific(t *testing.T) {
 	puller := git.NewMockPuller()
 	puller.Output = "Already up to date."
 	validator := git.NewMockValidator()
-	validator.Valid[filepath.Join(pluginDir, "tmux-sensible")+"/"] = true
+	validator.Valid[filepath.Join(pluginDir, "tmux-sensible")] = true
 	output := ui.NewMockOutput()
 
 	mgr := manager.New(pluginDir, cloner, puller, validator, output)
@@ -112,7 +112,7 @@ func TestUpdateOutputIndented(t *testing.T) {
 	puller := git.NewMockPuller()
 	puller.Output = "Updating abc123..def456\nFast-forward"
 	validator := git.NewMockValidator()
-	validator.Valid[filepath.Join(pluginDir, "tmux-sensible")+"/"] = true
+	validator.Valid[filepath.Join(pluginDir, "tmux-sensible")] = true
 	output := ui.NewMockOutput()
 
 	mgr := manager.New(pluginDir, cloner, puller, validator, output)
@@ -139,7 +139,7 @@ func TestUpdatePullFails(t *testing.T) {
 	puller.Err = errors.New("pull failed")
 	puller.Output = "error: something went wrong"
 	validator := git.NewMockValidator()
-	validator.Valid[filepath.Join(pluginDir, "tmux-sensible")+"/"] = true
+	validator.Valid[filepath.Join(pluginDir, "tmux-sensible")] = true
 	output := ui.NewMockOutput()
 
 	mgr := manager.New(pluginDir, cloner, puller, validator, output)

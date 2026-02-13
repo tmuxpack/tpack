@@ -47,9 +47,15 @@ func (o *resolveOpts) xdgConfigHome() string {
 //  2. XDG config home (~/.config/tmux/tmux.conf exists → ~/.config/tmux/plugins/)
 //  3. Default (~/.tmux/plugins/)
 func Resolve(runner tmux.Runner, opts ...Option) (*Config, error) {
+	home := os.Getenv("HOME")
+	if home == "" {
+		if h, err := os.UserHomeDir(); err == nil {
+			home = h
+		}
+	}
 	o := &resolveOpts{
 		fs:   RealFS{},
-		home: os.Getenv("HOME"),
+		home: home,
 	}
 	for _, opt := range opts {
 		opt(o)

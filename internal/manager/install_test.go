@@ -65,7 +65,7 @@ func TestInstallAlreadyInstalled(t *testing.T) {
 	cloner := git.NewMockCloner()
 	puller := git.NewMockPuller()
 	validator := git.NewMockValidator()
-	validator.Valid[pluginPath+"/"] = true
+	validator.Valid[pluginPath] = true
 	output := ui.NewMockOutput()
 
 	mgr := manager.New(pluginDir, cloner, puller, validator, output)

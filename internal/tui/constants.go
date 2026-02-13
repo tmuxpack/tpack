@@ -1,5 +1,7 @@
 package tui
 
+import "time"
+
 // Screen represents the current TUI screen.
 type Screen int
 
@@ -31,8 +33,9 @@ func (o Operation) String() string {
 		return "Clean"
 	case OpUninstall:
 		return "Uninstall"
+	default:
+		return ""
 	}
-	return ""
 }
 
 // PluginStatus represents the install status of a plugin.
@@ -45,6 +48,17 @@ const (
 	StatusOutdated
 	StatusCheckFailed
 )
+
+// IsInstalled returns true for any status that means the plugin is on disk.
+func (s PluginStatus) IsInstalled() bool {
+	switch s {
+	case StatusInstalled, StatusChecking, StatusOutdated, StatusCheckFailed:
+		return true
+	case StatusNotInstalled:
+		return false
+	}
+	return false
+}
 
 func (s PluginStatus) String() string {
 	switch s {
@@ -93,5 +107,27 @@ type pendingOp struct {
 	Path   string
 }
 
-// ScrollOffsetMargin is the number of rows to keep visible above/below cursor.
-const ScrollOffsetMargin = 3
+// Layout constants.
+const (
+	// ScrollOffsetMargin is the number of rows to keep visible above/below cursor.
+	ScrollOffsetMargin = 3
+	// TitleReservedLines is the number of lines reserved for title/subtitle/header/help/padding.
+	TitleReservedLines = 12
+	// MinViewHeight is the minimum number of visible plugin rows.
+	MinViewHeight = 3
+	// ProgressBarMaxWidth is the maximum width of the progress bar.
+	ProgressBarMaxWidth = 60
+	// ProgressBarPadding is the horizontal padding subtracted from terminal width for the progress bar.
+	ProgressBarPadding = 8
+	// BaseStylePadding is the total horizontal padding applied by BaseStyle (2 left + 2 right).
+	BaseStylePadding = 4
+	// StatusColWidth is the approximate width of the status column.
+	StatusColWidth = 14
+)
+
+// Timeout constants.
+const (
+	CheckTimeout  = 15 * time.Second
+	CloneTimeout  = 2 * time.Minute
+	UpdateTimeout = 2 * time.Minute
+)

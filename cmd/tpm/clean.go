@@ -5,8 +5,6 @@ import (
 	"os"
 
 	"github.com/tmux-plugins/tpm/internal/config"
-	"github.com/tmux-plugins/tpm/internal/git"
-	"github.com/tmux-plugins/tpm/internal/manager"
 	"github.com/tmux-plugins/tpm/internal/tmux"
 )
 
@@ -26,10 +24,7 @@ func runClean(args []string) int {
 		_ = runner.SourceFile(cfg.TmuxConf)
 	}
 
-	cloner := git.NewCLICloner()
-	puller := git.NewCLIPuller()
-	validator := git.NewCLIValidator()
-	mgr := manager.New(cfg.PluginPath, cloner, puller, validator, output)
+	mgr := newManagerDeps(cfg.PluginPath, output)
 
 	plugins, err := config.GatherPlugins(runner, config.RealFS{}, cfg.TmuxConf, os.Getenv("HOME"))
 	if err != nil {

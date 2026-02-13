@@ -2,6 +2,7 @@ package ui
 
 import (
 	"strings"
+	"sync"
 	"sync/atomic"
 
 	"github.com/tmux-plugins/tpm/internal/tmux"
@@ -9,6 +10,7 @@ import (
 
 // TmuxOutput displays messages via tmux run-shell echo.
 type TmuxOutput struct {
+	mu     sync.Mutex
 	runner tmux.Runner
 	failed atomic.Bool
 }
@@ -19,11 +21,15 @@ func NewTmuxOutput(runner tmux.Runner) *TmuxOutput {
 }
 
 func (t *TmuxOutput) Ok(msg string) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	_ = t.runner.RunShell("echo '" + escapeQuotes(msg) + "'")
 }
 
 func (t *TmuxOutput) Err(msg string) {
 	t.failed.Store(true)
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	_ = t.runner.RunShell("echo '" + escapeQuotes(msg) + "'")
 }
 

@@ -31,21 +31,11 @@ func (m *Manager) installPlugin(ctx context.Context, p plugin.Plugin) {
 
 	dir := plugin.PluginPath(name, m.pluginPath)
 
-	// Two-step clone: try raw URL first, then GitHub-expanded URL.
-	err := m.cloner.Clone(ctx, git.CloneOptions{
+	err := git.CloneWithFallback(ctx, m.cloner, git.CloneOptions{
 		URL:    p.Spec,
 		Dir:    dir,
 		Branch: p.Branch,
-	})
-	if err != nil {
-		// Fallback: expand to GitHub URL.
-		ghURL := plugin.NormalizeURL(p.Spec)
-		err = m.cloner.Clone(ctx, git.CloneOptions{
-			URL:    ghURL,
-			Dir:    dir,
-			Branch: p.Branch,
-		})
-	}
+	}, plugin.NormalizeURL)
 
 	if err != nil {
 		m.output.Err("  \"" + name + "\" download fail")

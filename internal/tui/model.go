@@ -10,15 +10,20 @@ import (
 	"github.com/tmux-plugins/tpm/internal/plugin"
 )
 
+// Deps groups the external dependencies needed by the TUI.
+type Deps struct {
+	Cloner    git.Cloner
+	Puller    git.Puller
+	Validator git.Validator
+	Fetcher   git.Fetcher
+}
+
 // Model is the main Bubble Tea model for the TUI.
 type Model struct {
-	cfg       *config.Config
-	plugins   []PluginItem
-	orphans   []OrphanItem
-	cloner    git.Cloner
-	puller    git.Puller
-	validator git.Validator
-	fetcher   git.Fetcher
+	cfg     *config.Config
+	plugins []PluginItem
+	orphans []OrphanItem
+	deps    Deps
 
 	screen    Screen
 	operation Operation
@@ -44,15 +49,8 @@ type Model struct {
 }
 
 // NewModel creates a new Model from the resolved config and gathered plugins.
-func NewModel(
-	cfg *config.Config,
-	plugins []plugin.Plugin,
-	cloner git.Cloner,
-	puller git.Puller,
-	validator git.Validator,
-	fetcher git.Fetcher,
-) Model {
-	items := buildPluginItems(plugins, cfg.PluginPath, validator)
+func NewModel(cfg *config.Config, plugins []plugin.Plugin, deps Deps) Model {
+	items := buildPluginItems(plugins, cfg.PluginPath, deps.Validator)
 	orphans := findOrphans(plugins, cfg.PluginPath)
 
 	s := spinner.New()
@@ -62,10 +60,7 @@ func NewModel(
 		cfg:          cfg,
 		plugins:      items,
 		orphans:      orphans,
-		cloner:       cloner,
-		puller:       puller,
-		validator:    validator,
-		fetcher:      fetcher,
+		deps:         deps,
 		screen:       ScreenList,
 		operation:    OpNone,
 		selected:     make(map[int]bool),
@@ -80,7 +75,7 @@ func (m Model) Init() tea.Cmd {
 	for _, p := range m.plugins {
 		if p.Status == StatusChecking {
 			dir := plugin.PluginPath(p.Name, m.cfg.PluginPath)
-			cmds = append(cmds, checkPluginCmd(m.fetcher, p.Name, dir))
+			cmds = append(cmds, checkPluginCmd(m.deps.Fetcher, p.Name, dir))
 		}
 	}
 	if len(cmds) > 0 {
@@ -90,20 +85,21 @@ func (m Model) Init() tea.Cmd {
 }
 
 // Update implements tea.Model.
+// Bubble Tea requires a value receiver so the framework can manage immutable
+// model snapshots; mutations are returned as new values via (tea.Model, tea.Cmd).
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
 		m.sizeKnown = true
-		// Reserve lines for title, subtitle, header, help, padding.
-		m.viewHeight = msg.Height - 12
-		if m.viewHeight < 3 {
-			m.viewHeight = 3
+		m.viewHeight = msg.Height - TitleReservedLines
+		if m.viewHeight < MinViewHeight {
+			m.viewHeight = MinViewHeight
 		}
-		m.progressBar.Width = msg.Width - 8
-		if m.progressBar.Width > 60 {
-			m.progressBar.Width = 60
+		m.progressBar.Width = msg.Width - ProgressBarPadding
+		if m.progressBar.Width > ProgressBarMaxWidth {
+			m.progressBar.Width = ProgressBarMaxWidth
 		}
 		return m, nil
 
@@ -253,26 +249,31 @@ func (m Model) startOperation(op Operation) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-// handleInstallResult processes an install result and dispatches next.
-func (m Model) handleInstallResult(msg pluginInstallResultMsg) (tea.Model, tea.Cmd) {
+// handleOpResult is the shared logic for processing an operation result:
+// increment counter, append result, optionally update plugin status, dispatch next.
+func (m *Model) handleOpResult(name string, success bool, message string, updateStatus func()) tea.Cmd {
 	m.completedItems++
 	m.results = append(m.results, ResultItem{
-		Name:    msg.Name,
-		Success: msg.Success,
-		Message: msg.Message,
+		Name:    name,
+		Success: success,
+		Message: message,
 	})
+	if success && updateStatus != nil {
+		updateStatus()
+	}
+	return m.dispatchNext()
+}
 
-	// Update plugin status if successful.
-	if msg.Success {
+// handleInstallResult processes an install result and dispatches next.
+func (m Model) handleInstallResult(msg pluginInstallResultMsg) (tea.Model, tea.Cmd) {
+	cmd := m.handleOpResult(msg.Name, msg.Success, msg.Message, func() {
 		for i := range m.plugins {
 			if m.plugins[i].Name == msg.Name {
 				m.plugins[i].Status = StatusInstalled
 				break
 			}
 		}
-	}
-
-	cmd := m.dispatchNext()
+	})
 	return m, cmd
 }
 
@@ -280,43 +281,26 @@ func (m Model) handleInstallResult(msg pluginInstallResultMsg) (tea.Model, tea.C
 func (m Model) handleUpdateResult(msg pluginUpdateResultMsg) (tea.Model, tea.Cmd) {
 	m.completedItems++
 	m.results = append(m.results, ResultItem(msg))
-
 	cmd := m.dispatchNext()
 	return m, cmd
 }
 
 // handleCleanResult processes a clean result and dispatches next.
 func (m Model) handleCleanResult(msg pluginCleanResultMsg) (tea.Model, tea.Cmd) {
-	m.completedItems++
-	m.results = append(m.results, ResultItem{
-		Name:    msg.Name,
-		Success: msg.Success,
-		Message: msg.Message,
-	})
-
-	cmd := m.dispatchNext()
+	cmd := m.handleOpResult(msg.Name, msg.Success, msg.Message, nil)
 	return m, cmd
 }
 
 // handleUninstallResult processes an uninstall result and dispatches next.
 func (m Model) handleUninstallResult(msg pluginUninstallResultMsg) (tea.Model, tea.Cmd) {
-	m.completedItems++
-	m.results = append(m.results, ResultItem{
-		Name:    msg.Name,
-		Success: msg.Success,
-		Message: msg.Message,
-	})
-
-	if msg.Success {
+	cmd := m.handleOpResult(msg.Name, msg.Success, msg.Message, func() {
 		for i := range m.plugins {
 			if m.plugins[i].Name == msg.Name {
 				m.plugins[i].Status = StatusNotInstalled
 				break
 			}
 		}
-	}
-
-	cmd := m.dispatchNext()
+	})
 	return m, cmd
 }
 

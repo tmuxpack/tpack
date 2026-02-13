@@ -16,11 +16,6 @@ func (m *Model) clearSelection() {
 	m.multiSelectActive = false
 }
 
-// selectionCount returns how many items are selected.
-func (m *Model) selectionCount() int {
-	return len(m.selected)
-}
-
 // selectedIndices returns the indices of selected items in order.
 func (m *Model) selectedIndices() []int {
 	indices := make([]int, 0, len(m.selected))

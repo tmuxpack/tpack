@@ -30,10 +30,7 @@ func runInstall(args []string) int {
 		_ = runner.SourceFile(cfg.TmuxConf)
 	}
 
-	cloner := git.NewCLICloner()
-	puller := git.NewCLIPuller()
-	validator := git.NewCLIValidator()
-	mgr := manager.New(cfg.PluginPath, cloner, puller, validator, output)
+	mgr := newManagerDeps(cfg.PluginPath, output)
 
 	plugins, err := config.GatherPlugins(runner, config.RealFS{}, cfg.TmuxConf, os.Getenv("HOME"))
 	if err != nil {
@@ -75,4 +72,13 @@ func exitCode(output ui.Output) int {
 		return 1
 	}
 	return 0
+}
+
+func newManagerDeps(pluginPath string, output ui.Output) *manager.Manager {
+	return manager.New(pluginPath,
+		git.NewCLICloner(),
+		git.NewCLIPuller(),
+		git.NewCLIValidator(),
+		output,
+	)
 }

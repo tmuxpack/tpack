@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 
 	"github.com/tmux-plugins/tpm/internal/config"
 	"github.com/tmux-plugins/tpm/internal/git"
@@ -29,16 +30,18 @@ func runTui(args []string) int {
 		return 1
 	}
 
-	cloner := git.NewCLICloner()
-	puller := git.NewCLIPuller()
-	validator := git.NewCLIValidator()
-	fetcher := git.NewCLIFetcher()
-
-	if popup {
-		return launchPopup(cfg, plugins, cloner, puller, validator, fetcher)
+	deps := tui.Deps{
+		Cloner:    git.NewCLICloner(),
+		Puller:    git.NewCLIPuller(),
+		Validator: git.NewCLIValidator(),
+		Fetcher:   git.NewCLIFetcher(),
 	}
 
-	if err := tui.Run(cfg, plugins, cloner, puller, validator, fetcher); err != nil {
+	if popup {
+		return launchPopup(cfg, plugins, deps)
+	}
+
+	if err := tui.Run(cfg, plugins, deps); err != nil {
 		fmt.Fprintln(os.Stderr, "tpm:", err)
 		return 1
 	}
@@ -48,12 +51,9 @@ func runTui(args []string) int {
 func launchPopup(
 	cfg *config.Config,
 	plugins []plugin.Plugin,
-	cloner git.Cloner,
-	puller git.Puller,
-	validator git.Validator,
-	fetcher git.Fetcher,
+	deps tui.Deps,
 ) int {
-	w, h := tui.IdealSize(cfg, plugins, cloner, puller, validator, fetcher)
+	w, h := tui.IdealSize(cfg, plugins, deps)
 
 	binary, err := os.Executable()
 	if err != nil {
@@ -61,11 +61,12 @@ func launchPopup(
 		return 1
 	}
 
+	// Shell-quote the binary path: display-popup -E evaluates via shell.
 	cmd := exec.CommandContext(context.Background(), "tmux", "display-popup",
 		"-E",
 		"-w", fmt.Sprintf("%d", w),
 		"-h", fmt.Sprintf("%d", h),
-		binary+" tui",
+		shellescape(binary)+" tui",
 	)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
@@ -75,4 +76,9 @@ func launchPopup(
 		return 1
 	}
 	return 0
+}
+
+// shellescape wraps s in single quotes, escaping any embedded single quotes.
+func shellescape(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", "'\\''") + "'"
 }

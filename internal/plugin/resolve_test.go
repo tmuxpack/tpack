@@ -35,9 +35,9 @@ func TestPluginPath(t *testing.T) {
 		tpmPath string
 		want    string
 	}{
-		{"user/repo", "/home/user/.tmux/plugins/", "/home/user/.tmux/plugins/repo/"},
-		{"user/repo", "/home/user/.tmux/plugins", "/home/user/.tmux/plugins/repo/"},
-		{"https://github.com/user/plugin.git", "/opt/plugins/", "/opt/plugins/plugin/"},
+		{"user/repo", "/home/user/.tmux/plugins/", "/home/user/.tmux/plugins/repo"},
+		{"user/repo", "/home/user/.tmux/plugins", "/home/user/.tmux/plugins/repo"},
+		{"https://github.com/user/plugin.git", "/opt/plugins/", "/opt/plugins/plugin"},
 	}
 
 	for _, tt := range tests {
