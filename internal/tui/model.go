@@ -475,6 +475,14 @@ func (m Model) handleInstallResult(msg pluginInstallResultMsg) (tea.Model, tea.C
 func (m Model) handleUpdateResult(msg pluginUpdateResultMsg) (tea.Model, tea.Cmd) {
 	m.completedItems++
 	m.results = append(m.results, ResultItem(msg))
+	if msg.Success {
+		for i := range m.plugins {
+			if m.plugins[i].Name == msg.Name {
+				m.plugins[i].Status = StatusInstalled
+				break
+			}
+		}
+	}
 	cmd := m.dispatchNext()
 	return m, cmd
 }
