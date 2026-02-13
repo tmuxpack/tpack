@@ -34,17 +34,19 @@ var (
 )
 
 func init() {
-	applyColors(primaryColor, secondaryColor, accentColor, textColor)
+	applyColors(primaryColor, secondaryColor, accentColor, errorColor, mutedColor, textColor)
 }
 
 // applyColors rebuilds every style variable from the given colors.
 // It is called once at init time with defaults and may be called again
 // after theme detection to apply tmux-derived colors.
 // Must be called before the TUI event loop starts; not safe for concurrent use.
-func applyColors(primary, secondary, accent, text lipgloss.Color) {
+func applyColors(primary, secondary, accent, errC, muted, text lipgloss.Color) {
 	primaryColor = primary
 	secondaryColor = secondary
 	accentColor = accent
+	errorColor = errC
+	mutedColor = muted
 	textColor = text
 
 	BaseStyle = lipgloss.NewStyle().

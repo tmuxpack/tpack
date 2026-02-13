@@ -84,6 +84,9 @@ func Resolve(runner tmux.Runner, opts ...Option) (*Config, error) {
 	// Resolve plugin path.
 	cfg.PluginPath = resolvePluginPath(runner, o)
 
+	// Load color overrides from config file.
+	cfg.Colors = loadFileConfig(o)
+
 	return cfg, nil
 }
 

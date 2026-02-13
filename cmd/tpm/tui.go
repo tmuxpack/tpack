@@ -35,6 +35,7 @@ func runTui(args []string) int {
 		fmt.Fprintln(os.Stderr, "tpm: config error:", err)
 		return 1
 	}
+	tui.ApplyConfigColors(cfg.Colors)
 
 	plugins, err := config.GatherPlugins(runner, config.RealFS{}, cfg.TmuxConf, os.Getenv("HOME"))
 	if err != nil {

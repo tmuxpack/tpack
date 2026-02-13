@@ -33,4 +33,6 @@ type Config struct {
 	UpdateKey string
 	// CleanKey is the keybinding for plugin cleanup.
 	CleanKey string
+	// Colors holds optional color overrides from the config file.
+	Colors ColorConfig
 }
