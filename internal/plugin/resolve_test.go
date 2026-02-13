@@ -77,11 +77,15 @@ func TestParseSpec(t *testing.T) {
 		name   string
 		spec   string
 		branch string
+		alias  string
 	}{
-		{"user/repo", "repo", "user/repo", ""},
-		{"user/repo#develop", "repo", "user/repo", "develop"},
-		{"https://github.com/user/plugin.git#main", "plugin", "https://github.com/user/plugin.git", "main"},
-		{"simple", "simple", "simple", ""},
+		{"user/repo", "repo", "user/repo", "", ""},
+		{"user/repo#develop", "repo", "user/repo", "develop", ""},
+		{"https://github.com/user/plugin.git#main", "plugin", "https://github.com/user/plugin.git", "main", ""},
+		{"simple", "simple", "simple", "", ""},
+		{"catppuccin/tmux alias=catppuccin-tmux", "catppuccin-tmux", "catppuccin/tmux", "", "catppuccin-tmux"},
+		{"catppuccin/tmux alias=catppuccin-tmux#v2", "catppuccin-tmux", "catppuccin/tmux", "v2", "catppuccin-tmux"},
+		{"https://github.com/user/repo.git alias=my-plugin", "my-plugin", "https://github.com/user/repo.git", "", "my-plugin"},
 	}
 
 	for _, tt := range tests {
@@ -95,6 +99,9 @@ func TestParseSpec(t *testing.T) {
 			}
 			if p.Branch != tt.branch {
 				t.Errorf("Branch = %q, want %q", p.Branch, tt.branch)
+			}
+			if p.Alias != tt.alias {
+				t.Errorf("Alias = %q, want %q", p.Alias, tt.alias)
 			}
 		})
 	}

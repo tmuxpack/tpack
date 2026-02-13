@@ -35,17 +35,60 @@ func NormalizeURL(shorthand string) string {
 
 // ParseSpec parses a raw plugin specification into a Plugin struct.
 // The format is "spec#branch" where #branch is optional.
+// An optional "alias=X" token may follow the spec to override the plugin name.
+// The branch suffix "#branch" may appear on either the spec or the alias token.
+// Example: "catppuccin/tmux alias=catppuccin-tmux#v2"
 func ParseSpec(raw string) Plugin {
 	raw = strings.TrimSpace(raw)
-	var branch string
-	if idx := strings.LastIndex(raw, "#"); idx > 0 {
-		branch = raw[idx+1:]
-		raw = raw[:idx]
+	original := raw
+
+	// Split on whitespace to find tokens.
+	tokens := strings.Fields(raw)
+
+	// Extract alias token if present.
+	var alias string
+	var specTokens []string
+	for _, tok := range tokens {
+		if strings.HasPrefix(tok, "alias=") {
+			alias = strings.TrimPrefix(tok, "alias=")
+		} else {
+			specTokens = append(specTokens, tok)
+		}
 	}
+
+	// The remaining token is the spec (e.g. "catppuccin/tmux#v2").
+	spec := ""
+	if len(specTokens) > 0 {
+		spec = specTokens[0]
+	}
+
+	// Extract branch from spec if present.
+	var branch string
+	if idx := strings.LastIndex(spec, "#"); idx > 0 {
+		branch = spec[idx+1:]
+		spec = spec[:idx]
+	}
+
+	// Extract branch from alias if present (and no branch found on spec).
+	if alias != "" {
+		if idx := strings.LastIndex(alias, "#"); idx > 0 {
+			if branch == "" {
+				branch = alias[idx+1:]
+			}
+			alias = alias[:idx]
+		}
+	}
+
+	name := PluginName(spec)
+	if alias != "" {
+		name = alias
+	}
+
 	return Plugin{
-		Raw:    raw,
-		Name:   PluginName(raw),
-		Spec:   raw,
+		Raw:    original,
+		Name:   name,
+		Spec:   spec,
 		Branch: branch,
+		Alias:  alias,
 	}
 }

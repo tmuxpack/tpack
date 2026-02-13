@@ -12,4 +12,7 @@ type Plugin struct {
 	Spec string
 	// Branch is the optional branch to check out (empty string = default).
 	Branch string
+	// Alias is the optional alias from "alias=X" in config.
+	// When set, Name is derived from Alias instead of the spec.
+	Alias string
 }
