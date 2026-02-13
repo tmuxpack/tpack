@@ -14,72 +14,105 @@ var (
 	mutedColor     = lipgloss.Color("#6B7280")
 	textColor      = lipgloss.Color("#F3F4F6")
 
+	BaseStyle               lipgloss.Style
+	TitleStyle              lipgloss.Style
+	SubtitleStyle           lipgloss.Style
+	MutedTextStyle          lipgloss.Style
+	SelectedRowStyle        lipgloss.Style
+	CheckedStyle            lipgloss.Style
+	UncheckedStyle          lipgloss.Style
+	StatusInstalledStyle    lipgloss.Style
+	StatusNotInstalledStyle lipgloss.Style
+	StatusOutdatedStyle     lipgloss.Style
+	StatusCheckFailedStyle  lipgloss.Style
+	SuccessStyle            lipgloss.Style
+	ErrorStyle              lipgloss.Style
+	HelpStyle               lipgloss.Style
+	HelpKeyStyle            lipgloss.Style
+	ProgressStyle           lipgloss.Style
+	OrphanStyle             lipgloss.Style
+)
+
+func init() {
+	applyColors(primaryColor, secondaryColor, accentColor, textColor)
+}
+
+// applyColors rebuilds every style variable from the given colors.
+// It is called once at init time with defaults and may be called again
+// after theme detection to apply tmux-derived colors.
+// Must be called before the TUI event loop starts; not safe for concurrent use.
+func applyColors(primary, secondary, accent, text lipgloss.Color) {
+	primaryColor = primary
+	secondaryColor = secondary
+	accentColor = accent
+	textColor = text
+
 	BaseStyle = lipgloss.NewStyle().
-			Padding(1, 2)
+		Padding(1, 2)
 
 	TitleStyle = lipgloss.NewStyle().
-			Bold(true).
-			Foreground(primaryColor).
-			MarginBottom(1).
-			Padding(0, 1).
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(primaryColor)
+		Bold(true).
+		Foreground(primaryColor).
+		MarginBottom(1).
+		Padding(0, 1).
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(primaryColor)
 
 	SubtitleStyle = lipgloss.NewStyle().
-			Foreground(mutedColor).
-			Italic(true).
-			MarginBottom(1)
+		Foreground(mutedColor).
+		Italic(true).
+		MarginBottom(1)
 
 	MutedTextStyle = lipgloss.NewStyle().
-			Foreground(mutedColor)
+		Foreground(mutedColor)
 
 	SelectedRowStyle = lipgloss.NewStyle().
-				Foreground(textColor).
-				Background(primaryColor).
-				Bold(true)
+		Foreground(textColor).
+		Background(primaryColor).
+		Bold(true)
 
 	CheckedStyle = lipgloss.NewStyle().
-			Foreground(secondaryColor).
-			Bold(true)
+		Foreground(secondaryColor).
+		Bold(true)
 
 	UncheckedStyle = lipgloss.NewStyle().
-			Foreground(mutedColor)
+		Foreground(mutedColor)
 
 	StatusInstalledStyle = lipgloss.NewStyle().
-				Foreground(secondaryColor)
+		Foreground(secondaryColor)
 
 	StatusNotInstalledStyle = lipgloss.NewStyle().
-				Foreground(errorColor)
+		Foreground(errorColor)
 
 	StatusOutdatedStyle = lipgloss.NewStyle().
-				Foreground(accentColor)
+		Foreground(accentColor)
 
 	StatusCheckFailedStyle = lipgloss.NewStyle().
-				Foreground(accentColor)
+		Foreground(accentColor)
 
 	SuccessStyle = lipgloss.NewStyle().
-			Foreground(secondaryColor).
-			Bold(true)
+		Foreground(secondaryColor).
+		Bold(true)
 
 	ErrorStyle = lipgloss.NewStyle().
-			Foreground(errorColor).
-			Bold(true)
+		Foreground(errorColor).
+		Bold(true)
 
 	HelpStyle = lipgloss.NewStyle().
-			Foreground(mutedColor).
-			MarginTop(1)
+		Foreground(mutedColor).
+		MarginTop(1)
 
 	HelpKeyStyle = lipgloss.NewStyle().
-			Foreground(accentColor).
-			Bold(true)
+		Foreground(accentColor).
+		Bold(true)
 
 	ProgressStyle = lipgloss.NewStyle().
-			Foreground(secondaryColor)
+		Foreground(secondaryColor)
 
 	OrphanStyle = lipgloss.NewStyle().
-			Foreground(accentColor).
-			Italic(true)
-)
+		Foreground(accentColor).
+		Italic(true)
+}
 
 func renderHelp(width int, keys ...string) string {
 	if width < 20 {

@@ -29,6 +29,7 @@ func runTui(args []string) int {
 	}
 
 	runner := tmux.NewRealRunner()
+	tui.ApplyTheme(runner)
 	cfg, err := config.Resolve(runner)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "tpm: config error:", err)
