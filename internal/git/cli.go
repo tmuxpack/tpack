@@ -36,8 +36,17 @@ func NewCLIPuller() *CLIPuller {
 }
 
 func (c *CLIPuller) Pull(ctx context.Context, opts PullOptions) (string, error) {
+	if opts.Branch != "" {
+		checkoutCmd := exec.CommandContext(ctx, "git", "checkout", opts.Branch)
+		checkoutCmd.Dir = opts.Dir
+		checkoutCmd.Env = append(checkoutCmd.Environ(), "GIT_TERMINAL_PROMPT=0")
+		if err := checkoutCmd.Run(); err != nil {
+			return "", fmt.Errorf("git checkout %s: %w", opts.Branch, err)
+		}
+	}
+
 	// git pull
-	pullCmd := exec.CommandContext(ctx, "git", "pull")
+	pullCmd := exec.CommandContext(ctx, "git", "pull", "--rebase=false")
 	pullCmd.Dir = opts.Dir
 	pullCmd.Env = append(pullCmd.Environ(), "GIT_TERMINAL_PROMPT=0")
 	out, err := pullCmd.CombinedOutput()
