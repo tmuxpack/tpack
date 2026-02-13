@@ -11,8 +11,8 @@ import (
 )
 
 // IdealSize computes the ideal popup dimensions by rendering the actual view.
-func IdealSize(cfg *config.Config, plugins []plugin.Plugin, deps Deps) (width, height int) {
-	m := NewModel(cfg, plugins, deps)
+func IdealSize(cfg *config.Config, plugins []plugin.Plugin, deps Deps, opts ...ModelOption) (width, height int) {
+	m := NewModel(cfg, plugins, deps, opts...)
 	m.width = 80
 	m.viewHeight = len(m.plugins) + 10
 
@@ -35,8 +35,8 @@ func IdealSize(cfg *config.Config, plugins []plugin.Plugin, deps Deps) (width, h
 }
 
 // Run launches the TUI with the given configuration and plugins.
-func Run(cfg *config.Config, plugins []plugin.Plugin, deps Deps) error {
-	m := NewModel(cfg, plugins, deps)
+func Run(cfg *config.Config, plugins []plugin.Plugin, deps Deps, opts ...ModelOption) error {
+	m := NewModel(cfg, plugins, deps, opts...)
 	p := tea.NewProgram(m, tea.WithAltScreen(), tea.WithMouseCellMotion())
 	if _, err := p.Run(); err != nil {
 		return fmt.Errorf("tui: %w", err)

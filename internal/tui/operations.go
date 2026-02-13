@@ -7,6 +7,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/tmux-plugins/tpm/internal/git"
 	"github.com/tmux-plugins/tpm/internal/plugin"
+	"github.com/tmux-plugins/tpm/internal/tmux"
 )
 
 // Messages returned by operations.
@@ -130,10 +131,21 @@ func uninstallPluginCmd(op pendingOp) tea.Cmd {
 	})
 }
 
+// sourceCmd returns a tea.Cmd that sources a tmux configuration file.
+func sourceCmd(runner tmux.Runner, confPath string) tea.Cmd {
+	return func() tea.Msg {
+		err := runner.SourceFile(confPath)
+		return sourceCompleteMsg{Err: err}
+	}
+}
+
 // dispatchNext dispatches the next pending operation, or nil if queue is empty.
 func (m *Model) dispatchNext() tea.Cmd {
 	if len(m.pendingItems) == 0 {
 		m.processing = false
+		if m.deps.Runner != nil && (m.operation == OpInstall || m.operation == OpUpdate) {
+			return sourceCmd(m.deps.Runner, m.cfg.TmuxConf)
+		}
 		return nil
 	}
 
@@ -230,6 +242,38 @@ func (m *Model) buildUninstallOps() []pendingOp {
 				Name: p.Name,
 				Spec: p.Spec,
 				Path: plugin.PluginPath(p.Name, m.cfg.PluginPath),
+			})
+		}
+	}
+	return ops
+}
+
+// buildAutoInstallOps builds pending operations for all non-installed plugins.
+func (m *Model) buildAutoInstallOps() []pendingOp {
+	var ops []pendingOp
+	for _, p := range m.plugins {
+		if p.Status == StatusNotInstalled {
+			ops = append(ops, pendingOp{
+				Name:   p.Name,
+				Spec:   p.Spec,
+				Branch: p.Branch,
+				Path:   plugin.PluginPath(p.Name, m.cfg.PluginPath),
+			})
+		}
+	}
+	return ops
+}
+
+// buildAutoUpdateOps builds pending operations for all installed plugins.
+func (m *Model) buildAutoUpdateOps() []pendingOp {
+	var ops []pendingOp
+	for _, p := range m.plugins {
+		if p.Status.IsInstalled() {
+			ops = append(ops, pendingOp{
+				Name:   p.Name,
+				Spec:   p.Spec,
+				Branch: p.Branch,
+				Path:   plugin.PluginPath(p.Name, m.cfg.PluginPath),
 			})
 		}
 	}

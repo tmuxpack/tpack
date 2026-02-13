@@ -8,6 +8,7 @@ import (
 	"github.com/tmux-plugins/tpm/internal/config"
 	"github.com/tmux-plugins/tpm/internal/git"
 	"github.com/tmux-plugins/tpm/internal/plugin"
+	"github.com/tmux-plugins/tpm/internal/tmux"
 )
 
 // Deps groups the external dependencies needed by the TUI.
@@ -16,7 +17,22 @@ type Deps struct {
 	Puller    git.Puller
 	Validator git.Validator
 	Fetcher   git.Fetcher
+	Runner    tmux.Runner // optional, for post-op tmux sourcing
 }
+
+// ModelOption configures optional Model behavior.
+type ModelOption func(*Model)
+
+// WithAutoOp returns a ModelOption that auto-starts the given operation on init.
+func WithAutoOp(op Operation) ModelOption {
+	return func(m *Model) { m.autoOp = op }
+}
+
+// autoStartMsg is sent by Init when an auto-operation is configured.
+type autoStartMsg struct{}
+
+// sourceCompleteMsg is sent after tmux source-file completes.
+type sourceCompleteMsg struct{ Err error }
 
 // Model is the main Bubble Tea model for the TUI.
 type Model struct {
@@ -27,6 +43,7 @@ type Model struct {
 
 	screen    Screen
 	operation Operation
+	autoOp    Operation
 	cursor    int
 
 	scrollOffset int
@@ -49,14 +66,14 @@ type Model struct {
 }
 
 // NewModel creates a new Model from the resolved config and gathered plugins.
-func NewModel(cfg *config.Config, plugins []plugin.Plugin, deps Deps) Model {
+func NewModel(cfg *config.Config, plugins []plugin.Plugin, deps Deps, opts ...ModelOption) Model {
 	items := buildPluginItems(plugins, cfg.PluginPath, deps.Validator)
 	orphans := findOrphans(plugins, cfg.PluginPath)
 
 	s := spinner.New()
 	s.Spinner = spinner.Dot
 
-	return Model{
+	m := Model{
 		cfg:          cfg,
 		plugins:      items,
 		orphans:      orphans,
@@ -67,6 +84,10 @@ func NewModel(cfg *config.Config, plugins []plugin.Plugin, deps Deps) Model {
 		progressBar:  newProgress(),
 		checkSpinner: s,
 	}
+	for _, opt := range opts {
+		opt(&m)
+	}
+	return m
 }
 
 // Init implements tea.Model.
@@ -81,6 +102,9 @@ func (m Model) Init() tea.Cmd {
 	if len(cmds) > 0 {
 		cmds = append(cmds, m.checkSpinner.Tick)
 	}
+	if m.autoOp != OpNone {
+		cmds = append(cmds, func() tea.Msg { return autoStartMsg{} })
+	}
 	return tea.Batch(cmds...)
 }
 
@@ -90,29 +114,11 @@ func (m Model) Init() tea.Cmd {
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		m.width = msg.Width
-		m.height = msg.Height
-		m.sizeKnown = true
-		m.viewHeight = msg.Height - TitleReservedLines
-		if m.viewHeight < MinViewHeight {
-			m.viewHeight = MinViewHeight
-		}
-		m.progressBar.Width = msg.Width - ProgressBarPadding
-		if m.progressBar.Width > ProgressBarMaxWidth {
-			m.progressBar.Width = ProgressBarMaxWidth
-		}
+		m.handleWindowSize(msg)
 		return m, nil
 
 	case tea.KeyMsg:
-		// Force quit always works.
-		if key.Matches(msg, SharedKeys.ForceQuit) {
-			return m, tea.Quit
-		}
-
-		if m.screen == ScreenProgress {
-			return m.updateProgress(msg)
-		}
-		return m.updateList(msg)
+		return m.handleKeyMsg(msg)
 
 	case progress.FrameMsg:
 		progressModel, cmd := m.progressBar.Update(msg)
@@ -121,6 +127,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, cmd
 
+	case autoStartMsg:
+		return m.startAutoOperation()
+	case sourceCompleteMsg:
+		return m, nil
 	case pluginCheckResultMsg:
 		return m.handleCheckResult(msg)
 	case spinner.TickMsg:
@@ -136,6 +146,32 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	return m, nil
+}
+
+// handleWindowSize updates layout dimensions from a terminal resize event.
+func (m *Model) handleWindowSize(msg tea.WindowSizeMsg) {
+	m.width = msg.Width
+	m.height = msg.Height
+	m.sizeKnown = true
+	m.viewHeight = msg.Height - TitleReservedLines
+	if m.viewHeight < MinViewHeight {
+		m.viewHeight = MinViewHeight
+	}
+	m.progressBar.Width = msg.Width - ProgressBarPadding
+	if m.progressBar.Width > ProgressBarMaxWidth {
+		m.progressBar.Width = ProgressBarMaxWidth
+	}
+}
+
+// handleKeyMsg routes key events to the appropriate screen handler.
+func (m Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	if key.Matches(msg, SharedKeys.ForceQuit) {
+		return m, tea.Quit
+	}
+	if m.screen == ScreenProgress {
+		return m.updateProgress(msg)
+	}
+	return m.updateList(msg)
 }
 
 // View implements tea.Model.
@@ -207,6 +243,14 @@ func (m Model) updateProgress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
+	if m.autoOp != OpNone {
+		switch {
+		case key.Matches(msg, SharedKeys.Quit), msg.String() == "esc":
+			return m, tea.Quit
+		}
+		return m, nil
+	}
+
 	switch {
 	case key.Matches(msg, SharedKeys.Quit):
 		return m, tea.Quit
@@ -238,6 +282,38 @@ func (m Model) startOperation(op Operation) (tea.Model, tea.Cmd) {
 
 	m.screen = ScreenProgress
 	m.operation = op
+	m.pendingItems = ops
+	m.totalItems = len(ops)
+	m.completedItems = 0
+	m.results = nil
+	m.processing = true
+	m.currentItemName = ""
+
+	cmd := m.dispatchNext()
+	return m, cmd
+}
+
+// startAutoOperation transitions to the progress screen for an auto-triggered
+// operation, targeting all applicable plugins rather than the cursor/selection.
+func (m Model) startAutoOperation() (tea.Model, tea.Cmd) {
+	var ops []pendingOp
+	switch m.autoOp {
+	case OpNone, OpUninstall:
+		return m, nil
+	case OpInstall:
+		ops = m.buildAutoInstallOps()
+	case OpUpdate:
+		ops = m.buildAutoUpdateOps()
+	case OpClean:
+		ops = m.buildCleanOps()
+	}
+
+	if len(ops) == 0 {
+		return m, tea.Quit
+	}
+
+	m.screen = ScreenProgress
+	m.operation = m.autoOp
 	m.pendingItems = ops
 	m.totalItems = len(ops)
 	m.completedItems = 0

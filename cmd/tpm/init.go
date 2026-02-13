@@ -57,9 +57,9 @@ func bindKeys(runner tmux.Runner, cfg *config.Config) {
 	// Find the Go binary path for self-referencing.
 	binary := findBinary()
 
-	_ = runner.BindKey(cfg.InstallKey, binary+" install --tmux-echo", "[tpm] Install plugins")
-	_ = runner.BindKey(cfg.UpdateKey, binary+" update --tmux-echo", "[tpm] Update plugins")
-	_ = runner.BindKey(cfg.CleanKey, binary+" clean --tmux-echo", "[tpm] Clean plugins")
+	_ = runner.BindKey(cfg.InstallKey, binary+" tui --popup --install", "[tpm] Install plugins")
+	_ = runner.BindKey(cfg.UpdateKey, binary+" tui --popup --update", "[tpm] Update plugins")
+	_ = runner.BindKey(cfg.CleanKey, binary+" tui --popup --clean", "[tpm] Clean plugins")
 }
 
 // findBinary returns the absolute path to the tpm-go binary.

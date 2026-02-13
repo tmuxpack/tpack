@@ -17,6 +17,17 @@ import (
 func runTui(args []string) int {
 	popup := hasFlag(args, "--popup")
 
+	// Parse operation flags.
+	var autoOp tui.Operation
+	switch {
+	case hasFlag(args, "--install"):
+		autoOp = tui.OpInstall
+	case hasFlag(args, "--update"):
+		autoOp = tui.OpUpdate
+	case hasFlag(args, "--clean"):
+		autoOp = tui.OpClean
+	}
+
 	runner := tmux.NewRealRunner()
 	cfg, err := config.Resolve(runner)
 	if err != nil {
@@ -36,12 +47,20 @@ func runTui(args []string) int {
 		Validator: git.NewCLIValidator(),
 		Fetcher:   git.NewCLIFetcher(),
 	}
-
-	if popup {
-		return launchPopup(cfg, plugins, deps)
+	if autoOp == tui.OpInstall || autoOp == tui.OpUpdate {
+		deps.Runner = runner
 	}
 
-	if err := tui.Run(cfg, plugins, deps); err != nil {
+	var opts []tui.ModelOption
+	if autoOp != tui.OpNone {
+		opts = append(opts, tui.WithAutoOp(autoOp))
+	}
+
+	if popup {
+		return launchPopup(cfg, plugins, deps, opts, autoOp)
+	}
+
+	if err := tui.Run(cfg, plugins, deps, opts...); err != nil {
 		fmt.Fprintln(os.Stderr, "tpm:", err)
 		return 1
 	}
@@ -52,8 +71,10 @@ func launchPopup(
 	cfg *config.Config,
 	plugins []plugin.Plugin,
 	deps tui.Deps,
+	opts []tui.ModelOption,
+	autoOp tui.Operation,
 ) int {
-	w, h := tui.IdealSize(cfg, plugins, deps)
+	w, h := tui.IdealSize(cfg, plugins, deps, opts...)
 
 	binary, err := os.Executable()
 	if err != nil {
@@ -61,12 +82,17 @@ func launchPopup(
 		return 1
 	}
 
-	// Shell-quote the binary path: display-popup -E evaluates via shell.
+	// Build the subprocess command.
+	subcmd := shellescape(binary) + " tui"
+	if autoOp != tui.OpNone {
+		subcmd += " --" + strings.ToLower(autoOp.String())
+	}
+
 	cmd := exec.CommandContext(context.Background(), "tmux", "display-popup",
 		"-E",
 		"-w", fmt.Sprintf("%d", w),
 		"-h", fmt.Sprintf("%d", h),
-		shellescape(binary)+" tui",
+		subcmd,
 	)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout

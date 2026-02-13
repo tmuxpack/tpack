@@ -74,7 +74,11 @@ func (m *Model) viewProgress() string {
 		}
 		b.WriteString(m.centerBlock(strings.TrimRight(rb.String(), "\n")))
 		b.WriteString("\n\n")
-		b.WriteString(m.centerText(renderHelp(m.width, "q", "quit", "esc", "back to list")))
+		if m.autoOp != OpNone {
+			b.WriteString(m.centerText(renderHelp(m.width, "q", "quit")))
+		} else {
+			b.WriteString(m.centerText(renderHelp(m.width, "q", "quit", "esc", "back to list")))
+		}
 	}
 
 	return b.String()

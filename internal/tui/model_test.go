@@ -207,3 +207,207 @@ func TestReturnToList(t *testing.T) {
 		t.Errorf("expected OpNone, got %d", m.operation)
 	}
 }
+
+func TestNewModel_WithAutoOp(t *testing.T) {
+	plugins := []plugin.Plugin{
+		{Name: "tmux-sensible", Spec: "tmux-plugins/tmux-sensible"},
+	}
+	cfg := &config.Config{PluginPath: t.TempDir() + "/"}
+	deps := Deps{
+		Cloner:    git.NewMockCloner(),
+		Puller:    git.NewMockPuller(),
+		Validator: git.NewMockValidator(),
+		Fetcher:   git.NewMockFetcher(),
+	}
+	m := NewModel(cfg, plugins, deps, WithAutoOp(OpInstall))
+
+	if m.autoOp != OpInstall {
+		t.Errorf("expected autoOp OpInstall, got %d", m.autoOp)
+	}
+	// Screen should still start at ScreenList (autoStart happens in Init).
+	if m.screen != ScreenList {
+		t.Errorf("expected ScreenList initially, got %d", m.screen)
+	}
+}
+
+func TestInit_WithAutoOp_SendsAutoStartMsg(t *testing.T) {
+	cfg := &config.Config{PluginPath: t.TempDir() + "/"}
+	deps := Deps{
+		Cloner:    git.NewMockCloner(),
+		Puller:    git.NewMockPuller(),
+		Validator: git.NewMockValidator(),
+		Fetcher:   git.NewMockFetcher(),
+	}
+	m := NewModel(cfg, nil, deps, WithAutoOp(OpInstall))
+
+	cmd := m.Init()
+	if cmd == nil {
+		t.Fatal("expected non-nil command from Init with autoOp")
+	}
+}
+
+func TestInit_WithoutAutoOp_NoAutoStartMsg(t *testing.T) {
+	// With no plugins (nothing to check), Init should return nil.
+	cfg := &config.Config{PluginPath: t.TempDir() + "/"}
+	deps := Deps{
+		Cloner:    git.NewMockCloner(),
+		Puller:    git.NewMockPuller(),
+		Validator: git.NewMockValidator(),
+		Fetcher:   git.NewMockFetcher(),
+	}
+	m := NewModel(cfg, nil, deps)
+	cmd := m.Init()
+	if cmd != nil {
+		t.Error("expected nil command from Init with no autoOp and no plugins")
+	}
+}
+
+func TestStartAutoOperation_Install(t *testing.T) {
+	m := newTestModel(t, nil)
+	m.autoOp = OpInstall
+	m.plugins = []PluginItem{
+		{Name: "a", Spec: "user/a", Status: StatusNotInstalled},
+		{Name: "b", Spec: "user/b", Status: StatusInstalled},
+		{Name: "c", Spec: "user/c", Status: StatusNotInstalled},
+	}
+
+	result, cmd := m.startAutoOperation()
+	m = result.(Model)
+
+	if m.screen != ScreenProgress {
+		t.Errorf("expected ScreenProgress, got %d", m.screen)
+	}
+	if m.operation != OpInstall {
+		t.Errorf("expected OpInstall, got %d", m.operation)
+	}
+	if m.totalItems != 2 {
+		t.Errorf("expected 2 total items (non-installed), got %d", m.totalItems)
+	}
+	if cmd == nil {
+		t.Error("expected non-nil command")
+	}
+}
+
+func TestStartAutoOperation_Update(t *testing.T) {
+	m := newTestModel(t, nil)
+	m.autoOp = OpUpdate
+	m.plugins = []PluginItem{
+		{Name: "a", Spec: "user/a", Status: StatusInstalled},
+		{Name: "b", Spec: "user/b", Status: StatusNotInstalled},
+		{Name: "c", Spec: "user/c", Status: StatusOutdated},
+	}
+
+	result, cmd := m.startAutoOperation()
+	m = result.(Model)
+
+	if m.screen != ScreenProgress {
+		t.Errorf("expected ScreenProgress, got %d", m.screen)
+	}
+	if m.totalItems != 2 {
+		t.Errorf("expected 2 total items (installed+outdated), got %d", m.totalItems)
+	}
+	if cmd == nil {
+		t.Error("expected non-nil command")
+	}
+}
+
+func TestStartAutoOperation_Clean(t *testing.T) {
+	m := newTestModel(t, nil)
+	m.autoOp = OpClean
+	m.orphans = []OrphanItem{
+		{Name: "orphan1", Path: "/tmp/orphan1"},
+		{Name: "orphan2", Path: "/tmp/orphan2"},
+	}
+
+	result, cmd := m.startAutoOperation()
+	m = result.(Model)
+
+	if m.screen != ScreenProgress {
+		t.Errorf("expected ScreenProgress, got %d", m.screen)
+	}
+	if m.totalItems != 2 {
+		t.Errorf("expected 2 total items (orphans), got %d", m.totalItems)
+	}
+	if cmd == nil {
+		t.Error("expected non-nil command")
+	}
+}
+
+func TestStartAutoOperation_NoOps_Quits(t *testing.T) {
+	m := newTestModel(t, nil)
+	m.autoOp = OpInstall
+	m.plugins = []PluginItem{
+		{Name: "a", Spec: "user/a", Status: StatusInstalled},
+	}
+
+	_, cmd := m.startAutoOperation()
+	if cmd == nil {
+		t.Fatal("expected non-nil quit command when no ops available")
+	}
+}
+
+func TestUpdateProgress_AutoOp_QuitOnQ(t *testing.T) {
+	m := newTestModel(t, nil)
+	m.screen = ScreenProgress
+	m.autoOp = OpInstall
+	m.processing = false
+
+	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}}
+	_, cmd := m.updateProgress(msg)
+	if cmd == nil {
+		t.Fatal("expected quit command on q in auto-op mode")
+	}
+}
+
+func TestUpdateProgress_AutoOp_QuitOnEsc(t *testing.T) {
+	m := newTestModel(t, nil)
+	m.screen = ScreenProgress
+	m.autoOp = OpInstall
+	m.processing = false
+
+	msg := tea.KeyMsg{Type: tea.KeyEscape}
+	_, cmd := m.updateProgress(msg)
+	if cmd == nil {
+		t.Fatal("expected quit command on Esc in auto-op mode")
+	}
+}
+
+func TestUpdateProgress_AutoOp_IgnoresKeysWhileProcessing(t *testing.T) {
+	m := newTestModel(t, nil)
+	m.screen = ScreenProgress
+	m.autoOp = OpInstall
+	m.processing = true
+
+	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}}
+	_, cmd := m.updateProgress(msg)
+	if cmd != nil {
+		t.Error("expected nil command when still processing")
+	}
+}
+
+func TestUpdate_AutoStartMsg(t *testing.T) {
+	m := newTestModel(t, nil)
+	m.autoOp = OpInstall
+	m.plugins = []PluginItem{
+		{Name: "test", Spec: "user/test", Status: StatusNotInstalled},
+	}
+
+	result, cmd := m.Update(autoStartMsg{})
+	m = result.(Model)
+
+	if m.screen != ScreenProgress {
+		t.Errorf("expected ScreenProgress after autoStartMsg, got %d", m.screen)
+	}
+	if cmd == nil {
+		t.Error("expected non-nil command after autoStartMsg")
+	}
+}
+
+func TestUpdate_SourceCompleteMsg(t *testing.T) {
+	m := newTestModel(t, nil)
+	result, cmd := m.Update(sourceCompleteMsg{Err: nil})
+	_ = result.(Model)
+	if cmd != nil {
+		t.Error("expected nil command for sourceCompleteMsg")
+	}
+}

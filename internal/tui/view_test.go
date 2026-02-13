@@ -307,3 +307,43 @@ func TestViewList_HelpBar_WithOrphans(t *testing.T) {
 		t.Error("expected help bar to contain 'clean' when orphans exist")
 	}
 }
+
+func TestViewProgress_AutoOp_ShowsQuitOnly(t *testing.T) {
+	m := newTestModel(t, nil)
+	m.screen = ScreenProgress
+	m.operation = OpInstall
+	m.autoOp = OpInstall
+	m.totalItems = 1
+	m.completedItems = 1
+	m.processing = false
+	m.width = 80
+	m.results = []ResultItem{
+		{Name: "test-plugin", Success: true, Message: "installed"},
+	}
+
+	view := m.View()
+	if !strings.Contains(view, "quit") {
+		t.Error("expected progress view to contain 'quit'")
+	}
+	if strings.Contains(view, "back to list") {
+		t.Error("expected progress view NOT to contain 'back to list' in auto-op mode")
+	}
+}
+
+func TestViewProgress_NoAutoOp_ShowsBackToList(t *testing.T) {
+	m := newTestModel(t, nil)
+	m.screen = ScreenProgress
+	m.operation = OpInstall
+	m.totalItems = 1
+	m.completedItems = 1
+	m.processing = false
+	m.width = 80
+	m.results = []ResultItem{
+		{Name: "test-plugin", Success: true, Message: "installed"},
+	}
+
+	view := m.View()
+	if !strings.Contains(view, "back to list") {
+		t.Error("expected progress view to contain 'back to list' when no auto-op")
+	}
+}
