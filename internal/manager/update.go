@@ -21,13 +21,19 @@ func (m *Manager) updateAll(ctx context.Context, plugins []plugin.Plugin) {
 		wg.Add(1)
 		go func(p plugin.Plugin) {
 			defer wg.Done()
-			m.updatePlugin(ctx, p.Name)
+			m.updatePlugin(ctx, p)
 		}(p)
 	}
 	wg.Wait()
 }
 
-func (m *Manager) updateSpecific(ctx context.Context, names []string) {
+func (m *Manager) updateSpecific(ctx context.Context, plugins []plugin.Plugin, names []string) {
+	// Build lookup map for branch info.
+	pluginMap := make(map[string]plugin.Plugin)
+	for _, p := range plugins {
+		pluginMap[p.Name] = p
+	}
+
 	var wg sync.WaitGroup
 	for _, name := range names {
 		pName := plugin.PluginName(name)
@@ -35,25 +41,29 @@ func (m *Manager) updateSpecific(ctx context.Context, names []string) {
 			m.output.Err(pName + " not installed!")
 			continue
 		}
+		p := pluginMap[pName] // Get full plugin for branch info.
+		if p.Name == "" {
+			p = plugin.Plugin{Name: pName} // Fallback if not found in config.
+		}
 		wg.Add(1)
-		go func(name string) {
+		go func(p plugin.Plugin) {
 			defer wg.Done()
-			m.updatePlugin(ctx, name)
-		}(pName)
+			m.updatePlugin(ctx, p)
+		}(p)
 	}
 	wg.Wait()
 }
 
-func (m *Manager) updatePlugin(ctx context.Context, name string) {
-	dir := plugin.PluginPath(name, m.pluginPath)
-	output, err := m.puller.Pull(ctx, git.PullOptions{Dir: dir})
+func (m *Manager) updatePlugin(ctx context.Context, p plugin.Plugin) {
+	dir := plugin.PluginPath(p.Name, m.pluginPath)
+	output, err := m.puller.Pull(ctx, git.PullOptions{Dir: dir, Branch: p.Branch})
 
 	indented := indentOutput(output)
 	if err != nil {
-		m.output.Err("  \"" + name + "\" update fail")
+		m.output.Err("  \"" + p.Name + "\" update fail")
 		m.output.Err(indented)
 	} else {
-		m.output.Ok("  \"" + name + "\" update success")
+		m.output.Ok("  \"" + p.Name + "\" update success")
 		m.output.Ok(indented)
 	}
 }

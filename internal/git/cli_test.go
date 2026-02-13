@@ -257,6 +257,40 @@ func TestCLIPuller_PullNonGitDir(t *testing.T) {
 	}
 }
 
+func TestCLIPuller_PullWithBranch(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping git CLI test in short mode")
+	}
+
+	bare := initBareRepo(t)
+
+	// Create a feature branch.
+	work := cloneLocal(t, bare)
+	runGit(t, work, "checkout", "-b", "feature")
+	writeFile(t, filepath.Join(work, "feature.txt"), "on feature")
+	runGit(t, work, "add", ".")
+	runGit(t, work, "commit", "-m", "feature commit")
+	runGit(t, work, "push", "origin", "feature")
+
+	// Clone (will be on default branch).
+	clone := cloneLocal(t, bare)
+
+	// Pull with branch should checkout feature and pull.
+	puller := git.NewCLIPuller()
+	_, err := puller.Pull(context.Background(), git.PullOptions{
+		Dir:    clone,
+		Branch: "feature",
+	})
+	if err != nil {
+		t.Fatalf("Pull with branch returned error: %v", err)
+	}
+
+	// feature.txt should now exist.
+	if _, err := os.Stat(filepath.Join(clone, "feature.txt")); err != nil {
+		t.Fatalf("expected feature.txt after pull with branch: %v", err)
+	}
+}
+
 // ---------------------------------------------------------------------------
 // CLIValidator
 // ---------------------------------------------------------------------------

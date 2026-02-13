@@ -12,7 +12,8 @@ type CloneOptions struct {
 
 // PullOptions configures a git pull operation.
 type PullOptions struct {
-	Dir string
+	Dir    string
+	Branch string // Optional branch to checkout before pulling
 }
 
 // Cloner clones git repositories.

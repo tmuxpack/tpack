@@ -67,7 +67,7 @@ func (m *Manager) Update(ctx context.Context, plugins []plugin.Plugin, names []s
 		m.updateAll(ctx, plugins)
 		return
 	}
-	m.updateSpecific(ctx, names)
+	m.updateSpecific(ctx, plugins, names)
 }
 
 // Clean removes plugin directories not in the list.
