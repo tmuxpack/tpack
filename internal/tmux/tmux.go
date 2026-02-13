@@ -15,9 +15,10 @@ type Runner interface {
 	// Equivalent to: tmux set-environment -g <name> <value>
 	SetEnvironment(name, value string) error
 
-	// BindKey binds a tmux key to run a shell command.
-	// Equivalent to: tmux bind-key <key> run-shell <cmd>
-	BindKey(key, cmd string) error
+	// BindKey binds a tmux key to run a shell command with an optional description.
+	// For tmux >= 3.1, adds -N "description" to the bind-key command.
+	// Equivalent to: tmux bind-key [-N "description"] <key> run-shell <cmd>
+	BindKey(key, cmd, description string) error
 
 	// SourceFile sources a tmux configuration file.
 	// Equivalent to: tmux source-file <path>

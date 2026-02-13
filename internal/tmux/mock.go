@@ -66,8 +66,8 @@ func (m *MockRunner) SetEnvironment(name, value string) error {
 	return m.err("SetEnvironment:" + name)
 }
 
-func (m *MockRunner) BindKey(key, cmd string) error {
-	m.record("BindKey", key, cmd)
+func (m *MockRunner) BindKey(key, cmd, description string) error {
+	m.record("BindKey", key, cmd, description)
 	return m.err("BindKey:" + key)
 }
 

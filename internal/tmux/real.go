@@ -7,11 +7,17 @@ import (
 )
 
 // RealRunner executes tmux commands via os/exec.
-type RealRunner struct{}
+type RealRunner struct {
+	version int // parsed tmux version digits (e.g., 34 for tmux 3.4)
+}
 
 // NewRealRunner returns a new RealRunner.
 func NewRealRunner() *RealRunner {
-	return &RealRunner{}
+	r := &RealRunner{}
+	if verStr, err := r.Version(); err == nil {
+		r.version = ParseVersionDigits(verStr)
+	}
+	return r
 }
 
 func (r *RealRunner) runTmux(args ...string) (string, error) {
@@ -41,8 +47,13 @@ func (r *RealRunner) SetEnvironment(name, value string) error {
 	return err
 }
 
-func (r *RealRunner) BindKey(key, cmd string) error {
-	_, err := r.runTmux("bind-key", key, "run-shell", cmd)
+func (r *RealRunner) BindKey(key, cmd, description string) error {
+	args := []string{"bind-key"}
+	if description != "" && r.version >= 31 {
+		args = append(args, "-N", description)
+	}
+	args = append(args, key, "run-shell", cmd)
+	_, err := r.runTmux(args...)
 	return err
 }
 
