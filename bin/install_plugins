@@ -14,10 +14,5 @@ if [ -n "$TPM_GO" ]; then
 	exec "$TPM_GO" install "$@"
 fi
 
-# Fallback to original bash implementation
-SCRIPTS_DIR="$CURRENT_DIR/../scripts"
-
-main() {
-	"$SCRIPTS_DIR/install_plugins.sh" # has correct exit code
-}
-main
+echo "Error: tpm-go binary not found." >&2
+exit 1

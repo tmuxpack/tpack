@@ -22,19 +22,5 @@ if [ -n "$TPM_GO" ]; then
 	exec "$TPM_GO" update "$@"
 fi
 
-# Fallback to original bash implementation
-SCRIPTS_DIR="$CURRENT_DIR/../scripts"
-PROGRAM_NAME="$0"
-
-if [ $# -eq 0 ]; then
-	echo "usage:"
-	echo "  $PROGRAM_NAME all                   update all plugins"
-	echo "  $PROGRAM_NAME tmux-foo              update plugin 'tmux-foo'"
-	echo "  $PROGRAM_NAME tmux-bar tmux-baz     update multiple plugins"
-	exit 1
-fi
-
-main() {
-	"$SCRIPTS_DIR/update_plugin.sh" --shell-echo "$*" # has correct exit code
-}
-main "$*"
+echo "Error: tpm-go binary not found." >&2
+exit 1
