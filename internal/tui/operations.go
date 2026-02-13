@@ -2,7 +2,10 @@ package tui
 
 import (
 	"context"
+	"fmt"
 	"os"
+	"os/exec"
+	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/tmux-plugins/tpm/internal/git"
@@ -22,6 +25,7 @@ type pluginUpdateResultMsg struct {
 	Success bool
 	Message string
 	Output  string
+	Commits []git.Commit
 }
 
 type pluginCleanResultMsg struct {
@@ -81,12 +85,18 @@ func installPluginCmd(cloner git.Cloner, op pendingOp) tea.Cmd {
 }
 
 // updatePluginCmd returns a tea.Cmd that pulls updates for a plugin.
-func updatePluginCmd(puller git.Puller, op pendingOp) tea.Cmd {
+func updatePluginCmd(puller git.Puller, revParser git.RevParser, logger git.Logger, op pendingOp) tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), UpdateTimeout)
 		defer cancel()
 
-		output, err := puller.Pull(ctx, git.PullOptions{Dir: op.Path})
+		// Capture HEAD before pull for commit log comparison.
+		var beforeHash string
+		if revParser != nil {
+			beforeHash, _ = revParser.RevParse(ctx, op.Path)
+		}
+
+		output, err := puller.Pull(ctx, git.PullOptions{Dir: op.Path, Branch: op.Branch})
 		if err != nil {
 			return pluginUpdateResultMsg{
 				Name:    op.Name,
@@ -95,11 +105,22 @@ func updatePluginCmd(puller git.Puller, op pendingOp) tea.Cmd {
 				Output:  output,
 			}
 		}
+
+		// Get commits pulled if we captured the before hash.
+		var commits []git.Commit
+		if beforeHash != "" && logger != nil {
+			afterHash, revErr := revParser.RevParse(ctx, op.Path)
+			if revErr == nil && afterHash != beforeHash {
+				commits, _ = logger.Log(ctx, op.Path, beforeHash, afterHash)
+			}
+		}
+
 		return pluginUpdateResultMsg{
 			Name:    op.Name,
 			Success: true,
 			Message: "updated successfully",
 			Output:  output,
+			Commits: commits,
 		}
 	}
 }
@@ -128,6 +149,28 @@ func cleanPluginCmd(op pendingOp) tea.Cmd {
 func uninstallPluginCmd(op pendingOp) tea.Cmd {
 	return removeDirCmd(op, func(name string, success bool, message string) tea.Msg {
 		return pluginUninstallResultMsg{Name: name, Success: success, Message: message}
+	})
+}
+
+// commitPopupMsg is sent after the commit viewer is dismissed.
+type commitPopupMsg struct{ Err error }
+
+// commitPopupCmd returns a tea.Cmd that suspends the TUI and shows commits in less.
+func commitPopupCmd(r ResultItem) tea.Cmd {
+	var content strings.Builder
+	content.WriteString(fmt.Sprintf("%s — %d new commit", r.Name, len(r.Commits)))
+	if len(r.Commits) != 1 {
+		content.WriteString("s")
+	}
+	content.WriteString("\n\n")
+	for _, c := range r.Commits {
+		content.WriteString(fmt.Sprintf("  %s %s\n", c.Hash, c.Message))
+	}
+
+	shellCmd := fmt.Sprintf("cat <<'TPMEOF' | less\n%s\nTPMEOF", content.String())
+	c := exec.CommandContext(context.Background(), "bash", "-c", shellCmd) //nolint:gosec // content is from git log, not user input
+	return tea.ExecProcess(c, func(err error) tea.Msg {
+		return commitPopupMsg{Err: err}
 	})
 }
 
@@ -160,7 +203,7 @@ func (m *Model) dispatchNext() tea.Cmd {
 	case OpInstall:
 		return installPluginCmd(m.deps.Cloner, op)
 	case OpUpdate:
-		return updatePluginCmd(m.deps.Puller, op)
+		return updatePluginCmd(m.deps.Puller, m.deps.RevParser, m.deps.Logger, op)
 	case OpClean:
 		return cleanPluginCmd(op)
 	case OpUninstall:

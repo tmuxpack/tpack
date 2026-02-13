@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -56,13 +57,16 @@ func TestInstallPluginCmd_Failure(t *testing.T) {
 func TestUpdatePluginCmd_Success(t *testing.T) {
 	puller := git.NewMockPuller()
 	puller.Output = "Already up to date."
+	revParser := git.NewMockRevParser()
+	revParser.Hash = "abc123"
+	logger := git.NewMockLogger()
 	dir := t.TempDir()
 	op := pendingOp{
 		Name: "test-plugin",
 		Path: dir + "/",
 	}
 
-	cmd := updatePluginCmd(puller, op)
+	cmd := updatePluginCmd(puller, revParser, logger, op)
 	msg := cmd()
 
 	result, ok := msg.(pluginUpdateResultMsg)
@@ -75,6 +79,72 @@ func TestUpdatePluginCmd_Success(t *testing.T) {
 	if result.Output != "Already up to date." {
 		t.Errorf("expected output 'Already up to date.', got %q", result.Output)
 	}
+	// Same hash before/after → no commits.
+	if len(result.Commits) != 0 {
+		t.Errorf("expected 0 commits when hash unchanged, got %d", len(result.Commits))
+	}
+}
+
+func TestUpdatePluginCmd_WithCommits(t *testing.T) {
+	puller := git.NewMockPuller()
+	puller.Output = "Updating abc..def"
+
+	callCount := 0
+	revParser := &sequentialMockRevParser{
+		hashes: []string{"abc123", "def456"},
+		count:  &callCount,
+	}
+	logger := git.NewMockLogger()
+	logger.Commits = []git.Commit{
+		{Hash: "def456", Message: "add feature"},
+		{Hash: "ccc333", Message: "fix bug"},
+	}
+
+	op := pendingOp{
+		Name: "test-plugin",
+		Path: t.TempDir() + "/",
+	}
+
+	cmd := updatePluginCmd(puller, revParser, logger, op)
+	msg := cmd()
+
+	result, ok := msg.(pluginUpdateResultMsg)
+	if !ok {
+		t.Fatalf("expected pluginUpdateResultMsg, got %T", msg)
+	}
+	if !result.Success {
+		t.Errorf("expected success, got failure: %s", result.Message)
+	}
+	if len(result.Commits) != 2 {
+		t.Fatalf("expected 2 commits, got %d", len(result.Commits))
+	}
+	if result.Commits[0].Hash != "def456" {
+		t.Errorf("expected first commit hash def456, got %s", result.Commits[0].Hash)
+	}
+}
+
+func TestUpdatePluginCmd_NilRevParser(t *testing.T) {
+	puller := git.NewMockPuller()
+	puller.Output = "Already up to date."
+
+	op := pendingOp{
+		Name: "test-plugin",
+		Path: t.TempDir() + "/",
+	}
+
+	cmd := updatePluginCmd(puller, nil, nil, op)
+	msg := cmd()
+
+	result, ok := msg.(pluginUpdateResultMsg)
+	if !ok {
+		t.Fatalf("expected pluginUpdateResultMsg, got %T", msg)
+	}
+	if !result.Success {
+		t.Errorf("expected success, got failure: %s", result.Message)
+	}
+	if len(result.Commits) != 0 {
+		t.Errorf("expected 0 commits with nil revParser, got %d", len(result.Commits))
+	}
 }
 
 func TestUpdatePluginCmd_Failure(t *testing.T) {
@@ -85,7 +155,7 @@ func TestUpdatePluginCmd_Failure(t *testing.T) {
 		Path: t.TempDir() + "/",
 	}
 
-	cmd := updatePluginCmd(puller, op)
+	cmd := updatePluginCmd(puller, nil, nil, op)
 	msg := cmd()
 
 	result, ok := msg.(pluginUpdateResultMsg)
@@ -95,6 +165,21 @@ func TestUpdatePluginCmd_Failure(t *testing.T) {
 	if result.Success {
 		t.Error("expected failure, got success")
 	}
+}
+
+// sequentialMockRevParser returns different hashes on sequential calls.
+type sequentialMockRevParser struct {
+	hashes []string
+	count  *int
+}
+
+func (s *sequentialMockRevParser) RevParse(_ context.Context, _ string) (string, error) {
+	idx := *s.count
+	*s.count++
+	if idx < len(s.hashes) {
+		return s.hashes[idx], nil
+	}
+	return "unknown", nil
 }
 
 func TestCleanPluginCmd_Success(t *testing.T) {

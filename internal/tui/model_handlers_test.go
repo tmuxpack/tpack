@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/tmux-plugins/tpm/internal/git"
 )
 
 func TestHandleCheckResult_Outdated(t *testing.T) {
@@ -548,5 +549,153 @@ func TestMoveCursorUp_AtBeginning(t *testing.T) {
 	m.moveCursorUp()
 	if m.cursor != 0 {
 		t.Errorf("expected cursor to remain at 0 when at beginning, got %d", m.cursor)
+	}
+}
+
+func TestResultCursorNavigation(t *testing.T) {
+	m := newTestModel(t, nil)
+	m.screen = ScreenProgress
+	m.processing = false
+	m.results = []ResultItem{
+		{Name: "a", Success: true},
+		{Name: "b", Success: true},
+		{Name: "c", Success: true},
+	}
+	m.resultCursor = 0
+
+	// Move down.
+	m.moveResultCursorDown()
+	if m.resultCursor != 1 {
+		t.Errorf("expected resultCursor=1, got %d", m.resultCursor)
+	}
+	m.moveResultCursorDown()
+	if m.resultCursor != 2 {
+		t.Errorf("expected resultCursor=2, got %d", m.resultCursor)
+	}
+	// Can't go past end.
+	m.moveResultCursorDown()
+	if m.resultCursor != 2 {
+		t.Errorf("expected resultCursor to stay at 2, got %d", m.resultCursor)
+	}
+	// Move up.
+	m.moveResultCursorUp()
+	if m.resultCursor != 1 {
+		t.Errorf("expected resultCursor=1, got %d", m.resultCursor)
+	}
+	// Can't go past start.
+	m.moveResultCursorUp()
+	m.moveResultCursorUp()
+	if m.resultCursor != 0 {
+		t.Errorf("expected resultCursor to stay at 0, got %d", m.resultCursor)
+	}
+}
+
+func TestShowCommitPopup_NoCommits(t *testing.T) {
+	m := newTestModel(t, nil)
+	m.screen = ScreenProgress
+	m.processing = false
+	m.results = []ResultItem{
+		{Name: "a", Success: true}, // no commits
+	}
+	m.resultCursor = 0
+
+	cmd := m.showCommitPopup()
+	if cmd != nil {
+		t.Error("expected nil cmd for result with no commits")
+	}
+}
+
+func TestShowCommitPopup_OutOfBounds(t *testing.T) {
+	m := newTestModel(t, nil)
+	m.screen = ScreenProgress
+	m.processing = false
+	m.results = []ResultItem{
+		{Name: "a", Success: true},
+	}
+	m.resultCursor = 5
+
+	cmd := m.showCommitPopup()
+	if cmd != nil {
+		t.Error("expected nil cmd for out-of-bounds cursor")
+	}
+}
+
+func TestShowCommitPopup_WithCommits(t *testing.T) {
+	m := newTestModel(t, nil)
+	m.screen = ScreenProgress
+	m.processing = false
+	m.results = []ResultItem{
+		{
+			Name:    "a",
+			Success: true,
+			Commits: []git.Commit{{Hash: "abc", Message: "test"}},
+		},
+	}
+	m.resultCursor = 0
+
+	cmd := m.showCommitPopup()
+	if cmd == nil {
+		t.Error("expected non-nil cmd for result with commits")
+	}
+}
+
+func TestUpdateProgress_NavigationKeys(t *testing.T) {
+	m := newTestModel(t, nil)
+	m.screen = ScreenProgress
+	m.processing = false
+	m.results = []ResultItem{
+		{Name: "a", Success: true, Commits: []git.Commit{{Hash: "x", Message: "y"}}},
+		{Name: "b", Success: true},
+	}
+	m.resultCursor = 0
+
+	// Press j to move down.
+	down := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}}
+	result, _ := m.Update(down)
+	m = result.(Model)
+	if m.resultCursor != 1 {
+		t.Errorf("expected resultCursor=1 after j, got %d", m.resultCursor)
+	}
+
+	// Press k to move up.
+	up := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}}
+	result, _ = m.Update(up)
+	m = result.(Model)
+	if m.resultCursor != 0 {
+		t.Errorf("expected resultCursor=0 after k, got %d", m.resultCursor)
+	}
+
+	// Press enter - should return a cmd (popup) for result with commits.
+	enter := tea.KeyMsg{Type: tea.KeyEnter}
+	_, cmd := m.Update(enter)
+	if cmd == nil {
+		t.Error("expected non-nil cmd when pressing enter on result with commits")
+	}
+}
+
+func TestHandleUpdateResult_WithCommits(t *testing.T) {
+	m := newTestModel(t, nil)
+	m.plugins = []PluginItem{
+		{Name: "alpha", Spec: "user/alpha", Status: StatusInstalled},
+	}
+	m.screen = ScreenProgress
+	m.operation = OpUpdate
+	m.processing = true
+	m.totalItems = 1
+	m.completedItems = 0
+
+	commits := []git.Commit{
+		{Hash: "abc", Message: "add feature"},
+		{Hash: "def", Message: "fix bug"},
+	}
+	msg := pluginUpdateResultMsg{Name: "alpha", Success: true, Message: "updated", Commits: commits}
+	result, _ := m.Update(msg)
+	m = result.(Model)
+
+	if len(m.results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(m.results))
+	}
+	if len(m.results[0].Commits) != 2 {
+		t.Errorf("expected 2 commits in result, got %d", len(m.results[0].Commits))
 	}
 }

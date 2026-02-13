@@ -17,6 +17,8 @@ type Deps struct {
 	Puller    git.Puller
 	Validator git.Validator
 	Fetcher   git.Fetcher
+	RevParser git.RevParser
+	Logger    git.Logger
 	Runner    tmux.Runner // optional, for post-op tmux sourcing
 }
 
@@ -63,6 +65,8 @@ type Model struct {
 	pendingItems    []pendingOp
 	progressBar     progress.Model
 	checkSpinner    spinner.Model
+
+	resultCursor int
 }
 
 // NewModel creates a new Model from the resolved config and gathered plugins.
@@ -130,6 +134,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case autoStartMsg:
 		return m.startAutoOperation()
 	case sourceCompleteMsg:
+		return m, nil
+	case commitPopupMsg:
 		return m, nil
 	case pluginCheckResultMsg:
 		return m.handleCheckResult(msg)
@@ -247,6 +253,12 @@ func (m Model) updateProgress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		switch {
 		case key.Matches(msg, SharedKeys.Quit), msg.String() == "esc":
 			return m, tea.Quit
+		case key.Matches(msg, ListKeys.Up):
+			m.moveResultCursorUp()
+		case key.Matches(msg, ListKeys.Down):
+			m.moveResultCursorDown()
+		case msg.String() == "enter":
+			return m, m.showCommitPopup()
 		}
 		return m, nil
 	}
@@ -256,8 +268,40 @@ func (m Model) updateProgress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 	case msg.String() == "esc":
 		return m.returnToList(), nil
+	case key.Matches(msg, ListKeys.Up):
+		m.moveResultCursorUp()
+	case key.Matches(msg, ListKeys.Down):
+		m.moveResultCursorDown()
+	case msg.String() == "enter":
+		return m, m.showCommitPopup()
 	}
 	return m, nil
+}
+
+// moveResultCursorUp moves the result cursor up.
+func (m *Model) moveResultCursorUp() {
+	if m.resultCursor > 0 {
+		m.resultCursor--
+	}
+}
+
+// moveResultCursorDown moves the result cursor down.
+func (m *Model) moveResultCursorDown() {
+	if m.resultCursor < len(m.results)-1 {
+		m.resultCursor++
+	}
+}
+
+// showCommitPopup launches a tmux popup displaying the commits for the current result.
+func (m *Model) showCommitPopup() tea.Cmd {
+	if m.resultCursor < 0 || m.resultCursor >= len(m.results) {
+		return nil
+	}
+	r := m.results[m.resultCursor]
+	if len(r.Commits) == 0 {
+		return nil
+	}
+	return commitPopupCmd(r)
 }
 
 // startOperation transitions to the progress screen and begins an operation.
@@ -288,6 +332,7 @@ func (m Model) startOperation(op Operation) (tea.Model, tea.Cmd) {
 	m.results = nil
 	m.processing = true
 	m.currentItemName = ""
+	m.resultCursor = 0
 
 	cmd := m.dispatchNext()
 	return m, cmd
@@ -320,6 +365,7 @@ func (m Model) startAutoOperation() (tea.Model, tea.Cmd) {
 	m.results = nil
 	m.processing = true
 	m.currentItemName = ""
+	m.resultCursor = 0
 
 	cmd := m.dispatchNext()
 	return m, cmd
@@ -444,6 +490,7 @@ func (m Model) returnToList() Model {
 
 	m.results = nil
 	m.pendingItems = nil
+	m.resultCursor = 0
 
 	// Clamp cursor.
 	if m.cursor >= len(m.plugins) {

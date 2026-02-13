@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/tmux-plugins/tpm/internal/git"
 	"github.com/tmux-plugins/tpm/internal/plugin"
 )
 
@@ -345,5 +346,98 @@ func TestViewProgress_NoAutoOp_ShowsBackToList(t *testing.T) {
 	view := m.View()
 	if !strings.Contains(view, "back to list") {
 		t.Error("expected progress view to contain 'back to list' when no auto-op")
+	}
+}
+
+func TestViewProgress_ShowsCommitCount(t *testing.T) {
+	m := newTestModel(t, nil)
+	m.screen = ScreenProgress
+	m.operation = OpUpdate
+	m.totalItems = 1
+	m.completedItems = 1
+	m.processing = false
+	m.width = 100
+	m.results = []ResultItem{
+		{
+			Name:    "tmux-sensible",
+			Success: true,
+			Message: "updated",
+			Commits: []git.Commit{
+				{Hash: "abc1234", Message: "add feature"},
+				{Hash: "def5678", Message: "fix bug"},
+			},
+		},
+	}
+
+	view := m.View()
+	if !strings.Contains(view, "2 new commits") {
+		t.Error("expected view to show '2 new commits'")
+	}
+	if !strings.Contains(view, "▸") {
+		t.Error("expected collapsed indicator '▸' for plugin with commits")
+	}
+}
+
+func TestViewProgress_ShowsSingleCommitCount(t *testing.T) {
+	m := newTestModel(t, nil)
+	m.screen = ScreenProgress
+	m.operation = OpUpdate
+	m.totalItems = 1
+	m.completedItems = 1
+	m.processing = false
+	m.width = 100
+	m.results = []ResultItem{
+		{
+			Name:    "tmux-yank",
+			Success: true,
+			Message: "updated",
+			Commits: []git.Commit{
+				{Hash: "abc1234", Message: "add feature"},
+			},
+		},
+	}
+
+	view := m.View()
+	if !strings.Contains(view, "1 new commit)") {
+		t.Error("expected view to show '1 new commit)' (singular)")
+	}
+}
+
+func TestViewProgress_NoCommitsNoIndicator(t *testing.T) {
+	m := newTestModel(t, nil)
+	m.screen = ScreenProgress
+	m.operation = OpUpdate
+	m.totalItems = 1
+	m.completedItems = 1
+	m.processing = false
+	m.width = 100
+	m.results = []ResultItem{
+		{Name: "tmux-yank", Success: true, Message: "updated"},
+	}
+
+	view := m.View()
+	if strings.Contains(view, "▸") || strings.Contains(view, "▼") {
+		t.Error("expected no expand/collapse indicator for plugin without commits")
+	}
+	if strings.Contains(view, "new commit") {
+		t.Error("expected no commit count for plugin without commits")
+	}
+}
+
+func TestViewProgress_HelpShowsViewCommits(t *testing.T) {
+	m := newTestModel(t, nil)
+	m.screen = ScreenProgress
+	m.operation = OpUpdate
+	m.totalItems = 1
+	m.completedItems = 1
+	m.processing = false
+	m.width = 100
+	m.results = []ResultItem{
+		{Name: "test", Success: true},
+	}
+
+	view := m.View()
+	if !strings.Contains(view, "view commits") {
+		t.Error("expected help to contain 'view commits'")
 	}
 }

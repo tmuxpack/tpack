@@ -292,6 +292,116 @@ func TestCLIPuller_PullWithBranch(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// CLIRevParser
+// ---------------------------------------------------------------------------
+
+func TestCLIRevParser_Success(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping git CLI test in short mode")
+	}
+
+	bare := initBareRepo(t)
+	clone := cloneLocal(t, bare)
+
+	rp := git.NewCLIRevParser()
+	hash, err := rp.RevParse(context.Background(), clone)
+	if err != nil {
+		t.Fatalf("RevParse returned error: %v", err)
+	}
+	if len(hash) < 7 {
+		t.Errorf("expected commit hash, got %q", hash)
+	}
+}
+
+func TestCLIRevParser_NonGitDir(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping git CLI test in short mode")
+	}
+
+	rp := git.NewCLIRevParser()
+	_, err := rp.RevParse(context.Background(), t.TempDir())
+	if err == nil {
+		t.Fatal("expected error for non-git directory")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// CLILogger
+// ---------------------------------------------------------------------------
+
+func TestCLILogger_LogWithCommits(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping git CLI test in short mode")
+	}
+
+	bare := initBareRepo(t)
+	clone := cloneLocal(t, bare)
+
+	// Record current HEAD.
+	rp := git.NewCLIRevParser()
+	beforeHash, err := rp.RevParse(context.Background(), clone)
+	if err != nil {
+		t.Fatalf("RevParse before: %v", err)
+	}
+
+	// Push 2 new commits to the bare repo.
+	addCommitToBare(t, bare, "file1.txt")
+	addCommitToBare(t, bare, "file2.txt")
+
+	// Pull to get the new commits.
+	puller := git.NewCLIPuller()
+	_, err = puller.Pull(context.Background(), git.PullOptions{Dir: clone})
+	if err != nil {
+		t.Fatalf("Pull: %v", err)
+	}
+
+	afterHash, err := rp.RevParse(context.Background(), clone)
+	if err != nil {
+		t.Fatalf("RevParse after: %v", err)
+	}
+
+	logger := git.NewCLILogger()
+	commits, err := logger.Log(context.Background(), clone, beforeHash, afterHash)
+	if err != nil {
+		t.Fatalf("Log returned error: %v", err)
+	}
+	if len(commits) != 2 {
+		t.Fatalf("expected 2 commits, got %d", len(commits))
+	}
+	// Commits should be in reverse chronological order.
+	if commits[0].Message != "add file2.txt" {
+		t.Errorf("expected first commit message 'add file2.txt', got %q", commits[0].Message)
+	}
+	if commits[1].Message != "add file1.txt" {
+		t.Errorf("expected second commit message 'add file1.txt', got %q", commits[1].Message)
+	}
+}
+
+func TestCLILogger_LogNoCommits(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping git CLI test in short mode")
+	}
+
+	bare := initBareRepo(t)
+	clone := cloneLocal(t, bare)
+
+	rp := git.NewCLIRevParser()
+	hash, err := rp.RevParse(context.Background(), clone)
+	if err != nil {
+		t.Fatalf("RevParse: %v", err)
+	}
+
+	logger := git.NewCLILogger()
+	commits, err := logger.Log(context.Background(), clone, hash, hash)
+	if err != nil {
+		t.Fatalf("Log returned error: %v", err)
+	}
+	if len(commits) != 0 {
+		t.Errorf("expected 0 commits for same ref, got %d", len(commits))
+	}
+}
+
+// ---------------------------------------------------------------------------
 // CLIValidator
 // ---------------------------------------------------------------------------
 

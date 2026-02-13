@@ -46,6 +46,8 @@ func runTui(args []string) int {
 		Puller:    git.NewCLIPuller(),
 		Validator: git.NewCLIValidator(),
 		Fetcher:   git.NewCLIFetcher(),
+		RevParser: git.NewCLIRevParser(),
+		Logger:    git.NewCLILogger(),
 	}
 	if autoOp == tui.OpInstall || autoOp == tui.OpUpdate {
 		deps.Runner = runner

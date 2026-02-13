@@ -35,3 +35,19 @@ type Validator interface {
 type Fetcher interface {
 	IsOutdated(ctx context.Context, dir string) (bool, error)
 }
+
+// Commit represents a single git commit.
+type Commit struct {
+	Hash    string
+	Message string
+}
+
+// RevParser resolves git refs to commit hashes.
+type RevParser interface {
+	RevParse(ctx context.Context, dir string) (string, error)
+}
+
+// Logger retrieves commit log entries between two refs.
+type Logger interface {
+	Log(ctx context.Context, dir, fromRef, toRef string) ([]Commit, error)
+}

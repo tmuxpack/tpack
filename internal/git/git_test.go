@@ -104,6 +104,56 @@ func TestMockValidator(t *testing.T) {
 	}
 }
 
+func TestCLIRevParserImplementsRevParser(t *testing.T) {
+	var _ git.RevParser = (*git.CLIRevParser)(nil)
+}
+
+func TestCLILoggerImplementsLogger(t *testing.T) {
+	var _ git.Logger = (*git.CLILogger)(nil)
+}
+
+func TestMockRevParserImplementsRevParser(t *testing.T) {
+	var _ git.RevParser = (*git.MockRevParser)(nil)
+}
+
+func TestMockLoggerImplementsLogger(t *testing.T) {
+	var _ git.Logger = (*git.MockLogger)(nil)
+}
+
+func TestMockRevParser(t *testing.T) {
+	r := git.NewMockRevParser()
+	r.Hash = "deadbeef"
+
+	hash, err := r.RevParse(context.Background(), "/repo")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if hash != "deadbeef" {
+		t.Errorf("expected deadbeef, got %s", hash)
+	}
+	if len(r.Calls) != 1 || r.Calls[0] != "/repo" {
+		t.Errorf("unexpected calls: %v", r.Calls)
+	}
+}
+
+func TestMockLogger(t *testing.T) {
+	l := git.NewMockLogger()
+	l.Commits = []git.Commit{
+		{Hash: "abc", Message: "test commit"},
+	}
+
+	commits, err := l.Log(context.Background(), "/repo", "aaa", "bbb")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(commits) != 1 {
+		t.Fatalf("expected 1 commit, got %d", len(commits))
+	}
+	if commits[0].Hash != "abc" || commits[0].Message != "test commit" {
+		t.Errorf("unexpected commit: %+v", commits[0])
+	}
+}
+
 func TestCLIValidatorRealDir(t *testing.T) {
 	v := git.NewCLIValidator()
 	// /tmp is not a git repo

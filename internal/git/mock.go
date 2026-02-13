@@ -76,3 +76,47 @@ func (m *MockFetcher) IsOutdated(_ context.Context, dir string) (bool, error) {
 	}
 	return m.Outdated[dir], nil
 }
+
+// MockRevParser returns configurable results for testing.
+type MockRevParser struct {
+	mu    sync.Mutex
+	Calls []string
+	Hash  string
+	Err   error
+}
+
+func NewMockRevParser() *MockRevParser {
+	return &MockRevParser{Hash: "abc123"}
+}
+
+func (m *MockRevParser) RevParse(_ context.Context, dir string) (string, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.Calls = append(m.Calls, dir)
+	return m.Hash, m.Err
+}
+
+// MockLogger returns configurable results for testing.
+type MockLogger struct {
+	mu      sync.Mutex
+	Calls   []mockLogCall
+	Commits []Commit
+	Err     error
+}
+
+type mockLogCall struct {
+	Dir     string
+	FromRef string
+	ToRef   string
+}
+
+func NewMockLogger() *MockLogger {
+	return &MockLogger{}
+}
+
+func (m *MockLogger) Log(_ context.Context, dir, fromRef, toRef string) ([]Commit, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.Calls = append(m.Calls, mockLogCall{Dir: dir, FromRef: fromRef, ToRef: toRef})
+	return m.Commits, m.Err
+}

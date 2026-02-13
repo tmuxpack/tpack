@@ -17,6 +17,8 @@ func newTestModel(t *testing.T, plugins []plugin.Plugin) Model {
 		Puller:    git.NewMockPuller(),
 		Validator: git.NewMockValidator(),
 		Fetcher:   git.NewMockFetcher(),
+		RevParser: git.NewMockRevParser(),
+		Logger:    git.NewMockLogger(),
 	}
 	return NewModel(cfg, plugins, deps)
 }

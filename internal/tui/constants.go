@@ -1,6 +1,10 @@
 package tui
 
-import "time"
+import (
+	"time"
+
+	"github.com/tmux-plugins/tpm/internal/git"
+)
 
 // Screen represents the current TUI screen.
 type Screen int
@@ -97,6 +101,7 @@ type ResultItem struct {
 	Success bool
 	Message string
 	Output  string
+	Commits []git.Commit
 }
 
 // pendingOp is a queued operation item.

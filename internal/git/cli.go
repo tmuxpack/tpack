@@ -86,6 +86,51 @@ func NewCLIFetcher() *CLIFetcher {
 	return &CLIFetcher{}
 }
 
+// CLIRevParser resolves git refs using the git CLI.
+type CLIRevParser struct{}
+
+// NewCLIRevParser returns a new CLIRevParser.
+func NewCLIRevParser() *CLIRevParser {
+	return &CLIRevParser{}
+}
+
+func (c *CLIRevParser) RevParse(ctx context.Context, dir string) (string, error) {
+	cmd := exec.CommandContext(ctx, "git", "rev-parse", "HEAD")
+	cmd.Dir = dir
+	out, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("rev-parse HEAD in %s: %w", dir, err)
+	}
+	return strings.TrimSpace(string(out)), nil
+}
+
+// CLILogger retrieves commit logs using the git CLI.
+type CLILogger struct{}
+
+// NewCLILogger returns a new CLILogger.
+func NewCLILogger() *CLILogger {
+	return &CLILogger{}
+}
+
+func (c *CLILogger) Log(ctx context.Context, dir, fromRef, toRef string) ([]Commit, error) {
+	cmd := exec.CommandContext(ctx, "git", "log", fromRef+".."+toRef, "--oneline", "--no-decorate")
+	cmd.Dir = dir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, fmt.Errorf("git log %s..%s in %s: %w", fromRef, toRef, dir, err)
+	}
+
+	var commits []Commit
+	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		if line == "" {
+			continue
+		}
+		hash, message, _ := strings.Cut(line, " ")
+		commits = append(commits, Commit{Hash: hash, Message: message})
+	}
+	return commits, nil
+}
+
 func (c *CLIFetcher) IsOutdated(ctx context.Context, dir string) (bool, error) {
 	fetchCmd := exec.CommandContext(ctx, "git", "fetch")
 	fetchCmd.Dir = dir
