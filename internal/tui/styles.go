@@ -216,13 +216,16 @@ func padToBottom(body, footer string, height int) string {
 	return body + strings.Repeat("\n", padding) + footer
 }
 
-func renderScrollIndicators(start, end, total int) (string, string) {
-	var top, bottom string
+func renderScrollIndicators(start, end, total int) (top, bottom string, dataStart, dataEnd int) {
+	dataStart = start
+	dataEnd = end
 	if start > 0 {
-		top = SubtitleStyle.Render("  ↑ more above") + "\n"
+		top = MutedTextStyle.Render("  ↑ more above") + "\n"
+		dataStart++
 	}
 	if end < total {
-		bottom = SubtitleStyle.Render("  ↓ more below") + "\n"
+		bottom = MutedTextStyle.Render("  ↓ more below") + "\n"
+		dataEnd--
 	}
-	return top, bottom
+	return top, bottom, dataStart, dataEnd
 }

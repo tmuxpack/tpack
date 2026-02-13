@@ -41,12 +41,12 @@ func (m *Model) viewList() string {
 		}
 		start, end := calculateVisibleRange(m.scrollOffset, viewHeight, len(m.plugins))
 
-		// Scroll indicators
-		topIndicator, bottomIndicator := renderScrollIndicators(start, end, len(m.plugins))
+		// Scroll indicators (indicators replace data rows to keep layout stable)
+		topIndicator, bottomIndicator, dataStart, dataEnd := renderScrollIndicators(start, end, len(m.plugins))
 		tb.WriteString(topIndicator)
 
 		// Plugin rows
-		for i := start; i < end; i++ {
+		for i := dataStart; i < dataEnd; i++ {
 			p := m.plugins[i]
 			cursor := renderCursor(i == m.cursor)
 

@@ -113,10 +113,10 @@ func (m CommitViewer) View() string {
 		end = len(m.commits)
 	}
 
-	top, bottom := renderScrollIndicators(m.scrollOffset, end, len(m.commits))
+	top, bottom, dataStart, dataEnd := renderScrollIndicators(m.scrollOffset, end, len(m.commits))
 	b.WriteString(top)
 
-	for i := m.scrollOffset; i < end; i++ {
+	for i := dataStart; i < dataEnd; i++ {
 		c := m.commits[i]
 		cursor := "  "
 		if i == m.cursor {
@@ -183,10 +183,10 @@ func (m *Model) viewCommits() string {
 		end = len(m.commitViewCommits)
 	}
 
-	top, bottom := renderScrollIndicators(m.commitViewScrollOffset, end, len(m.commitViewCommits))
+	top, bottom, dataStart, dataEnd := renderScrollIndicators(m.commitViewScrollOffset, end, len(m.commitViewCommits))
 	b.WriteString(top)
 
-	for i := m.commitViewScrollOffset; i < end; i++ {
+	for i := dataStart; i < dataEnd; i++ {
 		c := m.commitViewCommits[i]
 		cursor := "  "
 		if i == m.commitViewCursor {

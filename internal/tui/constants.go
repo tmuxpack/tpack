@@ -122,7 +122,7 @@ const escKeyName = "esc"
 // Fixed application dimensions.
 const (
 	// FixedWidth is the fixed width of the application in columns.
-	FixedWidth = 60
+	FixedWidth = 80
 	// FixedHeight is the fixed height of the application in rows.
 	FixedHeight = 25
 )

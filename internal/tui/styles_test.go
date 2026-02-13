@@ -28,40 +28,64 @@ func TestRenderCheckbox(t *testing.T) {
 }
 
 func TestRenderScrollIndicators(t *testing.T) {
-	// Both indicators visible.
-	top, bottom := renderScrollIndicators(2, 8, 10)
+	// Both indicators visible — data range shrinks by one on each side.
+	top, bottom, ds, de := renderScrollIndicators(2, 8, 10)
 	if top == "" {
 		t.Error("expected top indicator when start > 0")
 	}
 	if bottom == "" {
 		t.Error("expected bottom indicator when end < total")
 	}
+	if ds != 3 {
+		t.Errorf("expected dataStart=3, got %d", ds)
+	}
+	if de != 7 {
+		t.Errorf("expected dataEnd=7, got %d", de)
+	}
 
-	// Only top.
-	top, bottom = renderScrollIndicators(2, 10, 10)
+	// Only top — data range shrinks at start only.
+	top, bottom, ds, de = renderScrollIndicators(2, 10, 10)
 	if top == "" {
 		t.Error("expected top indicator when start > 0")
 	}
 	if bottom != "" {
 		t.Error("expected no bottom indicator when end == total")
 	}
+	if ds != 3 {
+		t.Errorf("expected dataStart=3, got %d", ds)
+	}
+	if de != 10 {
+		t.Errorf("expected dataEnd=10, got %d", de)
+	}
 
-	// Only bottom.
-	top, bottom = renderScrollIndicators(0, 5, 10)
+	// Only bottom — data range shrinks at end only.
+	top, bottom, ds, de = renderScrollIndicators(0, 5, 10)
 	if top != "" {
 		t.Error("expected no top indicator when start == 0")
 	}
 	if bottom == "" {
 		t.Error("expected bottom indicator when end < total")
 	}
+	if ds != 0 {
+		t.Errorf("expected dataStart=0, got %d", ds)
+	}
+	if de != 4 {
+		t.Errorf("expected dataEnd=4, got %d", de)
+	}
 
-	// Neither.
-	top, bottom = renderScrollIndicators(0, 10, 10)
+	// Neither — data range unchanged.
+	top, bottom, ds, de = renderScrollIndicators(0, 10, 10)
 	if top != "" {
 		t.Error("expected no top indicator")
 	}
 	if bottom != "" {
 		t.Error("expected no bottom indicator")
+	}
+	if ds != 0 {
+		t.Errorf("expected dataStart=0, got %d", ds)
+	}
+	if de != 10 {
+		t.Errorf("expected dataEnd=10, got %d", de)
 	}
 }
 
