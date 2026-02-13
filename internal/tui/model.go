@@ -66,7 +66,13 @@ type Model struct {
 	progressBar     progress.Model
 	checkSpinner    spinner.Model
 
-	resultCursor int
+	resultCursor       int
+	resultScrollOffset int
+
+	commitViewName         string
+	commitViewCommits      []git.Commit
+	commitViewCursor       int
+	commitViewScrollOffset int
 }
 
 // NewModel creates a new Model from the resolved config and gathered plugins.
@@ -87,6 +93,17 @@ func NewModel(cfg *config.Config, plugins []plugin.Plugin, deps Deps, opts ...Mo
 		selected:     make(map[int]bool),
 		progressBar:  newProgress(),
 		checkSpinner: s,
+		width:        FixedWidth,
+		height:       FixedHeight,
+		sizeKnown:    true,
+	}
+	m.viewHeight = FixedHeight - TitleReservedLines
+	if m.viewHeight < MinViewHeight {
+		m.viewHeight = MinViewHeight
+	}
+	m.progressBar.Width = FixedWidth - ProgressBarPadding
+	if m.progressBar.Width > ProgressBarMaxWidth {
+		m.progressBar.Width = ProgressBarMaxWidth
 	}
 	for _, opt := range opts {
 		opt(&m)
@@ -135,8 +152,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.startAutoOperation()
 	case sourceCompleteMsg:
 		return m, nil
-	case commitPopupMsg:
-		return m, nil
 	case pluginCheckResultMsg:
 		return m.handleCheckResult(msg)
 	case spinner.TickMsg:
@@ -154,7 +169,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// handleWindowSize updates layout dimensions from a terminal resize event.
+// handleWindowSize updates layout dimensions from the actual terminal/popup size.
 func (m *Model) handleWindowSize(msg tea.WindowSizeMsg) {
 	m.width = msg.Width
 	m.height = msg.Height
@@ -174,8 +189,13 @@ func (m Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if key.Matches(msg, SharedKeys.ForceQuit) {
 		return m, tea.Quit
 	}
-	if m.screen == ScreenProgress {
+	switch m.screen {
+	case ScreenCommits:
+		return m.updateCommitView(msg)
+	case ScreenProgress:
 		return m.updateProgress(msg)
+	case ScreenList:
+		return m.updateList(msg)
 	}
 	return m.updateList(msg)
 }
@@ -188,6 +208,8 @@ func (m Model) View() string {
 		content = m.viewList()
 	case ScreenProgress:
 		content = m.viewProgress()
+	case ScreenCommits:
+		content = m.viewCommits()
 	}
 	return BaseStyle.Render(content)
 }
@@ -251,14 +273,14 @@ func (m Model) updateProgress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	if m.autoOp != OpNone {
 		switch {
-		case key.Matches(msg, SharedKeys.Quit), msg.String() == "esc":
+		case key.Matches(msg, SharedKeys.Quit), msg.String() == escKeyName:
 			return m, tea.Quit
 		case key.Matches(msg, ListKeys.Up):
 			m.moveResultCursorUp()
 		case key.Matches(msg, ListKeys.Down):
 			m.moveResultCursorDown()
 		case msg.String() == "enter":
-			return m, m.showCommitPopup()
+			m.showCommits()
 		}
 		return m, nil
 	}
@@ -266,42 +288,90 @@ func (m Model) updateProgress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch {
 	case key.Matches(msg, SharedKeys.Quit):
 		return m, tea.Quit
-	case msg.String() == "esc":
+	case msg.String() == escKeyName:
 		return m.returnToList(), nil
 	case key.Matches(msg, ListKeys.Up):
 		m.moveResultCursorUp()
 	case key.Matches(msg, ListKeys.Down):
 		m.moveResultCursorDown()
 	case msg.String() == "enter":
-		return m, m.showCommitPopup()
+		m.showCommits()
 	}
 	return m, nil
 }
 
-// moveResultCursorUp moves the result cursor up.
+// resultMaxVisible returns the number of result rows that fit in the current height.
+func (m *Model) resultMaxVisible() int {
+	v := m.height - progressResultsReservedLines
+	if v < MinViewHeight {
+		return MinViewHeight
+	}
+	return v
+}
+
+// moveResultCursorUp moves the result cursor up and adjusts scroll.
 func (m *Model) moveResultCursorUp() {
 	if m.resultCursor > 0 {
 		m.resultCursor--
+		if m.resultCursor < m.resultScrollOffset+ScrollOffsetMargin && m.resultScrollOffset > 0 {
+			m.resultScrollOffset--
+		}
 	}
 }
 
-// moveResultCursorDown moves the result cursor down.
+// moveResultCursorDown moves the result cursor down and adjusts scroll.
 func (m *Model) moveResultCursorDown() {
 	if m.resultCursor < len(m.results)-1 {
 		m.resultCursor++
+		if m.resultCursor >= m.resultScrollOffset+m.resultMaxVisible()-ScrollOffsetMargin {
+			maxOffset := len(m.results) - m.resultMaxVisible()
+			if maxOffset < 0 {
+				maxOffset = 0
+			}
+			if m.resultScrollOffset < maxOffset {
+				m.resultScrollOffset++
+			}
+		}
 	}
 }
 
-// showCommitPopup launches a tmux popup displaying the commits for the current result.
-func (m *Model) showCommitPopup() tea.Cmd {
+// showCommits navigates to the inline commit viewer for the current result.
+func (m *Model) showCommits() bool {
 	if m.resultCursor < 0 || m.resultCursor >= len(m.results) {
-		return nil
+		return false
 	}
 	r := m.results[m.resultCursor]
 	if len(r.Commits) == 0 {
-		return nil
+		return false
 	}
-	return commitPopupCmd(r)
+	m.screen = ScreenCommits
+	m.commitViewName = r.Name
+	m.commitViewCommits = r.Commits
+	m.commitViewCursor = 0
+	m.commitViewScrollOffset = 0
+	return true
+}
+
+// returnToProgress transitions back to the progress screen from the commit viewer.
+func (m *Model) returnToProgress() {
+	m.screen = ScreenProgress
+	m.commitViewName = ""
+	m.commitViewCommits = nil
+	m.commitViewCursor = 0
+	m.commitViewScrollOffset = 0
+}
+
+// updateCommitView handles key events on the commit viewer screen.
+func (m Model) updateCommitView(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch {
+	case key.Matches(msg, SharedKeys.Quit), msg.String() == escKeyName:
+		m.returnToProgress()
+	case key.Matches(msg, ListKeys.Up):
+		m.moveCommitCursorUp()
+	case key.Matches(msg, ListKeys.Down):
+		m.moveCommitCursorDown()
+	}
+	return m, nil
 }
 
 // startOperation transitions to the progress screen and begins an operation.
@@ -333,6 +403,7 @@ func (m Model) startOperation(op Operation) (tea.Model, tea.Cmd) {
 	m.processing = true
 	m.currentItemName = ""
 	m.resultCursor = 0
+	m.resultScrollOffset = 0
 
 	cmd := m.dispatchNext()
 	return m, cmd
@@ -366,6 +437,7 @@ func (m Model) startAutoOperation() (tea.Model, tea.Cmd) {
 	m.processing = true
 	m.currentItemName = ""
 	m.resultCursor = 0
+	m.resultScrollOffset = 0
 
 	cmd := m.dispatchNext()
 	return m, cmd
@@ -491,6 +563,7 @@ func (m Model) returnToList() Model {
 	m.results = nil
 	m.pendingItems = nil
 	m.resultCursor = 0
+	m.resultScrollOffset = 0
 
 	// Clamp cursor.
 	if m.cursor >= len(m.plugins) {

@@ -168,6 +168,19 @@ func renderCheckbox(checked bool) string {
 	return UncheckedStyle.Render("[ ]")
 }
 
+// padToBottom inserts vertical padding between body and footer so the footer
+// is pinned to the bottom of the available content area.
+func padToBottom(body, footer string, height int) string {
+	contentHeight := height - 2 // BaseStyle vertical padding (1 top + 1 bottom)
+	bodyHeight := lipgloss.Height(body)
+	footerHeight := lipgloss.Height(footer)
+	padding := contentHeight - bodyHeight - footerHeight
+	if padding < 1 {
+		padding = 1
+	}
+	return body + strings.Repeat("\n", padding) + footer
+}
+
 func renderScrollIndicators(start, end, total int) (string, string) {
 	var top, bottom string
 	if start > 0 {

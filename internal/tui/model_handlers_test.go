@@ -2,6 +2,7 @@ package tui
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -523,6 +524,17 @@ func TestWindowSizeMsg_ProgressBarWidthCapped(t *testing.T) {
 	}
 }
 
+func TestDefaultDimensions(t *testing.T) {
+	m := newTestModel(t, nil)
+
+	if m.width != FixedWidth {
+		t.Errorf("expected default width %d, got %d", FixedWidth, m.width)
+	}
+	if m.height != FixedHeight {
+		t.Errorf("expected default height %d, got %d", FixedHeight, m.height)
+	}
+}
+
 func TestMoveCursorDown_AtEnd(t *testing.T) {
 	m := newTestModel(t, nil)
 	m.plugins = []PluginItem{
@@ -590,7 +602,52 @@ func TestResultCursorNavigation(t *testing.T) {
 	}
 }
 
-func TestShowCommitPopup_NoCommits(t *testing.T) {
+func TestResultCursorDown_Scrolling(t *testing.T) {
+	m := newTestModel(t, nil)
+	m.screen = ScreenProgress
+	m.processing = false
+	maxVis := m.resultMaxVisible()
+	count := maxVis + 10
+	m.results = make([]ResultItem, count)
+	for i := range m.results {
+		m.results[i] = ResultItem{Name: "plugin", Success: true}
+	}
+	m.resultCursor = 0
+	m.resultScrollOffset = 0
+
+	// Move cursor past the scroll threshold.
+	for i := 0; i < maxVis; i++ {
+		m.moveResultCursorDown()
+	}
+
+	if m.resultScrollOffset == 0 {
+		t.Error("expected resultScrollOffset to increase when cursor moves past visible area")
+	}
+}
+
+func TestResultCursorUp_Scrolling(t *testing.T) {
+	m := newTestModel(t, nil)
+	m.screen = ScreenProgress
+	m.processing = false
+	maxVis := m.resultMaxVisible()
+	count := maxVis + 10
+	m.results = make([]ResultItem, count)
+	for i := range m.results {
+		m.results[i] = ResultItem{Name: "plugin", Success: true}
+	}
+	m.resultScrollOffset = 10
+	m.resultCursor = 12
+
+	// Move cursor up into the scroll margin zone.
+	m.moveResultCursorUp()
+	m.moveResultCursorUp()
+
+	if m.resultScrollOffset >= 10 {
+		t.Error("expected resultScrollOffset to decrease when cursor moves above visible area")
+	}
+}
+
+func TestShowCommits_NoCommits(t *testing.T) {
 	m := newTestModel(t, nil)
 	m.screen = ScreenProgress
 	m.processing = false
@@ -599,13 +656,16 @@ func TestShowCommitPopup_NoCommits(t *testing.T) {
 	}
 	m.resultCursor = 0
 
-	cmd := m.showCommitPopup()
-	if cmd != nil {
-		t.Error("expected nil cmd for result with no commits")
+	ok := m.showCommits()
+	if ok {
+		t.Error("expected showCommits to return false for result with no commits")
+	}
+	if m.screen != ScreenProgress {
+		t.Errorf("expected to stay on ScreenProgress, got %d", m.screen)
 	}
 }
 
-func TestShowCommitPopup_OutOfBounds(t *testing.T) {
+func TestShowCommits_OutOfBounds(t *testing.T) {
 	m := newTestModel(t, nil)
 	m.screen = ScreenProgress
 	m.processing = false
@@ -614,13 +674,13 @@ func TestShowCommitPopup_OutOfBounds(t *testing.T) {
 	}
 	m.resultCursor = 5
 
-	cmd := m.showCommitPopup()
-	if cmd != nil {
-		t.Error("expected nil cmd for out-of-bounds cursor")
+	ok := m.showCommits()
+	if ok {
+		t.Error("expected showCommits to return false for out-of-bounds cursor")
 	}
 }
 
-func TestShowCommitPopup_WithCommits(t *testing.T) {
+func TestShowCommits_WithCommits(t *testing.T) {
 	m := newTestModel(t, nil)
 	m.screen = ScreenProgress
 	m.processing = false
@@ -633,9 +693,18 @@ func TestShowCommitPopup_WithCommits(t *testing.T) {
 	}
 	m.resultCursor = 0
 
-	cmd := m.showCommitPopup()
-	if cmd == nil {
-		t.Error("expected non-nil cmd for result with commits")
+	ok := m.showCommits()
+	if !ok {
+		t.Error("expected showCommits to return true for result with commits")
+	}
+	if m.screen != ScreenCommits {
+		t.Errorf("expected ScreenCommits, got %d", m.screen)
+	}
+	if m.commitViewName != "a" {
+		t.Errorf("expected commitViewName 'a', got %q", m.commitViewName)
+	}
+	if len(m.commitViewCommits) != 1 {
+		t.Errorf("expected 1 commit, got %d", len(m.commitViewCommits))
 	}
 }
 
@@ -644,7 +713,7 @@ func TestUpdateProgress_NavigationKeys(t *testing.T) {
 	m.screen = ScreenProgress
 	m.processing = false
 	m.results = []ResultItem{
-		{Name: "a", Success: true, Commits: []git.Commit{{Hash: "x", Message: "y"}}},
+		{Name: "a", Success: true, Commits: []git.Commit{{Hash: "x", Message: "y"}}, Dir: "/tmp/p", BeforeRef: "aaa", AfterRef: "bbb"},
 		{Name: "b", Success: true},
 	}
 	m.resultCursor = 0
@@ -665,11 +734,12 @@ func TestUpdateProgress_NavigationKeys(t *testing.T) {
 		t.Errorf("expected resultCursor=0 after k, got %d", m.resultCursor)
 	}
 
-	// Press enter - should return a cmd (popup) for result with commits.
+	// Press enter - should navigate to commits screen for result with commits.
 	enter := tea.KeyMsg{Type: tea.KeyEnter}
-	_, cmd := m.Update(enter)
-	if cmd == nil {
-		t.Error("expected non-nil cmd when pressing enter on result with commits")
+	result, _ = m.Update(enter)
+	m = result.(Model)
+	if m.screen != ScreenCommits {
+		t.Errorf("expected ScreenCommits after enter on result with commits, got %d", m.screen)
 	}
 }
 
@@ -697,5 +767,120 @@ func TestHandleUpdateResult_WithCommits(t *testing.T) {
 	}
 	if len(m.results[0].Commits) != 2 {
 		t.Errorf("expected 2 commits in result, got %d", len(m.results[0].Commits))
+	}
+}
+
+func TestUpdateCommitView_EscReturnsToProgress(t *testing.T) {
+	m := newTestModel(t, nil)
+	m.screen = ScreenCommits
+	m.commitViewName = "test"
+	m.commitViewCommits = []git.Commit{{Hash: "abc", Message: "test"}}
+
+	msg := tea.KeyMsg{Type: tea.KeyEscape}
+	result, _ := m.Update(msg)
+	m = result.(Model)
+
+	if m.screen != ScreenProgress {
+		t.Errorf("expected ScreenProgress after esc, got %d", m.screen)
+	}
+	if m.commitViewName != "" {
+		t.Errorf("expected commitViewName cleared, got %q", m.commitViewName)
+	}
+}
+
+func TestUpdateCommitView_QReturnsToProgress(t *testing.T) {
+	m := newTestModel(t, nil)
+	m.screen = ScreenCommits
+	m.commitViewName = "test"
+	m.commitViewCommits = []git.Commit{{Hash: "abc", Message: "test"}}
+
+	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}}
+	result, _ := m.Update(msg)
+	m = result.(Model)
+
+	if m.screen != ScreenProgress {
+		t.Errorf("expected ScreenProgress after q, got %d", m.screen)
+	}
+}
+
+func TestUpdateCommitView_Navigation(t *testing.T) {
+	m := newTestModel(t, nil)
+	m.screen = ScreenCommits
+	m.commitViewName = "test"
+	m.commitViewCommits = []git.Commit{
+		{Hash: "aaa", Message: "first"},
+		{Hash: "bbb", Message: "second"},
+		{Hash: "ccc", Message: "third"},
+	}
+	m.commitViewCursor = 0
+
+	// Move down.
+	down := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}}
+	result, _ := m.Update(down)
+	m = result.(Model)
+	if m.commitViewCursor != 1 {
+		t.Errorf("expected commitViewCursor=1 after j, got %d", m.commitViewCursor)
+	}
+
+	// Move up.
+	up := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}}
+	result, _ = m.Update(up)
+	m = result.(Model)
+	if m.commitViewCursor != 0 {
+		t.Errorf("expected commitViewCursor=0 after k, got %d", m.commitViewCursor)
+	}
+}
+
+func TestViewCommits_Rendering(t *testing.T) {
+	m := newTestModel(t, nil)
+	m.screen = ScreenCommits
+	m.commitViewName = "tmux-sensible"
+	m.commitViewCommits = []git.Commit{
+		{Hash: "abc1234", Message: "add feature X"},
+		{Hash: "def5678", Message: "fix bug Y"},
+	}
+
+	view := m.View()
+	if view == "" {
+		t.Fatal("expected non-empty view")
+	}
+	if !strings.Contains(view, "tmux-sensible") {
+		t.Error("expected view to contain plugin name")
+	}
+	if !strings.Contains(view, "2 new commits") {
+		t.Error("expected view to show '2 new commits'")
+	}
+	if !strings.Contains(view, "abc1234") {
+		t.Error("expected view to contain commit hash")
+	}
+	if !strings.Contains(view, "back") {
+		t.Error("expected view to contain 'back' in help")
+	}
+}
+
+func TestReturnToProgress_ClearsState(t *testing.T) {
+	m := newTestModel(t, nil)
+	m.screen = ScreenCommits
+	m.commitViewName = "test"
+	m.commitViewCommits = []git.Commit{{Hash: "abc", Message: "test"}}
+	m.commitViewCursor = 2
+	m.commitViewScrollOffset = 1
+
+	m.returnToProgress()
+
+	if m.screen != ScreenProgress {
+		t.Errorf("expected ScreenProgress, got %d", m.screen)
+	}
+	if m.commitViewName != "" {
+		t.Errorf("expected commitViewName cleared, got %q", m.commitViewName)
+	}
+	if m.commitViewCommits != nil {
+		t.Error("expected commitViewCommits cleared")
+	}
+	if m.commitViewCursor != 0 {
+		t.Errorf("expected commitViewCursor reset to 0, got %d", m.commitViewCursor)
+	}
+	if m.commitViewScrollOffset != 0 {
+		t.Errorf("expected commitViewScrollOffset reset to 0, got %d", m.commitViewScrollOffset)
 	}
 }

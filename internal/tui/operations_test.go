@@ -121,6 +121,15 @@ func TestUpdatePluginCmd_WithCommits(t *testing.T) {
 	if result.Commits[0].Hash != "def456" {
 		t.Errorf("expected first commit hash def456, got %s", result.Commits[0].Hash)
 	}
+	if result.Dir != op.Path {
+		t.Errorf("expected Dir=%q, got %q", op.Path, result.Dir)
+	}
+	if result.BeforeRef != "abc123" {
+		t.Errorf("expected BeforeRef=abc123, got %q", result.BeforeRef)
+	}
+	if result.AfterRef != "def456" {
+		t.Errorf("expected AfterRef=def456, got %q", result.AfterRef)
+	}
 }
 
 func TestUpdatePluginCmd_NilRevParser(t *testing.T) {

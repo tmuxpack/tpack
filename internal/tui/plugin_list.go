@@ -87,8 +87,7 @@ func (m *Model) viewList() string {
 		b.WriteString("\n")
 	}
 
-	// Help bar — context-aware actions only.
-	b.WriteString("\n")
+	// Help bar — context-aware actions, pinned to bottom.
 	var helpPairs []string
 	hasNotInstalled, hasInstalled := m.targetHasStatus()
 	if hasNotInstalled {
@@ -101,9 +100,9 @@ func (m *Model) viewList() string {
 		helpPairs = append(helpPairs, "c", "clean")
 	}
 	helpPairs = append(helpPairs, "q", "quit")
-	b.WriteString(m.centerText(renderHelp(m.width, helpPairs...)))
+	help := m.centerText(renderHelp(m.width, helpPairs...))
 
-	return b.String()
+	return padToBottom(b.String(), help, m.height)
 }
 
 // targetHasStatus checks the statuses of the target plugins (selected or cursor).

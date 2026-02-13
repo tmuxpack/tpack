@@ -12,6 +12,7 @@ type Screen int
 const (
 	ScreenList Screen = iota
 	ScreenProgress
+	ScreenCommits
 )
 
 // Operation represents the current plugin operation.
@@ -97,11 +98,14 @@ type OrphanItem struct {
 
 // ResultItem holds the result of a single operation.
 type ResultItem struct {
-	Name    string
-	Success bool
-	Message string
-	Output  string
-	Commits []git.Commit
+	Name      string
+	Success   bool
+	Message   string
+	Output    string
+	Commits   []git.Commit
+	Dir       string
+	BeforeRef string
+	AfterRef  string
 }
 
 // pendingOp is a queued operation item.
@@ -111,6 +115,17 @@ type pendingOp struct {
 	Branch string
 	Path   string
 }
+
+// escKeyName is the string representation of the Escape key.
+const escKeyName = "esc"
+
+// Fixed application dimensions.
+const (
+	// FixedWidth is the fixed width of the application in columns.
+	FixedWidth = 60
+	// FixedHeight is the fixed height of the application in rows.
+	FixedHeight = 25
+)
 
 // Layout constants.
 const (
@@ -128,6 +143,9 @@ const (
 	BaseStylePadding = 4
 	// StatusColWidth is the approximate width of the status column.
 	StatusColWidth = 14
+	// progressResultsReservedLines is the overhead for title, counter, progress bar, stats, and help
+	// on the progress screen.
+	progressResultsReservedLines = 21
 )
 
 // Timeout constants.

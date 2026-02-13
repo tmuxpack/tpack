@@ -64,23 +64,33 @@ func (m *Model) viewProgress() string {
 	if !m.processing && len(m.results) > 0 {
 		b.WriteString("\n\n")
 		b.WriteString(m.centerBlock(m.renderResults()))
-		b.WriteString("\n\n")
+
 		helpKeys := []string{"enter", "view commits"}
 		if m.autoOp != OpNone {
 			helpKeys = append(helpKeys, "q", "quit")
 		} else {
 			helpKeys = append(helpKeys, "q", "quit", "esc", "back to list")
 		}
-		b.WriteString(m.centerText(renderHelp(m.width, helpKeys...)))
+		help := m.centerText(renderHelp(m.width, helpKeys...))
+		return padToBottom(b.String(), help, m.height)
 	}
 
 	return b.String()
 }
 
-// renderResults renders the completed results list with cursor and commit counts.
+// renderResults renders the completed results list with cursor, commit counts, and scrolling.
 func (m *Model) renderResults() string {
+	viewHeight := m.resultMaxVisible()
+	if viewHeight <= 0 {
+		viewHeight = len(m.results)
+	}
+	start, end := calculateVisibleRange(m.resultScrollOffset, viewHeight, len(m.results))
+	topIndicator, bottomIndicator := renderScrollIndicators(start, end, len(m.results))
+
 	var rb strings.Builder
-	for i, r := range m.results {
+	rb.WriteString(topIndicator)
+	for i := start; i < end; i++ {
+		r := m.results[i]
 		cursor := "  "
 		if i == m.resultCursor {
 			cursor = "> "
@@ -92,6 +102,7 @@ func (m *Model) renderResults() string {
 		}
 		rb.WriteString("\n")
 	}
+	rb.WriteString(bottomIndicator)
 	return strings.TrimRight(rb.String(), "\n")
 }
 

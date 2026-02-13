@@ -2,10 +2,7 @@ package tui
 
 import (
 	"context"
-	"fmt"
 	"os"
-	"os/exec"
-	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/tmux-plugins/tpm/internal/git"
@@ -21,11 +18,14 @@ type pluginInstallResultMsg struct {
 }
 
 type pluginUpdateResultMsg struct {
-	Name    string
-	Success bool
-	Message string
-	Output  string
-	Commits []git.Commit
+	Name      string
+	Success   bool
+	Message   string
+	Output    string
+	Commits   []git.Commit
+	Dir       string
+	BeforeRef string
+	AfterRef  string
 }
 
 type pluginCleanResultMsg struct {
@@ -108,19 +108,24 @@ func updatePluginCmd(puller git.Puller, revParser git.RevParser, logger git.Logg
 
 		// Get commits pulled if we captured the before hash.
 		var commits []git.Commit
+		var afterHash string
 		if beforeHash != "" && logger != nil {
-			afterHash, revErr := revParser.RevParse(ctx, op.Path)
+			var revErr error
+			afterHash, revErr = revParser.RevParse(ctx, op.Path)
 			if revErr == nil && afterHash != beforeHash {
 				commits, _ = logger.Log(ctx, op.Path, beforeHash, afterHash)
 			}
 		}
 
 		return pluginUpdateResultMsg{
-			Name:    op.Name,
-			Success: true,
-			Message: "updated successfully",
-			Output:  output,
-			Commits: commits,
+			Name:      op.Name,
+			Success:   true,
+			Message:   "updated successfully",
+			Output:    output,
+			Commits:   commits,
+			Dir:       op.Path,
+			BeforeRef: beforeHash,
+			AfterRef:  afterHash,
 		}
 	}
 }
@@ -149,28 +154,6 @@ func cleanPluginCmd(op pendingOp) tea.Cmd {
 func uninstallPluginCmd(op pendingOp) tea.Cmd {
 	return removeDirCmd(op, func(name string, success bool, message string) tea.Msg {
 		return pluginUninstallResultMsg{Name: name, Success: success, Message: message}
-	})
-}
-
-// commitPopupMsg is sent after the commit viewer is dismissed.
-type commitPopupMsg struct{ Err error }
-
-// commitPopupCmd returns a tea.Cmd that suspends the TUI and shows commits in less.
-func commitPopupCmd(r ResultItem) tea.Cmd {
-	var content strings.Builder
-	content.WriteString(fmt.Sprintf("%s — %d new commit", r.Name, len(r.Commits)))
-	if len(r.Commits) != 1 {
-		content.WriteString("s")
-	}
-	content.WriteString("\n\n")
-	for _, c := range r.Commits {
-		content.WriteString(fmt.Sprintf("  %s %s\n", c.Hash, c.Message))
-	}
-
-	shellCmd := fmt.Sprintf("cat <<'TPMEOF' | less\n%s\nTPMEOF", content.String())
-	c := exec.CommandContext(context.Background(), "bash", "-c", shellCmd) //nolint:gosec // content is from git log, not user input
-	return tea.ExecProcess(c, func(err error) tea.Msg {
-		return commitPopupMsg{Err: err}
 	})
 }
 
