@@ -41,4 +41,6 @@ type Config struct {
 	UpdateCheckInterval time.Duration
 	// UpdateMode controls update behavior ("auto", "prompt", or "off").
 	UpdateMode string
+	// StatePath is the directory for persistent state (e.g. last update check).
+	StatePath string
 }

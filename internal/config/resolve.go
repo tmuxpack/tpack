@@ -11,9 +11,10 @@ import (
 type Option func(*resolveOpts)
 
 type resolveOpts struct {
-	fs   FS
-	home string
-	xdg  string // XDG_CONFIG_HOME override
+	fs       FS
+	home     string
+	xdg      string // XDG_CONFIG_HOME override
+	xdgState string // XDG_STATE_HOME override
 }
 
 // WithFS overrides the filesystem for testing.
@@ -31,6 +32,11 @@ func WithXDG(xdg string) Option {
 	return func(o *resolveOpts) { o.xdg = xdg }
 }
 
+// WithXDGState overrides XDG_STATE_HOME for testing.
+func WithXDGState(xdgState string) Option {
+	return func(o *resolveOpts) { o.xdgState = xdgState }
+}
+
 func (o *resolveOpts) xdgConfigHome() string {
 	if o.xdg != "" {
 		return o.xdg
@@ -39,6 +45,16 @@ func (o *resolveOpts) xdgConfigHome() string {
 		return v
 	}
 	return filepath.Join(o.home, ".config")
+}
+
+func (o *resolveOpts) xdgStateHome() string {
+	if o.xdgState != "" {
+		return o.xdgState
+	}
+	if v := os.Getenv("XDG_STATE_HOME"); v != "" {
+		return v
+	}
+	return filepath.Join(o.home, ".local", "state")
 }
 
 // Resolve builds a Config by reading tmux options and checking filesystem paths.
@@ -89,6 +105,8 @@ func Resolve(runner tmux.Runner, opts ...Option) (*Config, error) {
 	cfg.Colors = fc.Colors
 	cfg.UpdateCheckInterval = parseCheckInterval(fc.Updates.CheckInterval)
 	cfg.UpdateMode = fc.Updates.Mode
+
+	cfg.StatePath = filepath.Join(o.xdgStateHome(), "tpm")
 
 	return cfg, nil
 }

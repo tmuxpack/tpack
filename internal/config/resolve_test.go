@@ -113,3 +113,37 @@ func TestResolvePluginPathTrailingSlash(t *testing.T) {
 		t.Errorf("PluginPath = %q, want trailing slash", cfg.PluginPath)
 	}
 }
+
+func TestResolveStatePath(t *testing.T) {
+	m := tmux.NewMockRunner()
+	fs := config.NewMockFS()
+
+	t.Setenv("XDG_STATE_HOME", "")
+
+	cfg, err := config.Resolve(m, testOpts(fs)...)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	want := "/home/user/.local/state/tpm"
+	if cfg.StatePath != want {
+		t.Errorf("StatePath = %q, want %q", cfg.StatePath, want)
+	}
+}
+
+func TestResolveStatePathWithXDGState(t *testing.T) {
+	m := tmux.NewMockRunner()
+	fs := config.NewMockFS()
+
+	t.Setenv("XDG_STATE_HOME", "/custom/state")
+
+	cfg, err := config.Resolve(m, testOpts(fs)...)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	want := "/custom/state/tpm"
+	if cfg.StatePath != want {
+		t.Errorf("StatePath = %q, want %q", cfg.StatePath, want)
+	}
+}
