@@ -1,9 +1,12 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"syscall"
 
 	"github.com/tmux-plugins/tpm/internal/config"
 	"github.com/tmux-plugins/tpm/internal/tmux"
@@ -50,6 +53,12 @@ func runInit() int {
 	}
 
 	mgr.Source(plugins)
+
+	// Spawn background update check if configured.
+	if shouldSpawnUpdateCheck(cfg) {
+		spawnUpdateCheck()
+	}
+
 	return 0
 }
 
@@ -60,6 +69,21 @@ func bindKeys(runner tmux.Runner, cfg *config.Config) {
 	_ = runner.BindKey(cfg.InstallKey, binary+" tui --popup --install", "[tpm] Install plugins")
 	_ = runner.BindKey(cfg.UpdateKey, binary+" tui --popup --update", "[tpm] Update plugins")
 	_ = runner.BindKey(cfg.CleanKey, binary+" tui --popup --clean", "[tpm] Clean plugins")
+}
+
+// shouldSpawnUpdateCheck returns true if update checks are configured.
+func shouldSpawnUpdateCheck(cfg *config.Config) bool {
+	return cfg.UpdateMode != "" && cfg.UpdateMode != "off" && cfg.UpdateCheckInterval > 0
+}
+
+// spawnUpdateCheck launches `tpm check-updates` as a detached background process.
+func spawnUpdateCheck() {
+	binary := findBinary()
+	cmd := exec.CommandContext(context.Background(), binary, "check-updates")
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.Stdout = nil
+	cmd.Stderr = nil
+	_ = cmd.Start()
 }
 
 // findBinary returns the absolute path to the tpm-go binary.

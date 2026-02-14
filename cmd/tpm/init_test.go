@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/tmux-plugins/tpm/internal/config"
 	"github.com/tmux-plugins/tpm/internal/tmux"
@@ -80,5 +81,34 @@ func TestBindKeys_UseTuiPopup(t *testing.T) {
 	cleanCall := runner.Calls[2]
 	if !strings.Contains(cleanCall.Args[1], "tui --popup --clean") {
 		t.Errorf("expected clean binding to use 'tui --popup --clean', got %s", cleanCall.Args[1])
+	}
+}
+
+func TestShouldSpawnUpdateCheck(t *testing.T) {
+	tests := []struct {
+		name     string
+		mode     string
+		interval time.Duration
+		want     bool
+	}{
+		{"prompt with interval", "prompt", 24 * time.Hour, true},
+		{"auto with interval", "auto", 1 * time.Hour, true},
+		{"off mode", "off", 24 * time.Hour, false},
+		{"empty mode", "", 24 * time.Hour, false},
+		{"zero interval", "prompt", 0, false},
+		{"negative interval", "prompt", -1, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := &config.Config{
+				UpdateMode:          tt.mode,
+				UpdateCheckInterval: tt.interval,
+			}
+			got := shouldSpawnUpdateCheck(cfg)
+			if got != tt.want {
+				t.Errorf("shouldSpawnUpdateCheck() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }
