@@ -18,10 +18,11 @@ builds:
 
 archives:
   - id: tpm-go
-    builds:
+    ids:
       - tpm-go
     name_template: "tpm-go_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
-    format: tar.gz
+    formats:
+      - tar.gz
 
 checksum:
   name_template: "checksums.txt"
