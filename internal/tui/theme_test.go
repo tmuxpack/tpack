@@ -8,109 +8,110 @@ import (
 	"github.com/tmux-plugins/tpm/internal/tmux"
 )
 
-// saveAndRestore saves all 6 color variables and returns a cleanup function
-// that restores them via applyColors.
-func saveAndRestore(t *testing.T) {
-	t.Helper()
-	p, s, a, e, m, tx := primaryColor, secondaryColor, accentColor, errorColor, mutedColor, textColor
-	t.Cleanup(func() {
-		applyColors(p, s, a, e, m, tx)
-	})
+func TestBuildTheme_NilRunner(t *testing.T) {
+	th := BuildTheme(nil)
+	def := DefaultTheme()
+
+	if th.PrimaryColor != def.PrimaryColor {
+		t.Errorf("PrimaryColor = %q, want %q", th.PrimaryColor, def.PrimaryColor)
+	}
+	if th.SecondaryColor != def.SecondaryColor {
+		t.Errorf("SecondaryColor = %q, want %q", th.SecondaryColor, def.SecondaryColor)
+	}
+	if th.AccentColor != def.AccentColor {
+		t.Errorf("AccentColor = %q, want %q", th.AccentColor, def.AccentColor)
+	}
+	if th.ErrorColor != def.ErrorColor {
+		t.Errorf("ErrorColor = %q, want %q", th.ErrorColor, def.ErrorColor)
+	}
+	if th.MutedColor != def.MutedColor {
+		t.Errorf("MutedColor = %q, want %q", th.MutedColor, def.MutedColor)
+	}
+	if th.TextColor != def.TextColor {
+		t.Errorf("TextColor = %q, want %q", th.TextColor, def.TextColor)
+	}
 }
 
-func TestApplyTheme_NilRunner(t *testing.T) {
-	// Should not panic.
-	ApplyTheme(nil)
-}
-
-func TestApplyTheme_FullTheme(t *testing.T) {
-	saveAndRestore(t)
-
+func TestBuildTheme_FullTheme(t *testing.T) {
 	m := tmux.NewMockRunner()
 	m.Options["status-style"] = "fg=#aaaaaa,bg=#bbbbbb"
 	m.Options["pane-active-border-style"] = "fg=#cccccc"
 	m.Options["window-status-current-style"] = "bg=#dddddd"
 
-	ApplyTheme(m)
+	th := BuildTheme(m)
 
-	if primaryColor != lipgloss.Color("#bbbbbb") {
-		t.Errorf("primaryColor = %q, want %q", primaryColor, "#bbbbbb")
+	if th.PrimaryColor != lipgloss.Color("#bbbbbb") {
+		t.Errorf("PrimaryColor = %q, want %q", th.PrimaryColor, "#bbbbbb")
 	}
-	if textColor != lipgloss.Color("#aaaaaa") {
-		t.Errorf("textColor = %q, want %q", textColor, "#aaaaaa")
+	if th.TextColor != lipgloss.Color("#aaaaaa") {
+		t.Errorf("TextColor = %q, want %q", th.TextColor, "#aaaaaa")
 	}
-	if secondaryColor != lipgloss.Color("#cccccc") {
-		t.Errorf("secondaryColor = %q, want %q", secondaryColor, "#cccccc")
+	if th.SecondaryColor != lipgloss.Color("#cccccc") {
+		t.Errorf("SecondaryColor = %q, want %q", th.SecondaryColor, "#cccccc")
 	}
-	if accentColor != lipgloss.Color("#dddddd") {
-		t.Errorf("accentColor = %q, want %q", accentColor, "#dddddd")
+	if th.AccentColor != lipgloss.Color("#dddddd") {
+		t.Errorf("AccentColor = %q, want %q", th.AccentColor, "#dddddd")
 	}
 }
 
-func TestApplyTheme_PartialTheme(t *testing.T) {
-	saveAndRestore(t)
-	origSecondary := secondaryColor
-	origAccent := accentColor
+func TestBuildTheme_PartialTheme(t *testing.T) {
+	def := DefaultTheme()
 
 	m := tmux.NewMockRunner()
 	m.Options["status-style"] = "fg=#111111,bg=#222222"
 
-	ApplyTheme(m)
+	th := BuildTheme(m)
 
-	if primaryColor != lipgloss.Color("#222222") {
-		t.Errorf("primaryColor = %q, want %q", primaryColor, "#222222")
+	if th.PrimaryColor != lipgloss.Color("#222222") {
+		t.Errorf("PrimaryColor = %q, want %q", th.PrimaryColor, "#222222")
 	}
-	if textColor != lipgloss.Color("#111111") {
-		t.Errorf("textColor = %q, want %q", textColor, "#111111")
+	if th.TextColor != lipgloss.Color("#111111") {
+		t.Errorf("TextColor = %q, want %q", th.TextColor, "#111111")
 	}
-	if secondaryColor != origSecondary {
-		t.Errorf("secondaryColor = %q, want original %q", secondaryColor, origSecondary)
+	if th.SecondaryColor != def.SecondaryColor {
+		t.Errorf("SecondaryColor = %q, want default %q", th.SecondaryColor, def.SecondaryColor)
 	}
-	if accentColor != origAccent {
-		t.Errorf("accentColor = %q, want original %q", accentColor, origAccent)
+	if th.AccentColor != def.AccentColor {
+		t.Errorf("AccentColor = %q, want default %q", th.AccentColor, def.AccentColor)
 	}
 }
 
-func TestApplyTheme_ErrorColor_Unchanged(t *testing.T) {
-	saveAndRestore(t)
-	origError := errorColor
-	origMuted := mutedColor
+func TestBuildTheme_ErrorColor_Unchanged(t *testing.T) {
+	def := DefaultTheme()
 
 	m := tmux.NewMockRunner()
 	m.Options["status-style"] = "fg=#ffffff,bg=#000000"
 
-	ApplyTheme(m)
+	th := BuildTheme(m)
 
-	if errorColor != origError {
-		t.Errorf("errorColor changed: %q, want %q", errorColor, origError)
+	if th.ErrorColor != def.ErrorColor {
+		t.Errorf("ErrorColor = %q, want default %q", th.ErrorColor, def.ErrorColor)
 	}
-	if mutedColor != origMuted {
-		t.Errorf("mutedColor changed: %q, want %q", mutedColor, origMuted)
+	if th.MutedColor != def.MutedColor {
+		t.Errorf("MutedColor = %q, want default %q", th.MutedColor, def.MutedColor)
 	}
 }
 
-func TestApplyTheme_DefaultTmuxColors(t *testing.T) {
-	saveAndRestore(t)
-	origPrimary := primaryColor
-	origText := textColor
+func TestBuildTheme_DefaultTmuxColors(t *testing.T) {
+	def := DefaultTheme()
 
 	m := tmux.NewMockRunner()
 	m.Options["status-style"] = "fg=default,bg=default"
 
-	ApplyTheme(m)
+	th := BuildTheme(m)
 
-	if primaryColor != origPrimary {
-		t.Errorf("primaryColor = %q, want original %q", primaryColor, origPrimary)
+	if th.PrimaryColor != def.PrimaryColor {
+		t.Errorf("PrimaryColor = %q, want default %q", th.PrimaryColor, def.PrimaryColor)
 	}
-	if textColor != origText {
-		t.Errorf("textColor = %q, want original %q", textColor, origText)
+	if th.TextColor != def.TextColor {
+		t.Errorf("TextColor = %q, want default %q", th.TextColor, def.TextColor)
 	}
 }
 
-func TestApplyConfigColors_FullOverride(t *testing.T) {
-	saveAndRestore(t)
+func TestOverlayConfigColors_FullOverride(t *testing.T) {
+	base := DefaultTheme()
 
-	ApplyConfigColors(config.ColorConfig{
+	th := OverlayConfigColors(base, config.ColorConfig{
 		Primary:   "#aa0000",
 		Secondary: "#00bb00",
 		Accent:    "#0000cc",
@@ -119,85 +120,74 @@ func TestApplyConfigColors_FullOverride(t *testing.T) {
 		Text:      "#ffffff",
 	})
 
-	if primaryColor != lipgloss.Color("#aa0000") {
-		t.Errorf("primaryColor = %q, want %q", primaryColor, "#aa0000")
+	if th.PrimaryColor != lipgloss.Color("#aa0000") {
+		t.Errorf("PrimaryColor = %q, want %q", th.PrimaryColor, "#aa0000")
 	}
-	if secondaryColor != lipgloss.Color("#00bb00") {
-		t.Errorf("secondaryColor = %q, want %q", secondaryColor, "#00bb00")
+	if th.SecondaryColor != lipgloss.Color("#00bb00") {
+		t.Errorf("SecondaryColor = %q, want %q", th.SecondaryColor, "#00bb00")
 	}
-	if accentColor != lipgloss.Color("#0000cc") {
-		t.Errorf("accentColor = %q, want %q", accentColor, "#0000cc")
+	if th.AccentColor != lipgloss.Color("#0000cc") {
+		t.Errorf("AccentColor = %q, want %q", th.AccentColor, "#0000cc")
 	}
-	if errorColor != lipgloss.Color("#dd0000") {
-		t.Errorf("errorColor = %q, want %q", errorColor, "#dd0000")
+	if th.ErrorColor != lipgloss.Color("#dd0000") {
+		t.Errorf("ErrorColor = %q, want %q", th.ErrorColor, "#dd0000")
 	}
-	if mutedColor != lipgloss.Color("#555555") {
-		t.Errorf("mutedColor = %q, want %q", mutedColor, "#555555")
+	if th.MutedColor != lipgloss.Color("#555555") {
+		t.Errorf("MutedColor = %q, want %q", th.MutedColor, "#555555")
 	}
-	if textColor != lipgloss.Color("#ffffff") {
-		t.Errorf("textColor = %q, want %q", textColor, "#ffffff")
+	if th.TextColor != lipgloss.Color("#ffffff") {
+		t.Errorf("TextColor = %q, want %q", th.TextColor, "#ffffff")
 	}
 }
 
-func TestApplyConfigColors_PartialOverride(t *testing.T) {
-	saveAndRestore(t)
-	origSecondary := secondaryColor
-	origAccent := accentColor
-	origError := errorColor
-	origMuted := mutedColor
-	origText := textColor
+func TestOverlayConfigColors_PartialOverride(t *testing.T) {
+	base := DefaultTheme()
 
-	ApplyConfigColors(config.ColorConfig{
+	th := OverlayConfigColors(base, config.ColorConfig{
 		Primary: "#abcdef",
 	})
 
-	if primaryColor != lipgloss.Color("#abcdef") {
-		t.Errorf("primaryColor = %q, want %q", primaryColor, "#abcdef")
+	if th.PrimaryColor != lipgloss.Color("#abcdef") {
+		t.Errorf("PrimaryColor = %q, want %q", th.PrimaryColor, "#abcdef")
 	}
-	if secondaryColor != origSecondary {
-		t.Errorf("secondaryColor changed: %q, want %q", secondaryColor, origSecondary)
+	if th.SecondaryColor != base.SecondaryColor {
+		t.Errorf("SecondaryColor = %q, want base %q", th.SecondaryColor, base.SecondaryColor)
 	}
-	if accentColor != origAccent {
-		t.Errorf("accentColor changed: %q, want %q", accentColor, origAccent)
+	if th.AccentColor != base.AccentColor {
+		t.Errorf("AccentColor = %q, want base %q", th.AccentColor, base.AccentColor)
 	}
-	if errorColor != origError {
-		t.Errorf("errorColor changed: %q, want %q", errorColor, origError)
+	if th.ErrorColor != base.ErrorColor {
+		t.Errorf("ErrorColor = %q, want base %q", th.ErrorColor, base.ErrorColor)
 	}
-	if mutedColor != origMuted {
-		t.Errorf("mutedColor changed: %q, want %q", mutedColor, origMuted)
+	if th.MutedColor != base.MutedColor {
+		t.Errorf("MutedColor = %q, want base %q", th.MutedColor, base.MutedColor)
 	}
-	if textColor != origText {
-		t.Errorf("textColor changed: %q, want %q", textColor, origText)
+	if th.TextColor != base.TextColor {
+		t.Errorf("TextColor = %q, want base %q", th.TextColor, base.TextColor)
 	}
 }
 
-func TestApplyConfigColors_EmptyNoOp(t *testing.T) {
-	saveAndRestore(t)
-	origPrimary := primaryColor
-	origSecondary := secondaryColor
-	origAccent := accentColor
-	origError := errorColor
-	origMuted := mutedColor
-	origText := textColor
+func TestOverlayConfigColors_EmptyNoOp(t *testing.T) {
+	base := DefaultTheme()
 
-	ApplyConfigColors(config.ColorConfig{})
+	th := OverlayConfigColors(base, config.ColorConfig{})
 
-	if primaryColor != origPrimary {
-		t.Errorf("primaryColor changed: %q, want %q", primaryColor, origPrimary)
+	if th.PrimaryColor != base.PrimaryColor {
+		t.Errorf("PrimaryColor = %q, want base %q", th.PrimaryColor, base.PrimaryColor)
 	}
-	if secondaryColor != origSecondary {
-		t.Errorf("secondaryColor changed: %q, want %q", secondaryColor, origSecondary)
+	if th.SecondaryColor != base.SecondaryColor {
+		t.Errorf("SecondaryColor = %q, want base %q", th.SecondaryColor, base.SecondaryColor)
 	}
-	if accentColor != origAccent {
-		t.Errorf("accentColor changed: %q, want %q", accentColor, origAccent)
+	if th.AccentColor != base.AccentColor {
+		t.Errorf("AccentColor = %q, want base %q", th.AccentColor, base.AccentColor)
 	}
-	if errorColor != origError {
-		t.Errorf("errorColor changed: %q, want %q", errorColor, origError)
+	if th.ErrorColor != base.ErrorColor {
+		t.Errorf("ErrorColor = %q, want base %q", th.ErrorColor, base.ErrorColor)
 	}
-	if mutedColor != origMuted {
-		t.Errorf("mutedColor changed: %q, want %q", mutedColor, origMuted)
+	if th.MutedColor != base.MutedColor {
+		t.Errorf("MutedColor = %q, want base %q", th.MutedColor, base.MutedColor)
 	}
-	if textColor != origText {
-		t.Errorf("textColor changed: %q, want %q", textColor, origText)
+	if th.TextColor != base.TextColor {
+		t.Errorf("TextColor = %q, want base %q", th.TextColor, base.TextColor)
 	}
 }

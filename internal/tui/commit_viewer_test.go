@@ -17,7 +17,7 @@ func testCommits() []git.Commit {
 }
 
 func TestCommitViewer_View_ShowsTitle(t *testing.T) {
-	m := NewCommitViewer("tmux-sensible", testCommits())
+	m := NewCommitViewer("tmux-sensible", testCommits(), DefaultTheme())
 
 	view := m.View()
 	if !strings.Contains(view, "tmux-sensible") {
@@ -30,7 +30,7 @@ func TestCommitViewer_View_ShowsTitle(t *testing.T) {
 
 func TestCommitViewer_View_SingleCommit(t *testing.T) {
 	commits := []git.Commit{{Hash: "abc1234", Message: "single change"}}
-	m := NewCommitViewer("test-plugin", commits)
+	m := NewCommitViewer("test-plugin", commits, DefaultTheme())
 
 	view := m.View()
 	if !strings.Contains(view, "1 new commit") {
@@ -42,7 +42,7 @@ func TestCommitViewer_View_SingleCommit(t *testing.T) {
 }
 
 func TestCommitViewer_View_ShowsCommitHashes(t *testing.T) {
-	m := NewCommitViewer("test", testCommits())
+	m := NewCommitViewer("test", testCommits(), DefaultTheme())
 
 	view := m.View()
 	for _, c := range testCommits() {
@@ -56,7 +56,7 @@ func TestCommitViewer_View_ShowsCommitHashes(t *testing.T) {
 }
 
 func TestCommitViewer_View_ShowsHelp(t *testing.T) {
-	m := NewCommitViewer("test", testCommits())
+	m := NewCommitViewer("test", testCommits(), DefaultTheme())
 
 	view := m.View()
 	if !strings.Contains(view, "quit") {
@@ -65,7 +65,7 @@ func TestCommitViewer_View_ShowsHelp(t *testing.T) {
 }
 
 func TestCommitViewer_Navigation(t *testing.T) {
-	m := NewCommitViewer("test", testCommits())
+	m := NewCommitViewer("test", testCommits(), DefaultTheme())
 
 	if m.scroll.cursor != 0 {
 		t.Errorf("expected initial cursor at 0, got %d", m.scroll.cursor)
@@ -117,7 +117,7 @@ func TestCommitViewer_Navigation(t *testing.T) {
 }
 
 func TestCommitViewer_QuitOnQ(t *testing.T) {
-	m := NewCommitViewer("test", testCommits())
+	m := NewCommitViewer("test", testCommits(), DefaultTheme())
 
 	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}}
 	_, cmd := m.Update(msg)
@@ -127,7 +127,7 @@ func TestCommitViewer_QuitOnQ(t *testing.T) {
 }
 
 func TestCommitViewer_QuitOnEsc(t *testing.T) {
-	m := NewCommitViewer("test", testCommits())
+	m := NewCommitViewer("test", testCommits(), DefaultTheme())
 
 	msg := tea.KeyMsg{Type: tea.KeyEscape}
 	_, cmd := m.Update(msg)
@@ -137,7 +137,7 @@ func TestCommitViewer_QuitOnEsc(t *testing.T) {
 }
 
 func TestCommitViewer_WindowSize(t *testing.T) {
-	m := NewCommitViewer("test", testCommits())
+	m := NewCommitViewer("test", testCommits(), DefaultTheme())
 
 	result, _ := m.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
 	m = result.(CommitViewer)
@@ -155,14 +155,14 @@ func TestCommitViewer_WindowSize(t *testing.T) {
 
 func TestCommitViewer_ScrollIndicators(t *testing.T) {
 	// Create more commits than maxVisible.
-	m := NewCommitViewer("test", nil)
+	m := NewCommitViewer("test", nil, DefaultTheme())
 	maxVis := m.maxVisible()
 	commits := make([]git.Commit, maxVis+5)
 	for i := range commits {
 		commits[i] = git.Commit{Hash: "abc1234", Message: "commit"}
 	}
 
-	m = NewCommitViewer("test", commits)
+	m = NewCommitViewer("test", commits, DefaultTheme())
 
 	view := m.View()
 	// Should show "more below" but not "more above" at start.
@@ -204,7 +204,7 @@ func TestCommitViewerIdealSize(t *testing.T) {
 }
 
 func TestCommitViewer_Init(t *testing.T) {
-	m := NewCommitViewer("test", testCommits())
+	m := NewCommitViewer("test", testCommits(), DefaultTheme())
 	cmd := m.Init()
 	if cmd != nil {
 		t.Error("expected nil command from Init")

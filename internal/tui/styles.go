@@ -6,13 +6,14 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-var (
-	primaryColor   = lipgloss.Color("#7C3AED")
-	secondaryColor = lipgloss.Color("#10B981")
-	accentColor    = lipgloss.Color("#F59E0B")
-	errorColor     = lipgloss.Color("#EF4444")
-	mutedColor     = lipgloss.Color("#6B7280")
-	textColor      = lipgloss.Color("#F3F4F6")
+// Theme holds all TUI styles derived from a color palette.
+type Theme struct {
+	PrimaryColor   lipgloss.Color
+	SecondaryColor lipgloss.Color
+	AccentColor    lipgloss.Color
+	ErrorColor     lipgloss.Color
+	MutedColor     lipgloss.Color
+	TextColor      lipgloss.Color
 
 	BaseStyle               lipgloss.Style
 	TitleStyle              lipgloss.Style
@@ -31,92 +32,99 @@ var (
 	HelpKeyStyle            lipgloss.Style
 	ProgressStyle           lipgloss.Style
 	OrphanStyle             lipgloss.Style
-)
-
-func init() {
-	applyColors(primaryColor, secondaryColor, accentColor, errorColor, mutedColor, textColor)
 }
 
-// applyColors rebuilds every style variable from the given colors.
-// It is called once at init time with defaults and may be called again
-// after theme detection to apply tmux-derived colors.
-// Must be called before the TUI event loop starts; not safe for concurrent use.
-func applyColors(primary, secondary, accent, errC, muted, text lipgloss.Color) {
-	primaryColor = primary
-	secondaryColor = secondary
-	accentColor = accent
-	errorColor = errC
-	mutedColor = muted
-	textColor = text
+// NewTheme constructs a Theme from the given color palette.
+func NewTheme(primary, secondary, accent, errC, muted, text lipgloss.Color) Theme {
+	return Theme{
+		PrimaryColor:   primary,
+		SecondaryColor: secondary,
+		AccentColor:    accent,
+		ErrorColor:     errC,
+		MutedColor:     muted,
+		TextColor:      text,
 
-	BaseStyle = lipgloss.NewStyle().
-		Padding(1, 2)
+		BaseStyle: lipgloss.NewStyle().
+			Padding(1, 2),
 
-	TitleStyle = lipgloss.NewStyle().
-		Bold(true).
-		Foreground(primaryColor).
-		MarginBottom(1).
-		Padding(0, 1).
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(primaryColor)
+		TitleStyle: lipgloss.NewStyle().
+			Bold(true).
+			Foreground(primary).
+			MarginBottom(1).
+			Padding(0, 1).
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(primary),
 
-	SubtitleStyle = lipgloss.NewStyle().
-		Foreground(mutedColor).
-		Italic(true).
-		MarginBottom(1)
+		SubtitleStyle: lipgloss.NewStyle().
+			Foreground(muted).
+			Italic(true).
+			MarginBottom(1),
 
-	MutedTextStyle = lipgloss.NewStyle().
-		Foreground(mutedColor)
+		MutedTextStyle: lipgloss.NewStyle().
+			Foreground(muted),
 
-	SelectedRowStyle = lipgloss.NewStyle().
-		Foreground(textColor).
-		Background(primaryColor).
-		Bold(true)
+		SelectedRowStyle: lipgloss.NewStyle().
+			Foreground(text).
+			Background(primary).
+			Bold(true),
 
-	CheckedStyle = lipgloss.NewStyle().
-		Foreground(secondaryColor).
-		Bold(true)
+		CheckedStyle: lipgloss.NewStyle().
+			Foreground(secondary).
+			Bold(true),
 
-	UncheckedStyle = lipgloss.NewStyle().
-		Foreground(mutedColor)
+		UncheckedStyle: lipgloss.NewStyle().
+			Foreground(muted),
 
-	StatusInstalledStyle = lipgloss.NewStyle().
-		Foreground(secondaryColor)
+		StatusInstalledStyle: lipgloss.NewStyle().
+			Foreground(secondary),
 
-	StatusNotInstalledStyle = lipgloss.NewStyle().
-		Foreground(errorColor)
+		StatusNotInstalledStyle: lipgloss.NewStyle().
+			Foreground(errC),
 
-	StatusOutdatedStyle = lipgloss.NewStyle().
-		Foreground(accentColor)
+		StatusOutdatedStyle: lipgloss.NewStyle().
+			Foreground(accent),
 
-	StatusCheckFailedStyle = lipgloss.NewStyle().
-		Foreground(accentColor)
+		StatusCheckFailedStyle: lipgloss.NewStyle().
+			Foreground(accent),
 
-	SuccessStyle = lipgloss.NewStyle().
-		Foreground(secondaryColor).
-		Bold(true)
+		SuccessStyle: lipgloss.NewStyle().
+			Foreground(secondary).
+			Bold(true),
 
-	ErrorStyle = lipgloss.NewStyle().
-		Foreground(errorColor).
-		Bold(true)
+		ErrorStyle: lipgloss.NewStyle().
+			Foreground(errC).
+			Bold(true),
 
-	HelpStyle = lipgloss.NewStyle().
-		Foreground(mutedColor).
-		MarginTop(1)
+		HelpStyle: lipgloss.NewStyle().
+			Foreground(muted).
+			MarginTop(1),
 
-	HelpKeyStyle = lipgloss.NewStyle().
-		Foreground(accentColor).
-		Bold(true)
+		HelpKeyStyle: lipgloss.NewStyle().
+			Foreground(accent).
+			Bold(true),
 
-	ProgressStyle = lipgloss.NewStyle().
-		Foreground(secondaryColor)
+		ProgressStyle: lipgloss.NewStyle().
+			Foreground(secondary),
 
-	OrphanStyle = lipgloss.NewStyle().
-		Foreground(accentColor).
-		Italic(true)
+		OrphanStyle: lipgloss.NewStyle().
+			Foreground(accent).
+			Italic(true),
+	}
 }
 
-func renderHelp(width int, keys ...string) string {
+// DefaultTheme returns a Theme built from the hardcoded default colors.
+func DefaultTheme() Theme {
+	return NewTheme(
+		lipgloss.Color("#7C3AED"),
+		lipgloss.Color("#10B981"),
+		lipgloss.Color("#F59E0B"),
+		lipgloss.Color("#EF4444"),
+		lipgloss.Color("#6B7280"),
+		lipgloss.Color("#F3F4F6"),
+	)
+}
+
+func (th *Theme) renderHelp(width int, keys ...string) string {
 	if width < 20 {
 		width = 20
 	}
@@ -134,7 +142,7 @@ func renderHelp(width int, keys ...string) string {
 			desc = keys[i+1]
 		}
 
-		itemText := HelpKeyStyle.Render(key) + " " + desc
+		itemText := th.HelpKeyStyle.Render(key) + " " + desc
 		itemLen := len(key) + 1 + len(desc)
 
 		willExceed := len(lineTexts) > 0 && currentVisibleLen+separatorLen+itemLen > width-4
@@ -156,7 +164,7 @@ func renderHelp(width int, keys ...string) string {
 		lines = append(lines, strings.Join(lineTexts, separator))
 	}
 
-	return HelpStyle.Render(strings.Join(lines, "\n"))
+	return th.HelpStyle.Render(strings.Join(lines, "\n"))
 }
 
 // centerText centers a single-line element within the available content width.
@@ -196,11 +204,11 @@ func renderCursor(active bool) string {
 	return "  "
 }
 
-func renderCheckbox(checked bool) string {
+func (th *Theme) renderCheckbox(checked bool) string {
 	if checked {
-		return CheckedStyle.Render("[✓]")
+		return th.CheckedStyle.Render("[✓]")
 	}
-	return UncheckedStyle.Render("[ ]")
+	return th.UncheckedStyle.Render("[ ]")
 }
 
 // padToBottom inserts vertical padding between body and footer so the footer
@@ -216,15 +224,15 @@ func padToBottom(body, footer string, height int) string {
 	return body + strings.Repeat("\n", padding) + footer
 }
 
-func renderScrollIndicators(start, end, total int) (top, bottom string, dataStart, dataEnd int) {
+func (th *Theme) renderScrollIndicators(start, end, total int) (top, bottom string, dataStart, dataEnd int) {
 	dataStart = start
 	dataEnd = end
 	if start > 0 {
-		top = MutedTextStyle.Render("  ↑ more above") + "\n"
+		top = th.MutedTextStyle.Render("  ↑ more above") + "\n"
 		dataStart++
 	}
 	if end < total {
-		bottom = MutedTextStyle.Render("  ↓ more below") + "\n"
+		bottom = th.MutedTextStyle.Render("  ↓ more below") + "\n"
 		dataEnd--
 	}
 	return top, bottom, dataStart, dataEnd

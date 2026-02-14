@@ -10,15 +10,15 @@ func (m *Model) viewList() string {
 	var b strings.Builder
 
 	// Title
-	b.WriteString(m.centerText(TitleStyle.Render("  TPM Plugin Manager  ")))
+	b.WriteString(m.centerText(m.theme.TitleStyle.Render("  TPM Plugin Manager  ")))
 	b.WriteString("\n")
 
 	subtitle := m.statusSummary()
-	b.WriteString(m.centerText(SubtitleStyle.Render(subtitle)))
+	b.WriteString(m.centerText(m.theme.SubtitleStyle.Render(subtitle)))
 	b.WriteString("\n")
 
 	if len(m.plugins) == 0 {
-		b.WriteString(m.centerText(MutedTextStyle.Render("  No plugins configured in tmux.conf")))
+		b.WriteString(m.centerText(m.theme.MutedTextStyle.Render("  No plugins configured in tmux.conf")))
 		b.WriteString("\n")
 	} else {
 		// Build table as a block (header + separator + rows + scroll indicators)
@@ -29,9 +29,9 @@ func (m *Model) viewList() string {
 		nameCol := "name"
 		statusCol := "status"
 		header := fmt.Sprintf("  %-*s  %s", m.nameColWidth(), nameCol, statusCol)
-		tb.WriteString(MutedTextStyle.Render(header))
+		tb.WriteString(m.theme.MutedTextStyle.Render(header))
 		tb.WriteString("\n")
-		tb.WriteString(MutedTextStyle.Render("  " + strings.Repeat("─", m.tableWidth())))
+		tb.WriteString(m.theme.MutedTextStyle.Render("  " + strings.Repeat("─", m.tableWidth())))
 		tb.WriteString("\n")
 
 		// Calculate visible range
@@ -42,7 +42,7 @@ func (m *Model) viewList() string {
 		start, end := calculateVisibleRange(m.listScroll.scrollOffset, viewHeight, len(m.plugins))
 
 		// Scroll indicators (indicators replace data rows to keep layout stable)
-		topIndicator, bottomIndicator, dataStart, dataEnd := renderScrollIndicators(start, end, len(m.plugins))
+		topIndicator, bottomIndicator, dataStart, dataEnd := m.theme.renderScrollIndicators(start, end, len(m.plugins))
 		tb.WriteString(topIndicator)
 
 		// Plugin rows
@@ -52,7 +52,7 @@ func (m *Model) viewList() string {
 
 			var checkbox string
 			if m.multiSelectActive {
-				checkbox = renderCheckbox(m.selected[i]) + " "
+				checkbox = m.theme.renderCheckbox(m.selected[i]) + " "
 			}
 
 			status := m.renderStatus(p.Status)
@@ -60,9 +60,9 @@ func (m *Model) viewList() string {
 			row := fmt.Sprintf("%s%s%-*s  %s", cursor, checkbox, m.nameColWidth(), p.Name, status)
 
 			if i == m.listScroll.cursor {
-				row = SelectedRowStyle.Render(row)
+				row = m.theme.SelectedRowStyle.Render(row)
 			} else if m.selected[i] {
-				row = CheckedStyle.Render(row)
+				row = m.theme.CheckedStyle.Render(row)
 			}
 
 			tb.WriteString(row)
@@ -83,7 +83,7 @@ func (m *Model) viewList() string {
 		for i, o := range m.orphans {
 			names[i] = o.Name
 		}
-		b.WriteString(m.centerText(OrphanStyle.Render("Orphaned: " + strings.Join(names, ", "))))
+		b.WriteString(m.centerText(m.theme.OrphanStyle.Render("Orphaned: " + strings.Join(names, ", "))))
 		b.WriteString("\n")
 	}
 
@@ -100,7 +100,7 @@ func (m *Model) viewList() string {
 		helpPairs = append(helpPairs, "c", "clean")
 	}
 	helpPairs = append(helpPairs, "q", "quit")
-	help := m.centerText(renderHelp(m.width, helpPairs...))
+	help := m.centerText(m.theme.renderHelp(m.width, helpPairs...))
 
 	return padToBottom(b.String(), help, m.height)
 }
@@ -173,15 +173,15 @@ func (m *Model) statusSummary() string {
 func (m *Model) renderStatus(s PluginStatus) string {
 	switch s {
 	case StatusInstalled:
-		return StatusInstalledStyle.Render("Installed")
+		return m.theme.StatusInstalledStyle.Render("Installed")
 	case StatusNotInstalled:
-		return StatusNotInstalledStyle.Render("Not Installed")
+		return m.theme.StatusNotInstalledStyle.Render("Not Installed")
 	case StatusChecking:
-		return StatusInstalledStyle.Render("Installed") + " " + m.checkSpinner.View()
+		return m.theme.StatusInstalledStyle.Render("Installed") + " " + m.checkSpinner.View()
 	case StatusOutdated:
-		return StatusOutdatedStyle.Render("Outdated")
+		return m.theme.StatusOutdatedStyle.Render("Outdated")
 	case StatusCheckFailed:
-		return StatusInstalledStyle.Render("Installed") + " " + StatusCheckFailedStyle.Render("⚠")
+		return m.theme.StatusInstalledStyle.Render("Installed") + " " + m.theme.StatusCheckFailedStyle.Render("⚠")
 	default:
 		return ""
 	}

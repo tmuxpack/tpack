@@ -30,6 +30,11 @@ func WithAutoOp(op Operation) ModelOption {
 	return func(m *Model) { m.autoOp = op }
 }
 
+// WithTheme returns a ModelOption that sets the theme.
+func WithTheme(t Theme) ModelOption {
+	return func(m *Model) { m.theme = t }
+}
+
 // autoStartMsg is sent by Init when an auto-operation is configured.
 type autoStartMsg struct{}
 
@@ -42,6 +47,7 @@ type Model struct {
 	plugins []PluginItem
 	orphans []OrphanItem
 	deps    Deps
+	theme   Theme
 
 	screen    Screen
 	operation Operation
@@ -85,6 +91,7 @@ func NewModel(cfg *config.Config, plugins []plugin.Plugin, deps Deps, opts ...Mo
 		plugins:      items,
 		orphans:      orphans,
 		deps:         deps,
+		theme:        DefaultTheme(),
 		screen:       ScreenList,
 		operation:    OpNone,
 		selected:     make(map[int]bool),
@@ -208,7 +215,7 @@ func (m Model) View() string {
 	case ScreenCommits:
 		content = m.viewCommits()
 	}
-	return BaseStyle.Render(content)
+	return m.theme.BaseStyle.Render(content)
 }
 
 // updateList handles key events on the list screen.

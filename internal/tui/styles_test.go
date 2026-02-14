@@ -17,19 +17,21 @@ func TestRenderCursor(t *testing.T) {
 }
 
 func TestRenderCheckbox(t *testing.T) {
-	checked := renderCheckbox(true)
+	th := DefaultTheme()
+	checked := th.renderCheckbox(true)
 	if !strings.Contains(checked, "\u2713") {
 		t.Errorf("renderCheckbox(true) should contain checkmark, got %q", checked)
 	}
-	unchecked := renderCheckbox(false)
+	unchecked := th.renderCheckbox(false)
 	if !strings.Contains(unchecked, "[ ]") {
 		t.Errorf("renderCheckbox(false) should contain '[ ]', got %q", unchecked)
 	}
 }
 
 func TestRenderScrollIndicators(t *testing.T) {
+	th := DefaultTheme()
 	// Both indicators visible — data range shrinks by one on each side.
-	top, bottom, ds, de := renderScrollIndicators(2, 8, 10)
+	top, bottom, ds, de := th.renderScrollIndicators(2, 8, 10)
 	if top == "" {
 		t.Error("expected top indicator when start > 0")
 	}
@@ -44,7 +46,7 @@ func TestRenderScrollIndicators(t *testing.T) {
 	}
 
 	// Only top — data range shrinks at start only.
-	top, bottom, ds, de = renderScrollIndicators(2, 10, 10)
+	top, bottom, ds, de = th.renderScrollIndicators(2, 10, 10)
 	if top == "" {
 		t.Error("expected top indicator when start > 0")
 	}
@@ -59,7 +61,7 @@ func TestRenderScrollIndicators(t *testing.T) {
 	}
 
 	// Only bottom — data range shrinks at end only.
-	top, bottom, ds, de = renderScrollIndicators(0, 5, 10)
+	top, bottom, ds, de = th.renderScrollIndicators(0, 5, 10)
 	if top != "" {
 		t.Error("expected no top indicator when start == 0")
 	}
@@ -74,7 +76,7 @@ func TestRenderScrollIndicators(t *testing.T) {
 	}
 
 	// Neither — data range unchanged.
-	top, bottom, ds, de = renderScrollIndicators(0, 10, 10)
+	top, bottom, ds, de = th.renderScrollIndicators(0, 10, 10)
 	if top != "" {
 		t.Error("expected no top indicator")
 	}
@@ -110,8 +112,9 @@ func TestCalculateVisibleRange(t *testing.T) {
 }
 
 func TestRenderHelp(t *testing.T) {
+	th := DefaultTheme()
 	// Single pair produces non-empty output.
-	out := renderHelp(80, "q", "quit")
+	out := th.renderHelp(80, "q", "quit")
 	if out == "" {
 		t.Error("expected non-empty help output")
 	}
@@ -120,7 +123,7 @@ func TestRenderHelp(t *testing.T) {
 	}
 
 	// Large width keeps everything on one line (no wrapping).
-	out = renderHelp(200, "q", "quit", "i", "install")
+	out = th.renderHelp(200, "q", "quit", "i", "install")
 	lines := strings.Split(out, "\n")
 	// The help is rendered with lipgloss which may add margin, but the core
 	// content should stay on a single logical line when width is very large.

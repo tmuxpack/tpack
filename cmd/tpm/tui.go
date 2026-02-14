@@ -29,13 +29,13 @@ func runTui(args []string) int {
 	}
 
 	runner := tmux.NewRealRunner()
-	tui.ApplyTheme(runner)
+	theme := tui.BuildTheme(runner)
 	cfg, err := config.Resolve(runner)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "tpm: config error:", err)
 		return 1
 	}
-	tui.ApplyConfigColors(cfg.Colors)
+	theme = tui.OverlayConfigColors(theme, cfg.Colors)
 
 	plugins := config.GatherPlugins(runner, config.RealFS{}, cfg.TmuxConf, cfg.Home)
 
@@ -52,6 +52,7 @@ func runTui(args []string) int {
 	}
 
 	var opts []tui.ModelOption
+	opts = append(opts, tui.WithTheme(theme))
 	if autoOp != tui.OpNone {
 		opts = append(opts, tui.WithAutoOp(autoOp))
 	}

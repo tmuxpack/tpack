@@ -22,12 +22,12 @@ func (m *Model) viewProgress() string {
 
 	// Title
 	title := fmt.Sprintf("  %s in progress...  ", m.operation)
-	b.WriteString(m.centerText(TitleStyle.Render(title)))
+	b.WriteString(m.centerText(m.theme.TitleStyle.Render(title)))
 	b.WriteString("\n")
 
 	// Counter
 	counter := fmt.Sprintf("Processing %d of %d plugins", m.completedItems, m.totalItems)
-	b.WriteString(m.centerText(SubtitleStyle.Render(counter)))
+	b.WriteString(m.centerText(m.theme.SubtitleStyle.Render(counter)))
 	b.WriteString("\n\n")
 
 	// Current item
@@ -55,10 +55,10 @@ func (m *Model) viewProgress() string {
 		}
 	}
 	stats := fmt.Sprintf("%s %d successful  %s %d failed",
-		SuccessStyle.Render("✓"), successCount,
-		ErrorStyle.Render("✗"), failCount,
+		m.theme.SuccessStyle.Render("✓"), successCount,
+		m.theme.ErrorStyle.Render("✗"), failCount,
 	)
-	b.WriteString(m.centerText(MutedTextStyle.Render(stats)))
+	b.WriteString(m.centerText(m.theme.MutedTextStyle.Render(stats)))
 
 	// Show results detail if complete
 	if !m.processing && len(m.results) > 0 {
@@ -71,7 +71,7 @@ func (m *Model) viewProgress() string {
 		} else {
 			helpKeys = append(helpKeys, "q", "quit", "esc", "back to list")
 		}
-		help := m.centerText(renderHelp(m.width, helpKeys...))
+		help := m.centerText(m.theme.renderHelp(m.width, helpKeys...))
 		return padToBottom(b.String(), help, m.height)
 	}
 
@@ -85,7 +85,7 @@ func (m *Model) renderResults() string {
 		viewHeight = len(m.results)
 	}
 	start, end := calculateVisibleRange(m.resultScroll.scrollOffset, viewHeight, len(m.results))
-	topIndicator, bottomIndicator, dataStart, dataEnd := renderScrollIndicators(start, end, len(m.results))
+	topIndicator, bottomIndicator, dataStart, dataEnd := m.theme.renderScrollIndicators(start, end, len(m.results))
 
 	var rb strings.Builder
 	rb.WriteString(topIndicator)
@@ -96,9 +96,9 @@ func (m *Model) renderResults() string {
 			cursor = "> "
 		}
 		if r.Success {
-			rb.WriteString(renderSuccessResult(cursor, r))
+			rb.WriteString(renderSuccessResult(&m.theme, cursor, r))
 		} else {
-			rb.WriteString(cursor + "  " + ErrorStyle.Render("✗ "+r.Name+": "+r.Message))
+			rb.WriteString(cursor + "  " + m.theme.ErrorStyle.Render("✗ "+r.Name+": "+r.Message))
 		}
 		rb.WriteString("\n")
 	}
@@ -107,7 +107,7 @@ func (m *Model) renderResults() string {
 }
 
 // renderSuccessResult renders a single successful result line with commit count and indicator.
-func renderSuccessResult(cursor string, r ResultItem) string {
+func renderSuccessResult(th *Theme, cursor string, r ResultItem) string {
 	commitInfo := ""
 	if n := len(r.Commits); n > 0 {
 		commitInfo = fmt.Sprintf(" (%d new commit", n)
@@ -120,5 +120,5 @@ func renderSuccessResult(cursor string, r ResultItem) string {
 	if len(r.Commits) > 0 {
 		indicator = "▸"
 	}
-	return cursor + indicator + " " + SuccessStyle.Render("✓ "+r.Name) + MutedTextStyle.Render(commitInfo)
+	return cursor + indicator + " " + th.SuccessStyle.Render("✓ "+r.Name) + th.MutedTextStyle.Render(commitInfo)
 }

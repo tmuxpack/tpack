@@ -6,20 +6,21 @@ import (
 	"github.com/tmux-plugins/tpm/internal/tmux"
 )
 
-// ApplyTheme queries the tmux server for the user's theme colors and
-// rebuilds all TUI styles to match.  If runner is nil or a color cannot
-// be detected, the hardcoded default is kept.
-func ApplyTheme(runner tmux.Runner) {
+// BuildTheme queries the tmux server for the user's theme colors and
+// returns a Theme. If runner is nil or a color cannot be detected,
+// the hardcoded default is used.
+func BuildTheme(runner tmux.Runner) Theme {
+	base := DefaultTheme()
 	if runner == nil {
-		return
+		return base
 	}
 
 	tc := tmux.DetectTheme(runner)
 
-	primary := primaryColor
-	secondary := secondaryColor
-	accent := accentColor
-	text := textColor
+	primary := base.PrimaryColor
+	secondary := base.SecondaryColor
+	accent := base.AccentColor
+	text := base.TextColor
 
 	if tc.Primary != "" {
 		primary = lipgloss.Color(tc.Primary)
@@ -34,18 +35,18 @@ func ApplyTheme(runner tmux.Runner) {
 		accent = lipgloss.Color(tc.Accent)
 	}
 
-	applyColors(primary, secondary, accent, errorColor, mutedColor, text)
+	return NewTheme(primary, secondary, accent, base.ErrorColor, base.MutedColor, text)
 }
 
-// ApplyConfigColors overlays non-empty color values from the config file
-// on top of the current colors. Must be called after ApplyTheme.
-func ApplyConfigColors(cc config.ColorConfig) {
-	primary := primaryColor
-	secondary := secondaryColor
-	accent := accentColor
-	errC := errorColor
-	muted := mutedColor
-	text := textColor
+// OverlayConfigColors returns a new Theme with non-empty config color values
+// applied on top of the given base theme.
+func OverlayConfigColors(base Theme, cc config.ColorConfig) Theme {
+	primary := base.PrimaryColor
+	secondary := base.SecondaryColor
+	accent := base.AccentColor
+	errC := base.ErrorColor
+	muted := base.MutedColor
+	text := base.TextColor
 
 	if cc.Primary != "" {
 		primary = lipgloss.Color(cc.Primary)
@@ -66,5 +67,5 @@ func ApplyConfigColors(cc config.ColorConfig) {
 		text = lipgloss.Color(cc.Text)
 	}
 
-	applyColors(primary, secondary, accent, errC, muted, text)
+	return NewTheme(primary, secondary, accent, errC, muted, text)
 }

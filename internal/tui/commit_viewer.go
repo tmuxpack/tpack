@@ -26,6 +26,7 @@ func (m *CommitViewer) maxVisible() int {
 type CommitViewer struct {
 	name    string
 	commits []git.Commit
+	theme   Theme
 
 	scroll    scrollState
 	width     int
@@ -34,10 +35,11 @@ type CommitViewer struct {
 }
 
 // NewCommitViewer creates a new CommitViewer model.
-func NewCommitViewer(name string, commits []git.Commit) CommitViewer {
+func NewCommitViewer(name string, commits []git.Commit, theme Theme) CommitViewer {
 	return CommitViewer{
 		name:      name,
 		commits:   commits,
+		theme:     theme,
 		width:     FixedWidth,
 		height:    FixedHeight,
 		sizeKnown: true,
@@ -83,7 +85,7 @@ func (m CommitViewer) View() string {
 		title += "s"
 	}
 	title += "  "
-	b.WriteString(m.centerText(TitleStyle.Render(title)))
+	b.WriteString(m.centerText(m.theme.TitleStyle.Render(title)))
 	b.WriteString("\n\n")
 
 	// Commit list with scroll indicators
@@ -96,7 +98,7 @@ func (m CommitViewer) View() string {
 		end = len(m.commits)
 	}
 
-	top, bottom, dataStart, dataEnd := renderScrollIndicators(m.scroll.scrollOffset, end, len(m.commits))
+	top, bottom, dataStart, dataEnd := m.theme.renderScrollIndicators(m.scroll.scrollOffset, end, len(m.commits))
 	b.WriteString(top)
 
 	for i := dataStart; i < dataEnd; i++ {
@@ -105,15 +107,15 @@ func (m CommitViewer) View() string {
 		if i == m.scroll.cursor {
 			cursor = "> "
 		}
-		b.WriteString(cursor + MutedTextStyle.Render(c.Hash) + " " + c.Message + "\n")
+		b.WriteString(cursor + m.theme.MutedTextStyle.Render(c.Hash) + " " + c.Message + "\n")
 	}
 
 	b.WriteString(bottom)
 
 	// Help — pinned to bottom.
-	help := m.centerText(renderHelp(m.width, "q", "quit"))
+	help := m.centerText(m.theme.renderHelp(m.width, "q", "quit"))
 
-	return BaseStyle.Render(padToBottom(b.String(), help, m.height))
+	return m.theme.BaseStyle.Render(padToBottom(b.String(), help, m.height))
 }
 
 // CommitViewerIdealSize returns the fixed popup dimensions for the commit viewer.
@@ -134,8 +136,8 @@ func (m *CommitViewer) centerText(text string) string {
 }
 
 // RunCommitViewer launches the commit viewer TUI.
-func RunCommitViewer(name string, commits []git.Commit) error {
-	m := NewCommitViewer(name, commits)
+func RunCommitViewer(name string, commits []git.Commit, theme Theme) error {
+	m := NewCommitViewer(name, commits, theme)
 	p := tea.NewProgram(m, tea.WithAltScreen(), tea.WithMouseCellMotion())
 	if _, err := p.Run(); err != nil {
 		return fmt.Errorf("commit viewer: %w", err)
@@ -153,7 +155,7 @@ func (m *Model) viewCommits() string {
 		title += "s"
 	}
 	title += "  "
-	b.WriteString(m.centerText(TitleStyle.Render(title)))
+	b.WriteString(m.centerText(m.theme.TitleStyle.Render(title)))
 	b.WriteString("\n\n")
 
 	// Commit list with scroll indicators
@@ -166,7 +168,7 @@ func (m *Model) viewCommits() string {
 		end = len(m.commitViewCommits)
 	}
 
-	top, bottom, dataStart, dataEnd := renderScrollIndicators(m.commitScroll.scrollOffset, end, len(m.commitViewCommits))
+	top, bottom, dataStart, dataEnd := m.theme.renderScrollIndicators(m.commitScroll.scrollOffset, end, len(m.commitViewCommits))
 	b.WriteString(top)
 
 	for i := dataStart; i < dataEnd; i++ {
@@ -175,13 +177,13 @@ func (m *Model) viewCommits() string {
 		if i == m.commitScroll.cursor {
 			cursor = "> "
 		}
-		b.WriteString(cursor + MutedTextStyle.Render(c.Hash) + " " + c.Message + "\n")
+		b.WriteString(cursor + m.theme.MutedTextStyle.Render(c.Hash) + " " + c.Message + "\n")
 	}
 
 	b.WriteString(bottom)
 
 	// Help — pinned to bottom.
-	help := m.centerText(renderHelp(m.width, "esc", "back", "q", "quit"))
+	help := m.centerText(m.theme.renderHelp(m.width, "esc", "back", "q", "quit"))
 
 	return padToBottom(b.String(), help, m.height)
 }

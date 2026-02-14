@@ -37,7 +37,7 @@ func runCommits(args []string) int {
 		return 0
 	}
 
-	if err := tui.RunCommitViewer(name, commits); err != nil {
+	if err := tui.RunCommitViewer(name, commits, tui.DefaultTheme()); err != nil {
 		fmt.Fprintln(os.Stderr, "tpm:", err)
 		return 1
 	}
