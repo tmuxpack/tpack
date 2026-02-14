@@ -1,5 +1,5 @@
-// Package plugin provides the plugin model and parsing for TPM.
-package plugin
+// Package plug provides the plugin model and parsing for TPM.
+package plug
 
 // Plugin represents a tmux plugin definition.
 type Plugin struct {

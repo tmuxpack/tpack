@@ -3,14 +3,14 @@ package config
 import (
 	"strings"
 
-	"github.com/tmux-plugins/tpm/internal/plugin"
+	"github.com/tmux-plugins/tpm/internal/plug"
 	"github.com/tmux-plugins/tpm/internal/tmux"
 )
 
 // GatherPlugins collects all plugin definitions from:
 // 1. Legacy @tpm_plugins tmux option
 // 2. New @plugin syntax in tmux.conf + /etc/tmux.conf + sourced files (one level deep)
-func GatherPlugins(runner tmux.Runner, fs FS, tmuxConf, home string) []plugin.Plugin {
+func GatherPlugins(runner tmux.Runner, fs FS, tmuxConf, home string) []plug.Plugin {
 	var specs []string
 
 	// Legacy: @tpm_plugins option.
@@ -25,12 +25,12 @@ func GatherPlugins(runner tmux.Runner, fs FS, tmuxConf, home string) []plugin.Pl
 
 	// New syntax: read config content.
 	content := configContent(fs, tmuxConf, home)
-	specs = append(specs, plugin.ExtractPluginsFromConfig(content)...)
+	specs = append(specs, plug.ExtractPluginsFromConfig(content)...)
 
 	// Parse all specs into Plugin structs.
-	var plugins []plugin.Plugin
+	var plugins []plug.Plugin
 	for _, raw := range specs {
-		plugins = append(plugins, plugin.ParseSpec(raw))
+		plugins = append(plugins, plug.ParseSpec(raw))
 	}
 	return plugins
 }
@@ -53,8 +53,8 @@ func configContent(fs FS, tmuxConf, home string) string {
 
 	// Sourced files (one level deep, not recursive).
 	var sourced []string
-	for _, file := range plugin.ExtractSourcedFiles(base) {
-		expanded := plugin.ManualExpansion(file, home)
+	for _, file := range plug.ExtractSourcedFiles(base) {
+		expanded := plug.ManualExpansion(file, home)
 		if data, err := fs.ReadFile(expanded); err == nil {
 			sourced = append(sourced, string(data))
 		}

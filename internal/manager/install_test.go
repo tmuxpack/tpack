@@ -9,7 +9,7 @@ import (
 
 	"github.com/tmux-plugins/tpm/internal/git"
 	"github.com/tmux-plugins/tpm/internal/manager"
-	"github.com/tmux-plugins/tpm/internal/plugin"
+	"github.com/tmux-plugins/tpm/internal/plug"
 	"github.com/tmux-plugins/tpm/internal/ui"
 )
 
@@ -32,7 +32,7 @@ func TestInstallNewPlugin(t *testing.T) {
 
 	mgr := manager.New(pluginDir, cloner, puller, validator, output)
 
-	plugins := []plugin.Plugin{
+	plugins := []plug.Plugin{
 		{Raw: "tmux-plugins/tmux-sensible", Name: "tmux-sensible", Spec: "tmux-plugins/tmux-sensible"},
 	}
 
@@ -70,7 +70,7 @@ func TestInstallAlreadyInstalled(t *testing.T) {
 
 	mgr := manager.New(pluginDir, cloner, puller, validator, output)
 
-	plugins := []plugin.Plugin{
+	plugins := []plug.Plugin{
 		{Raw: "tmux-plugins/tmux-sensible", Name: "tmux-sensible", Spec: "tmux-plugins/tmux-sensible"},
 	}
 
@@ -105,7 +105,7 @@ func TestInstallCloneFailsWithFallback(t *testing.T) {
 
 	mgr := manager.New(pluginDir, cloner, puller, validator, output)
 
-	plugins := []plugin.Plugin{
+	plugins := []plug.Plugin{
 		{Raw: "user/plugin", Name: "plugin", Spec: "user/plugin"},
 	}
 
@@ -137,7 +137,7 @@ func TestInstallBothClonesFail(t *testing.T) {
 
 	mgr := manager.New(pluginDir, cloner, puller, validator, output)
 
-	plugins := []plugin.Plugin{
+	plugins := []plug.Plugin{
 		{Raw: "user/plugin", Name: "plugin", Spec: "user/plugin"},
 	}
 
@@ -163,7 +163,7 @@ func TestInstallWithBranch(t *testing.T) {
 
 	mgr := manager.New(pluginDir, cloner, puller, validator, output)
 
-	plugins := []plugin.Plugin{
+	plugins := []plug.Plugin{
 		{Raw: "user/repo", Name: "repo", Spec: "user/repo", Branch: "develop"},
 	}
 

@@ -1,9 +1,9 @@
-package plugin_test
+package plug_test
 
 import (
 	"testing"
 
-	"github.com/tmux-plugins/tpm/internal/plugin"
+	"github.com/tmux-plugins/tpm/internal/plug"
 )
 
 func TestPluginName(t *testing.T) {
@@ -21,7 +21,7 @@ func TestPluginName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.raw, func(t *testing.T) {
-			got := plugin.PluginName(tt.raw)
+			got := plug.PluginName(tt.raw)
 			if got != tt.want {
 				t.Errorf("PluginName(%q) = %q, want %q", tt.raw, got, tt.want)
 			}
@@ -42,7 +42,7 @@ func TestPluginPath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.raw, func(t *testing.T) {
-			got := plugin.PluginPath(tt.raw, tt.tpmPath)
+			got := plug.PluginPath(tt.raw, tt.tpmPath)
 			if got != tt.want {
 				t.Errorf("PluginPath(%q, %q) = %q, want %q", tt.raw, tt.tpmPath, got, tt.want)
 			}
@@ -63,7 +63,7 @@ func TestNormalizeURL(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
-			got := plugin.NormalizeURL(tt.input)
+			got := plug.NormalizeURL(tt.input)
 			if got != tt.want {
 				t.Errorf("NormalizeURL(%q) = %q, want %q", tt.input, got, tt.want)
 			}
@@ -90,7 +90,7 @@ func TestParseSpec(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.raw, func(t *testing.T) {
-			p := plugin.ParseSpec(tt.raw)
+			p := plug.ParseSpec(tt.raw)
 			if p.Name != tt.name {
 				t.Errorf("Name = %q, want %q", p.Name, tt.name)
 			}

@@ -7,7 +7,7 @@ import (
 
 	"github.com/tmux-plugins/tpm/internal/git"
 	"github.com/tmux-plugins/tpm/internal/manager"
-	"github.com/tmux-plugins/tpm/internal/plugin"
+	"github.com/tmux-plugins/tpm/internal/plug"
 	"github.com/tmux-plugins/tpm/internal/ui"
 )
 
@@ -24,7 +24,7 @@ func TestCleanRemovesUnlisted(t *testing.T) {
 
 	mgr := manager.New(pluginDir, cloner, puller, validator, output)
 
-	plugins := []plugin.Plugin{
+	plugins := []plug.Plugin{
 		{Name: "tmux-sensible"},
 	}
 
@@ -71,7 +71,7 @@ func TestCleanNeverRemovesTpm(t *testing.T) {
 	mgr := manager.New(pluginDir, cloner, puller, validator, output)
 
 	// Only list tmux-sensible (not tpm).
-	plugins := []plugin.Plugin{
+	plugins := []plug.Plugin{
 		{Name: "tmux-sensible"},
 	}
 
@@ -94,7 +94,7 @@ func TestCleanNoPluginsToRemove(t *testing.T) {
 
 	mgr := manager.New(pluginDir, cloner, puller, validator, output)
 
-	plugins := []plugin.Plugin{
+	plugins := []plug.Plugin{
 		{Name: "tmux-sensible"},
 	}
 

@@ -6,13 +6,13 @@ import (
 	"testing"
 
 	"github.com/tmux-plugins/tpm/internal/git"
-	"github.com/tmux-plugins/tpm/internal/plugin"
+	"github.com/tmux-plugins/tpm/internal/plug"
 )
 
 func TestBuildPluginItems_AllNotInstalled(t *testing.T) {
 	pluginPath := t.TempDir() + "/"
 	validator := git.NewMockValidator()
-	plugins := []plugin.Plugin{
+	plugins := []plug.Plugin{
 		{Name: "tmux-sensible", Spec: "tmux-plugins/tmux-sensible"},
 		{Name: "tmux-yank", Spec: "tmux-plugins/tmux-yank"},
 	}
@@ -41,7 +41,7 @@ func TestBuildPluginItems_Installed(t *testing.T) {
 	// Mark as valid git repo.
 	validator.Valid[dir] = true
 
-	plugins := []plugin.Plugin{
+	plugins := []plug.Plugin{
 		{Name: "tmux-sensible", Spec: "tmux-plugins/tmux-sensible"},
 	}
 
@@ -58,7 +58,7 @@ func TestBuildPluginItems_Installed(t *testing.T) {
 func TestBuildPluginItems_PreservesFields(t *testing.T) {
 	pluginPath := t.TempDir() + "/"
 	validator := git.NewMockValidator()
-	plugins := []plugin.Plugin{
+	plugins := []plug.Plugin{
 		{Name: "tmux-yank", Spec: "tmux-plugins/tmux-yank", Branch: "main"},
 	}
 
@@ -77,7 +77,7 @@ func TestBuildPluginItems_PreservesFields(t *testing.T) {
 
 func TestFindOrphans_NoOrphans(t *testing.T) {
 	pluginPath := t.TempDir() + "/"
-	plugins := []plugin.Plugin{
+	plugins := []plug.Plugin{
 		{Name: "tmux-sensible", Spec: "tmux-plugins/tmux-sensible"},
 	}
 
@@ -92,7 +92,7 @@ func TestFindOrphans_NoOrphans(t *testing.T) {
 
 func TestFindOrphans_WithOrphans(t *testing.T) {
 	pluginPath := t.TempDir() + "/"
-	plugins := []plugin.Plugin{
+	plugins := []plug.Plugin{
 		{Name: "tmux-sensible", Spec: "tmux-plugins/tmux-sensible"},
 	}
 
@@ -111,7 +111,7 @@ func TestFindOrphans_WithOrphans(t *testing.T) {
 
 func TestFindOrphans_SkipsTpm(t *testing.T) {
 	pluginPath := t.TempDir() + "/"
-	plugins := []plugin.Plugin{}
+	plugins := []plug.Plugin{}
 
 	// tpm directory should always be skipped.
 	os.MkdirAll(filepath.Join(pluginPath, "tpm"), 0o755)
@@ -128,7 +128,7 @@ func TestFindOrphans_SkipsTpm(t *testing.T) {
 
 func TestFindOrphans_EmptyDir(t *testing.T) {
 	pluginPath := t.TempDir() + "/"
-	plugins := []plugin.Plugin{
+	plugins := []plug.Plugin{
 		{Name: "test", Spec: "user/test"},
 	}
 

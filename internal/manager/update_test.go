@@ -9,7 +9,7 @@ import (
 
 	"github.com/tmux-plugins/tpm/internal/git"
 	"github.com/tmux-plugins/tpm/internal/manager"
-	"github.com/tmux-plugins/tpm/internal/plugin"
+	"github.com/tmux-plugins/tpm/internal/plug"
 	"github.com/tmux-plugins/tpm/internal/ui"
 )
 
@@ -34,7 +34,7 @@ func TestUpdateAll(t *testing.T) {
 
 	mgr := manager.New(pluginDir, cloner, puller, validator, output)
 
-	plugins := []plugin.Plugin{
+	plugins := []plug.Plugin{
 		{Name: "tmux-sensible"},
 		{Name: "tmux-yank"},
 	}
@@ -69,7 +69,7 @@ func TestUpdateSpecific(t *testing.T) {
 
 	mgr := manager.New(pluginDir, cloner, puller, validator, output)
 
-	plugins := []plugin.Plugin{
+	plugins := []plug.Plugin{
 		{Name: "tmux-sensible"},
 		{Name: "tmux-yank"},
 	}
@@ -117,7 +117,7 @@ func TestUpdateOutputIndented(t *testing.T) {
 
 	mgr := manager.New(pluginDir, cloner, puller, validator, output)
 
-	mgr.Update(context.Background(), []plugin.Plugin{{Name: "tmux-sensible"}}, []string{"all"})
+	mgr.Update(context.Background(), []plug.Plugin{{Name: "tmux-sensible"}}, []string{"all"})
 
 	foundIndented := false
 	for _, msg := range output.OkMsgs {
@@ -144,7 +144,7 @@ func TestUpdatePullFails(t *testing.T) {
 
 	mgr := manager.New(pluginDir, cloner, puller, validator, output)
 
-	mgr.Update(context.Background(), []plugin.Plugin{{Name: "tmux-sensible"}}, []string{"all"})
+	mgr.Update(context.Background(), []plug.Plugin{{Name: "tmux-sensible"}}, []string{"all"})
 
 	found := false
 	for _, msg := range output.ErrMsgs {

@@ -6,7 +6,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/tmux-plugins/tpm/internal/git"
-	"github.com/tmux-plugins/tpm/internal/plugin"
+	"github.com/tmux-plugins/tpm/internal/plug"
 	"github.com/tmux-plugins/tpm/internal/tmux"
 )
 
@@ -67,7 +67,7 @@ func installPluginCmd(cloner git.Cloner, op pendingOp) tea.Cmd {
 			URL:    op.Spec,
 			Dir:    op.Path,
 			Branch: op.Branch,
-		}, plugin.NormalizeURL)
+		}, plug.NormalizeURL)
 
 		if err != nil {
 			return pluginInstallResultMsg{
@@ -226,7 +226,7 @@ func (m *Model) buildInstallOps() []pendingOp {
 				Name:   p.Name,
 				Spec:   p.Spec,
 				Branch: p.Branch,
-				Path:   plugin.PluginPath(p.Name, m.cfg.PluginPath),
+				Path:   plug.PluginPath(p.Name, m.cfg.PluginPath),
 			})
 		}
 	}
@@ -244,7 +244,7 @@ func (m *Model) buildUpdateOps() []pendingOp {
 				Name:   p.Name,
 				Spec:   p.Spec,
 				Branch: p.Branch,
-				Path:   plugin.PluginPath(p.Name, m.cfg.PluginPath),
+				Path:   plug.PluginPath(p.Name, m.cfg.PluginPath),
 			})
 		}
 	}
@@ -256,7 +256,7 @@ func (m *Model) buildUpdateOps() []pendingOp {
 					Name:   p.Name,
 					Spec:   p.Spec,
 					Branch: p.Branch,
-					Path:   plugin.PluginPath(p.Name, m.cfg.PluginPath),
+					Path:   plug.PluginPath(p.Name, m.cfg.PluginPath),
 				})
 			}
 		}
@@ -286,7 +286,7 @@ func (m *Model) buildUninstallOps() []pendingOp {
 			ops = append(ops, pendingOp{
 				Name: p.Name,
 				Spec: p.Spec,
-				Path: plugin.PluginPath(p.Name, m.cfg.PluginPath),
+				Path: plug.PluginPath(p.Name, m.cfg.PluginPath),
 			})
 		}
 	}
@@ -302,7 +302,7 @@ func (m *Model) buildAutoInstallOps() []pendingOp {
 				Name:   p.Name,
 				Spec:   p.Spec,
 				Branch: p.Branch,
-				Path:   plugin.PluginPath(p.Name, m.cfg.PluginPath),
+				Path:   plug.PluginPath(p.Name, m.cfg.PluginPath),
 			})
 		}
 	}
@@ -318,7 +318,7 @@ func (m *Model) buildAutoUpdateOps() []pendingOp {
 				Name:   p.Name,
 				Spec:   p.Spec,
 				Branch: p.Branch,
-				Path:   plugin.PluginPath(p.Name, m.cfg.PluginPath),
+				Path:   plug.PluginPath(p.Name, m.cfg.PluginPath),
 			})
 		}
 	}

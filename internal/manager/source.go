@@ -6,13 +6,13 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"github.com/tmux-plugins/tpm/internal/plugin"
+	"github.com/tmux-plugins/tpm/internal/plug"
 )
 
 // Source executes all *.tmux files from each plugin directory.
-func (m *Manager) Source(plugins []plugin.Plugin) {
+func (m *Manager) Source(plugins []plug.Plugin) {
 	for _, p := range plugins {
-		dir := plugin.PluginPath(p.Name, m.pluginPath)
+		dir := plug.PluginPath(p.Name, m.pluginPath)
 		m.sourcePlugin(dir)
 	}
 }

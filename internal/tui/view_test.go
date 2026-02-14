@@ -6,11 +6,11 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/tmux-plugins/tpm/internal/git"
-	"github.com/tmux-plugins/tpm/internal/plugin"
+	"github.com/tmux-plugins/tpm/internal/plug"
 )
 
 func TestViewList_ContainsPluginNames(t *testing.T) {
-	plugins := []plugin.Plugin{
+	plugins := []plug.Plugin{
 		{Name: "tmux-sensible", Spec: "tmux-plugins/tmux-sensible"},
 		{Name: "tmux-yank", Spec: "tmux-plugins/tmux-yank"},
 	}

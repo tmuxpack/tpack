@@ -1,9 +1,9 @@
-package plugin_test
+package plug_test
 
 import (
 	"testing"
 
-	"github.com/tmux-plugins/tpm/internal/plugin"
+	"github.com/tmux-plugins/tpm/internal/plug"
 )
 
 func TestExtractPluginsFromConfig(t *testing.T) {
@@ -97,7 +97,7 @@ set -g @plugin "tmux-plugins/tmux-yank"`,
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := plugin.ExtractPluginsFromConfig(tt.content)
+			got := plug.ExtractPluginsFromConfig(tt.content)
 			if len(got) != len(tt.want) {
 				t.Fatalf("got %d plugins %v, want %d %v", len(got), got, len(tt.want), tt.want)
 			}
@@ -150,7 +150,7 @@ func TestExtractSourcedFiles(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := plugin.ExtractSourcedFiles(tt.content)
+			got := plug.ExtractSourcedFiles(tt.content)
 			if len(got) != len(tt.want) {
 				t.Fatalf("got %d files %v, want %d %v", len(got), got, len(tt.want), tt.want)
 			}
@@ -179,7 +179,7 @@ func TestManualExpansion(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.path, func(t *testing.T) {
-			got := plugin.ManualExpansion(tt.path, home)
+			got := plug.ManualExpansion(tt.path, home)
 			if got != tt.want {
 				t.Errorf("ManualExpansion(%q, %q) = %q, want %q", tt.path, home, got, tt.want)
 			}

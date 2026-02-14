@@ -10,7 +10,7 @@ import (
 	"github.com/tmux-plugins/tpm/internal/config"
 	"github.com/tmux-plugins/tpm/internal/git"
 	"github.com/tmux-plugins/tpm/internal/manager"
-	"github.com/tmux-plugins/tpm/internal/plugin"
+	"github.com/tmux-plugins/tpm/internal/plug"
 	"github.com/tmux-plugins/tpm/internal/ui"
 )
 
@@ -29,8 +29,8 @@ func TestInstallRealPlugin(t *testing.T) {
 
 	mgr := manager.New(pluginDir, cloner, puller, validator, output)
 
-	plugins := []plugin.Plugin{
-		plugin.ParseSpec(tmuxExamplePlugin),
+	plugins := []plug.Plugin{
+		plug.ParseSpec(tmuxExamplePlugin),
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
@@ -78,9 +78,9 @@ func TestInstallMultiplePlugins(t *testing.T) {
 
 	mgr := manager.New(pluginDir, cloner, puller, validator, output)
 
-	plugins := []plugin.Plugin{
-		plugin.ParseSpec(tmuxExamplePlugin),
-		plugin.ParseSpec("tmux-plugins/tmux-sensible"),
+	plugins := []plug.Plugin{
+		plug.ParseSpec(tmuxExamplePlugin),
+		plug.ParseSpec("tmux-plugins/tmux-sensible"),
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
@@ -110,8 +110,8 @@ func TestInstallNonexistentPlugin(t *testing.T) {
 
 	mgr := manager.New(pluginDir, cloner, puller, validator, output)
 
-	plugins := []plugin.Plugin{
-		plugin.ParseSpec("nonexistent-user/nonexistent-plugin-xyz-abc-123"),
+	plugins := []plug.Plugin{
+		plug.ParseSpec("nonexistent-user/nonexistent-plugin-xyz-abc-123"),
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)

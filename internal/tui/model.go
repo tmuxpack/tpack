@@ -7,7 +7,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/tmux-plugins/tpm/internal/config"
 	"github.com/tmux-plugins/tpm/internal/git"
-	"github.com/tmux-plugins/tpm/internal/plugin"
+	"github.com/tmux-plugins/tpm/internal/plug"
 	"github.com/tmux-plugins/tpm/internal/tmux"
 )
 
@@ -80,7 +80,7 @@ type Model struct {
 }
 
 // NewModel creates a new Model from the resolved config and gathered plugins.
-func NewModel(cfg *config.Config, plugins []plugin.Plugin, deps Deps, opts ...ModelOption) Model {
+func NewModel(cfg *config.Config, plugins []plug.Plugin, deps Deps, opts ...ModelOption) Model {
 	items := buildPluginItems(plugins, cfg.PluginPath, deps.Validator)
 	orphans := findOrphans(plugins, cfg.PluginPath)
 
@@ -121,7 +121,7 @@ func (m Model) Init() tea.Cmd {
 	var cmds []tea.Cmd
 	for _, p := range m.plugins {
 		if p.Status == StatusChecking {
-			dir := plugin.PluginPath(p.Name, m.cfg.PluginPath)
+			dir := plug.PluginPath(p.Name, m.cfg.PluginPath)
 			cmds = append(cmds, checkPluginCmd(m.deps.Fetcher, p.Name, dir))
 		}
 	}

@@ -3,11 +3,11 @@ package manager
 import (
 	"os"
 
-	"github.com/tmux-plugins/tpm/internal/plugin"
+	"github.com/tmux-plugins/tpm/internal/plug"
 )
 
-func (m *Manager) cleanPlugins(plugins []plugin.Plugin) {
-	orphans := plugin.FindOrphans(plugins, m.pluginPath)
+func (m *Manager) cleanPlugins(plugins []plug.Plugin) {
+	orphans := plug.FindOrphans(plugins, m.pluginPath)
 	for _, o := range orphans {
 		m.output.Ok("Removing \"" + o.Name + "\"")
 		if err := os.RemoveAll(o.Path); err != nil {

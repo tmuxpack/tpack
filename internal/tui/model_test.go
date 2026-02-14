@@ -6,10 +6,10 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/tmux-plugins/tpm/internal/config"
 	"github.com/tmux-plugins/tpm/internal/git"
-	"github.com/tmux-plugins/tpm/internal/plugin"
+	"github.com/tmux-plugins/tpm/internal/plug"
 )
 
-func newTestModel(t *testing.T, plugins []plugin.Plugin) Model {
+func newTestModel(t *testing.T, plugins []plug.Plugin) Model {
 	t.Helper()
 	cfg := &config.Config{PluginPath: t.TempDir() + "/"}
 	deps := Deps{
@@ -24,7 +24,7 @@ func newTestModel(t *testing.T, plugins []plugin.Plugin) Model {
 }
 
 func TestNewModel_InitialState(t *testing.T) {
-	plugins := []plugin.Plugin{
+	plugins := []plug.Plugin{
 		{Name: "tmux-sensible", Spec: "tmux-plugins/tmux-sensible"},
 		{Name: "tmux-yank", Spec: "tmux-plugins/tmux-yank"},
 	}
@@ -48,7 +48,7 @@ func TestNewModel_InitialState(t *testing.T) {
 }
 
 func TestNewModel_PluginStatus(t *testing.T) {
-	plugins := []plugin.Plugin{
+	plugins := []plug.Plugin{
 		{Name: "tmux-sensible", Spec: "tmux-plugins/tmux-sensible"},
 	}
 	m := newTestModel(t, plugins)
@@ -71,7 +71,7 @@ func TestUpdate_QuitKey(t *testing.T) {
 }
 
 func TestUpdate_CursorNavigation(t *testing.T) {
-	plugins := []plugin.Plugin{
+	plugins := []plug.Plugin{
 		{Name: "a", Spec: "user/a"},
 		{Name: "b", Spec: "user/b"},
 		{Name: "c", Spec: "user/c"},
@@ -127,7 +127,7 @@ func TestUpdate_WindowSize(t *testing.T) {
 }
 
 func TestView_NonEmpty(t *testing.T) {
-	plugins := []plugin.Plugin{
+	plugins := []plug.Plugin{
 		{Name: "tmux-sensible", Spec: "tmux-plugins/tmux-sensible"},
 	}
 	m := newTestModel(t, plugins)
@@ -155,7 +155,7 @@ func TestView_ProgressScreen(t *testing.T) {
 }
 
 func TestStartOperation_Install(t *testing.T) {
-	plugins := []plugin.Plugin{
+	plugins := []plug.Plugin{
 		{Name: "test-plugin", Spec: "user/test-plugin"},
 	}
 	m := newTestModel(t, plugins)
@@ -211,7 +211,7 @@ func TestReturnToList(t *testing.T) {
 }
 
 func TestNewModel_WithAutoOp(t *testing.T) {
-	plugins := []plugin.Plugin{
+	plugins := []plug.Plugin{
 		{Name: "tmux-sensible", Spec: "tmux-plugins/tmux-sensible"},
 	}
 	cfg := &config.Config{PluginPath: t.TempDir() + "/"}

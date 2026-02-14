@@ -11,7 +11,7 @@ import (
 
 	"github.com/tmux-plugins/tpm/internal/config"
 	"github.com/tmux-plugins/tpm/internal/git"
-	"github.com/tmux-plugins/tpm/internal/plugin"
+	"github.com/tmux-plugins/tpm/internal/plug"
 	"github.com/tmux-plugins/tpm/internal/state"
 	"github.com/tmux-plugins/tpm/internal/tmux"
 )
@@ -60,7 +60,7 @@ func updateChecksEnabled(cfg *config.Config) bool {
 const maxConcurrentChecks = 5
 
 // findOutdatedPlugins checks each installed plugin for available updates in parallel.
-func findOutdatedPlugins(plugins []plugin.Plugin, pluginPath string) []string {
+func findOutdatedPlugins(plugins []plug.Plugin, pluginPath string) []string {
 	validator := git.NewCLIValidator()
 	fetcher := git.NewCLIFetcher()
 
@@ -73,7 +73,7 @@ func findOutdatedPlugins(plugins []plugin.Plugin, pluginPath string) []string {
 	sem := make(chan struct{}, maxConcurrentChecks)
 
 	for _, p := range plugins {
-		dir := plugin.PluginPath(p.Name, pluginPath)
+		dir := plug.PluginPath(p.Name, pluginPath)
 		if !validator.IsGitRepo(dir) {
 			continue
 		}
@@ -103,7 +103,7 @@ func findOutdatedPlugins(plugins []plugin.Plugin, pluginPath string) []string {
 }
 
 // handleOutdated acts on the list of outdated plugins based on the configured update mode.
-func handleOutdated(runner *tmux.RealRunner, cfg *config.Config, plugins []plugin.Plugin, outdated []string) int {
+func handleOutdated(runner *tmux.RealRunner, cfg *config.Config, plugins []plug.Plugin, outdated []string) int {
 	switch cfg.UpdateMode {
 	case "prompt":
 		msg := "TPM: " + strconv.Itoa(len(outdated)) + " plugin update(s) available. Press prefix+U to update."
@@ -117,7 +117,7 @@ func handleOutdated(runner *tmux.RealRunner, cfg *config.Config, plugins []plugi
 }
 
 // autoUpdatePlugins performs automatic updates for the given outdated plugins.
-func autoUpdatePlugins(runner *tmux.RealRunner, cfg *config.Config, plugins []plugin.Plugin, outdated []string) int {
+func autoUpdatePlugins(runner *tmux.RealRunner, cfg *config.Config, plugins []plug.Plugin, outdated []string) int {
 	output := newOutput(false, runner)
 	mgr := newManagerDeps(cfg.PluginPath, output)
 

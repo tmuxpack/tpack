@@ -9,7 +9,7 @@ import (
 
 	"github.com/tmux-plugins/tpm/internal/git"
 	"github.com/tmux-plugins/tpm/internal/manager"
-	"github.com/tmux-plugins/tpm/internal/plugin"
+	"github.com/tmux-plugins/tpm/internal/plug"
 	"github.com/tmux-plugins/tpm/internal/ui"
 )
 
@@ -28,8 +28,8 @@ func TestUpdateInstalledPlugin(t *testing.T) {
 	// First install.
 	installOutput := ui.NewMockOutput()
 	mgr := manager.New(pluginDir, cloner, puller, validator, installOutput)
-	plugins := []plugin.Plugin{
-		plugin.ParseSpec(tmuxExamplePlugin),
+	plugins := []plug.Plugin{
+		plug.ParseSpec(tmuxExamplePlugin),
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
@@ -75,8 +75,8 @@ func TestUpdateSpecificPlugin(t *testing.T) {
 	installOutput := ui.NewMockOutput()
 
 	mgr := manager.New(pluginDir, cloner, puller, validator, installOutput)
-	plugins := []plugin.Plugin{
-		plugin.ParseSpec(tmuxExamplePlugin),
+	plugins := []plug.Plugin{
+		plug.ParseSpec(tmuxExamplePlugin),
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
@@ -131,8 +131,8 @@ func TestCleanRemovesUnlistedPlugins(t *testing.T) {
 	// Install a plugin, then clean with empty list.
 	installOutput := ui.NewMockOutput()
 	mgr := manager.New(pluginDir, cloner, puller, validator, installOutput)
-	plugins := []plugin.Plugin{
-		plugin.ParseSpec(tmuxExamplePlugin),
+	plugins := []plug.Plugin{
+		plug.ParseSpec(tmuxExamplePlugin),
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)

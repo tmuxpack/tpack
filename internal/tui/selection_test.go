@@ -3,11 +3,11 @@ package tui
 import (
 	"testing"
 
-	"github.com/tmux-plugins/tpm/internal/plugin"
+	"github.com/tmux-plugins/tpm/internal/plug"
 )
 
 func TestToggleSelection(t *testing.T) {
-	m := newTestModel(t, []plugin.Plugin{
+	m := newTestModel(t, []plug.Plugin{
 		{Name: "a", Spec: "user/a"},
 		{Name: "b", Spec: "user/b"},
 	})
@@ -31,7 +31,7 @@ func TestToggleSelection(t *testing.T) {
 }
 
 func TestToggleSelection_Multiple(t *testing.T) {
-	m := newTestModel(t, []plugin.Plugin{
+	m := newTestModel(t, []plug.Plugin{
 		{Name: "a", Spec: "user/a"},
 		{Name: "b", Spec: "user/b"},
 		{Name: "c", Spec: "user/c"},
@@ -53,7 +53,7 @@ func TestToggleSelection_Multiple(t *testing.T) {
 }
 
 func TestClearSelection(t *testing.T) {
-	m := newTestModel(t, []plugin.Plugin{
+	m := newTestModel(t, []plug.Plugin{
 		{Name: "a", Spec: "user/a"},
 		{Name: "b", Spec: "user/b"},
 	})
@@ -78,7 +78,7 @@ func TestSelection_Empty(t *testing.T) {
 }
 
 func TestSelectedIndices_Order(t *testing.T) {
-	m := newTestModel(t, []plugin.Plugin{
+	m := newTestModel(t, []plug.Plugin{
 		{Name: "a", Spec: "user/a"},
 		{Name: "b", Spec: "user/b"},
 		{Name: "c", Spec: "user/c"},

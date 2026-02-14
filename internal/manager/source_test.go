@@ -7,7 +7,7 @@ import (
 
 	"github.com/tmux-plugins/tpm/internal/git"
 	"github.com/tmux-plugins/tpm/internal/manager"
-	"github.com/tmux-plugins/tpm/internal/plugin"
+	"github.com/tmux-plugins/tpm/internal/plug"
 	"github.com/tmux-plugins/tpm/internal/ui"
 )
 
@@ -28,7 +28,7 @@ func TestSourceExecutesTmuxFiles(t *testing.T) {
 
 	mgr := manager.New(pluginDir, cloner, puller, validator, output)
 
-	plugins := []plugin.Plugin{
+	plugins := []plug.Plugin{
 		{Name: "tmux-test"},
 	}
 
@@ -49,7 +49,7 @@ func TestSourceSkipsNonExistentDir(t *testing.T) {
 
 	mgr := manager.New(pluginDir, cloner, puller, validator, output)
 
-	plugins := []plugin.Plugin{
+	plugins := []plug.Plugin{
 		{Name: "nonexistent"},
 	}
 

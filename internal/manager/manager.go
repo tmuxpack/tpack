@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"github.com/tmux-plugins/tpm/internal/git"
-	"github.com/tmux-plugins/tpm/internal/plugin"
+	"github.com/tmux-plugins/tpm/internal/plug"
 	"github.com/tmux-plugins/tpm/internal/ui"
 )
 
@@ -37,7 +37,7 @@ func (m *Manager) EnsurePathExists() error {
 
 // IsPluginInstalled checks if a plugin directory exists and is a git repo.
 func (m *Manager) IsPluginInstalled(name string) bool {
-	dir := plugin.PluginPath(name, m.pluginPath)
+	dir := plug.PluginPath(name, m.pluginPath)
 	info, err := os.Stat(dir)
 	if err != nil || !info.IsDir() {
 		return false
@@ -46,7 +46,7 @@ func (m *Manager) IsPluginInstalled(name string) bool {
 }
 
 // Install installs all listed plugins.
-func (m *Manager) Install(ctx context.Context, plugins []plugin.Plugin) {
+func (m *Manager) Install(ctx context.Context, plugins []plug.Plugin) {
 	if err := m.EnsurePathExists(); err != nil {
 		m.output.Err("Failed to create plugin directory: " + err.Error())
 		return
@@ -58,7 +58,7 @@ func (m *Manager) Install(ctx context.Context, plugins []plugin.Plugin) {
 }
 
 // Update updates the named plugins, or all if "all" is passed.
-func (m *Manager) Update(ctx context.Context, plugins []plugin.Plugin, names []string) {
+func (m *Manager) Update(ctx context.Context, plugins []plug.Plugin, names []string) {
 	if err := m.EnsurePathExists(); err != nil {
 		m.output.Err("Failed to create plugin directory: " + err.Error())
 		return
@@ -71,7 +71,7 @@ func (m *Manager) Update(ctx context.Context, plugins []plugin.Plugin, names []s
 }
 
 // Clean removes plugin directories not in the list.
-func (m *Manager) Clean(plugins []plugin.Plugin) {
+func (m *Manager) Clean(plugins []plug.Plugin) {
 	if err := m.EnsurePathExists(); err != nil {
 		m.output.Err("Failed to create plugin directory: " + err.Error())
 		return

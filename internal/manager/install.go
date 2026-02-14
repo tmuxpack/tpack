@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/tmux-plugins/tpm/internal/git"
-	"github.com/tmux-plugins/tpm/internal/plugin"
+	"github.com/tmux-plugins/tpm/internal/plug"
 )
 
 func (m *Manager) verifyPathPermissions() {
@@ -19,7 +19,7 @@ func (m *Manager) verifyPathPermissions() {
 	_ = os.Remove(f.Name())
 }
 
-func (m *Manager) installPlugin(ctx context.Context, p plugin.Plugin) {
+func (m *Manager) installPlugin(ctx context.Context, p plug.Plugin) {
 	name := p.Name
 
 	if m.IsPluginInstalled(name) {
@@ -29,13 +29,13 @@ func (m *Manager) installPlugin(ctx context.Context, p plugin.Plugin) {
 
 	m.output.Ok("Installing \"" + name + "\"")
 
-	dir := plugin.PluginPath(name, m.pluginPath)
+	dir := plug.PluginPath(name, m.pluginPath)
 
 	err := git.CloneWithFallback(ctx, m.cloner, git.CloneOptions{
 		URL:    p.Spec,
 		Dir:    dir,
 		Branch: p.Branch,
-	}, plugin.NormalizeURL)
+	}, plug.NormalizeURL)
 
 	if err != nil {
 		m.output.Err("  \"" + name + "\" download fail")
