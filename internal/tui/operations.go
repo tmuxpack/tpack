@@ -165,35 +165,54 @@ func sourceCmd(runner tmux.Runner, confPath string) tea.Cmd {
 	}
 }
 
-// dispatchNext dispatches the next pending operation, or nil if queue is empty.
+// dispatchNext dispatches up to maxConcurrentOps pending operations concurrently.
+// Returns nil if the queue is empty and no operations are in flight.
 func (m *Model) dispatchNext() tea.Cmd {
+	slots := maxConcurrentOps - m.inFlight
+	if slots <= 0 {
+		return nil
+	}
 	if len(m.pendingItems) == 0 {
-		m.processing = false
-		if m.deps.Runner != nil && (m.operation == OpInstall || m.operation == OpUpdate) {
-			return sourceCmd(m.deps.Runner, m.cfg.TmuxConf)
+		if m.inFlight == 0 {
+			m.processing = false
+			if m.deps.Runner != nil && (m.operation == OpInstall || m.operation == OpUpdate) {
+				return sourceCmd(m.deps.Runner, m.cfg.TmuxConf)
+			}
 		}
 		return nil
 	}
 
-	op := m.pendingItems[0]
-	m.pendingItems = m.pendingItems[1:]
-	m.currentItemName = op.Name
+	n := slots
+	if n > len(m.pendingItems) {
+		n = len(m.pendingItems)
+	}
+	batch := m.pendingItems[:n]
+	m.pendingItems = m.pendingItems[n:]
 
-	switch m.operation {
-	case OpNone:
+	var cmds []tea.Cmd
+	for _, op := range batch {
+		m.inFlight++
+		m.inFlightNames = append(m.inFlightNames, op.Name)
+
+		switch m.operation {
+		case OpNone:
+			// No-op; should not reach here.
+		case OpInstall:
+			cmds = append(cmds, installPluginCmd(m.deps.Cloner, op))
+		case OpUpdate:
+			cmds = append(cmds, updatePluginCmd(m.deps.Puller, m.deps.RevParser, m.deps.Logger, op))
+		case OpClean:
+			cmds = append(cmds, cleanPluginCmd(op))
+		case OpUninstall:
+			cmds = append(cmds, uninstallPluginCmd(op))
+		}
+	}
+
+	if len(cmds) == 0 {
 		m.processing = false
 		return nil
-	case OpInstall:
-		return installPluginCmd(m.deps.Cloner, op)
-	case OpUpdate:
-		return updatePluginCmd(m.deps.Puller, m.deps.RevParser, m.deps.Logger, op)
-	case OpClean:
-		return cleanPluginCmd(op)
-	case OpUninstall:
-		return uninstallPluginCmd(op)
 	}
-	m.processing = false
-	return nil
+	return tea.Batch(cmds...)
 }
 
 // buildInstallOps builds the pending operations for install.

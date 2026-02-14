@@ -31,8 +31,9 @@ func (m *Model) viewProgress() string {
 	b.WriteString("\n\n")
 
 	// Current item
-	if m.currentItemName != "" {
-		b.WriteString(m.centerText("Current: " + m.currentItemName))
+	if len(m.inFlightNames) > 0 {
+		current := "Current: " + strings.Join(m.inFlightNames, ", ")
+		b.WriteString(m.centerText(current))
 		b.WriteString("\n\n")
 	}
 

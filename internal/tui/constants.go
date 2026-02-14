@@ -148,6 +148,8 @@ const (
 	// progressResultsReservedLines is the overhead for title, counter, progress bar, stats, and help
 	// on the progress screen.
 	progressResultsReservedLines = 21
+	// maxConcurrentOps is the maximum number of plugin operations dispatched concurrently.
+	maxConcurrentOps = 3
 )
 
 // Timeout constants.

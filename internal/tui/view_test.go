@@ -173,7 +173,7 @@ func TestViewProgress_ShowsCurrentItem(t *testing.T) {
 	m.totalItems = 2
 	m.completedItems = 0
 	m.processing = true
-	m.currentItemName = "my-plugin"
+	m.inFlightNames = []string{"my-plugin"}
 	m.width = 80
 
 	view := m.View()

@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/tmux-plugins/tpm/internal/config"
@@ -510,5 +511,88 @@ func TestSourceCmd(t *testing.T) {
 	}
 	if runner.Calls[0].Args[0] != "/tmp/test.conf" {
 		t.Errorf("expected conf path /tmp/test.conf, got %s", runner.Calls[0].Args[0])
+	}
+}
+
+func TestDispatchNext_BatchesUpToMax(t *testing.T) {
+	m := newTestModel(t, nil)
+	m.operation = OpInstall
+	m.processing = true
+	m.inFlight = 0
+	m.pendingItems = make([]pendingOp, 5)
+	for i := range m.pendingItems {
+		m.pendingItems[i] = pendingOp{
+			Name: fmt.Sprintf("plugin-%d", i),
+			Spec: fmt.Sprintf("user/plugin-%d", i),
+			Path: t.TempDir() + "/",
+		}
+	}
+
+	cmd := m.dispatchNext()
+	if cmd == nil {
+		t.Fatal("expected non-nil command from dispatchNext")
+	}
+	if m.inFlight != maxConcurrentOps {
+		t.Errorf("expected inFlight=%d, got %d", maxConcurrentOps, m.inFlight)
+	}
+	if len(m.pendingItems) != 5-maxConcurrentOps {
+		t.Errorf("expected %d remaining pending, got %d", 5-maxConcurrentOps, len(m.pendingItems))
+	}
+	if len(m.inFlightNames) != maxConcurrentOps {
+		t.Errorf("expected %d inFlightNames, got %d", maxConcurrentOps, len(m.inFlightNames))
+	}
+}
+
+func TestDispatchNext_RespectsInFlightLimit(t *testing.T) {
+	m := newTestModel(t, nil)
+	m.operation = OpInstall
+	m.processing = true
+	m.inFlight = maxConcurrentOps
+	m.pendingItems = []pendingOp{
+		{Name: "extra", Spec: "user/extra", Path: t.TempDir() + "/"},
+	}
+
+	cmd := m.dispatchNext()
+	if cmd != nil {
+		t.Error("expected nil command when at concurrency limit")
+	}
+	if len(m.pendingItems) != 1 {
+		t.Errorf("expected pending items unchanged, got %d", len(m.pendingItems))
+	}
+}
+
+func TestHandleOpResult_DispatchesMore(t *testing.T) {
+	m := newTestModel(t, nil)
+	m.operation = OpInstall
+	m.processing = true
+	m.inFlight = maxConcurrentOps
+	m.inFlightNames = make([]string, maxConcurrentOps)
+	for i := range m.inFlightNames {
+		m.inFlightNames[i] = fmt.Sprintf("inflight-%d", i)
+	}
+	m.totalItems = maxConcurrentOps + 2
+	m.completedItems = 0
+	m.pendingItems = []pendingOp{
+		{Name: "next-a", Spec: "user/next-a", Path: t.TempDir() + "/"},
+		{Name: "next-b", Spec: "user/next-b", Path: t.TempDir() + "/"},
+	}
+
+	result := ResultItem{Name: m.inFlightNames[0], Success: true, Message: "installed"}
+	cmd := m.handleOpResult(result, nil)
+
+	if m.inFlight != maxConcurrentOps {
+		t.Errorf("expected inFlight to refill to %d, got %d", maxConcurrentOps, m.inFlight)
+	}
+	if cmd == nil {
+		t.Error("expected non-nil command to dispatch next batch")
+	}
+	if m.completedItems != 1 {
+		t.Errorf("expected completedItems=1, got %d", m.completedItems)
+	}
+	// The completed item should be removed from inFlightNames.
+	for _, name := range m.inFlightNames {
+		if name == result.Name {
+			t.Errorf("expected %q removed from inFlightNames", result.Name)
+		}
 	}
 }

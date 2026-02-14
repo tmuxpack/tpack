@@ -62,14 +62,15 @@ type Model struct {
 	selected          map[int]bool
 	multiSelectActive bool
 
-	results         []ResultItem
-	totalItems      int
-	completedItems  int
-	currentItemName string
-	processing      bool
-	pendingItems    []pendingOp
-	progressBar     progress.Model
-	checkSpinner    spinner.Model
+	results        []ResultItem
+	totalItems     int
+	completedItems int
+	inFlightNames  []string
+	processing     bool
+	inFlight       int
+	pendingItems   []pendingOp
+	progressBar    progress.Model
+	checkSpinner   spinner.Model
 
 	resultScroll scrollState
 
@@ -351,7 +352,8 @@ func (m Model) startOperation(op Operation) (tea.Model, tea.Cmd) {
 	m.completedItems = 0
 	m.results = nil
 	m.processing = true
-	m.currentItemName = ""
+	m.inFlight = 0
+	m.inFlightNames = nil
 	m.resultScroll.reset()
 
 	cmd := m.dispatchNext()
@@ -384,7 +386,8 @@ func (m Model) startAutoOperation() (tea.Model, tea.Cmd) {
 	m.completedItems = 0
 	m.results = nil
 	m.processing = true
-	m.currentItemName = ""
+	m.inFlight = 0
+	m.inFlightNames = nil
 	m.resultScroll.reset()
 
 	cmd := m.dispatchNext()
@@ -395,9 +398,17 @@ func (m Model) startAutoOperation() (tea.Model, tea.Cmd) {
 // increment counter, append result, optionally update plugin status, dispatch next.
 func (m *Model) handleOpResult(result ResultItem, updateStatus func()) tea.Cmd {
 	m.completedItems++
+	m.inFlight--
 	m.results = append(m.results, result)
 	if result.Success && updateStatus != nil {
 		updateStatus()
+	}
+	// Remove from inFlightNames.
+	for i, name := range m.inFlightNames {
+		if name == result.Name {
+			m.inFlightNames = append(m.inFlightNames[:i], m.inFlightNames[i+1:]...)
+			break
+		}
 	}
 	return m.dispatchNext()
 }
@@ -511,6 +522,8 @@ func (m Model) returnToList() Model {
 
 	m.results = nil
 	m.pendingItems = nil
+	m.inFlight = 0
+	m.inFlightNames = nil
 	m.resultScroll.reset()
 
 	// Clamp cursor.
