@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/tmux-plugins/tpm/internal/tmux"
 )
@@ -104,11 +105,9 @@ func Resolve(runner tmux.Runner, opts ...Option) (*Config, error) {
 	// Resolve plugin path.
 	cfg.PluginPath = resolvePluginPath(runner, o)
 
-	// Load overrides from config file.
-	fc := loadFileConfig(o)
-	cfg.Colors = fc.Colors
-	cfg.UpdateCheckInterval = parseCheckInterval(fc.Updates.CheckInterval)
-	cfg.UpdateMode = parseUpdateMode(fc.Updates.Mode)
+	// Resolve color and update overrides from tmux options.
+	cfg.Colors = resolveColors(runner)
+	cfg.UpdateCheckInterval, cfg.UpdateMode = resolveUpdateSettings(runner)
 
 	cfg.StatePath = filepath.Join(o.xdgStateHome(), "tpm")
 
@@ -144,4 +143,69 @@ func resolvePluginPath(runner tmux.Runner, o *resolveOpts) string {
 
 	// Default.
 	return filepath.Join(o.home, DefaultTPMPath) + "/"
+}
+
+// resolveColors reads per-color tmux options into a ColorConfig.
+func resolveColors(runner tmux.Runner) ColorConfig {
+	var c ColorConfig
+	if v, err := runner.ShowOption(ColorPrimaryOption); err == nil && v != "" {
+		c.Primary = v
+	}
+	if v, err := runner.ShowOption(ColorSecondaryOption); err == nil && v != "" {
+		c.Secondary = v
+	}
+	if v, err := runner.ShowOption(ColorAccentOption); err == nil && v != "" {
+		c.Accent = v
+	}
+	if v, err := runner.ShowOption(ColorErrorOption); err == nil && v != "" {
+		c.Error = v
+	}
+	if v, err := runner.ShowOption(ColorMutedOption); err == nil && v != "" {
+		c.Muted = v
+	}
+	if v, err := runner.ShowOption(ColorTextOption); err == nil && v != "" {
+		c.Text = v
+	}
+	return c
+}
+
+// resolveUpdateSettings reads update interval and mode from tmux options.
+func resolveUpdateSettings(runner tmux.Runner) (time.Duration, string) {
+	var interval time.Duration
+	var mode string
+	if v, err := runner.ShowOption(UpdateIntervalOption); err == nil && v != "" {
+		interval = parseCheckInterval(v)
+	}
+	if v, err := runner.ShowOption(UpdateModeOption); err == nil && v != "" {
+		mode = parseUpdateMode(v)
+	}
+	return interval, mode
+}
+
+// validUpdateModes is the set of recognized update mode values.
+var validUpdateModes = map[string]bool{
+	"":       true,
+	"off":    true,
+	"prompt": true,
+	"auto":   true,
+}
+
+// parseUpdateMode returns the mode if valid, or empty string otherwise.
+func parseUpdateMode(s string) string {
+	if validUpdateModes[s] {
+		return s
+	}
+	return ""
+}
+
+// parseCheckInterval parses a duration string, returning 0 on any error.
+func parseCheckInterval(s string) time.Duration {
+	if s == "" {
+		return 0
+	}
+	d, err := time.ParseDuration(s)
+	if err != nil || d < 0 {
+		return 0
+	}
+	return d
 }

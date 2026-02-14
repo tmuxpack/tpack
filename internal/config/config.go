@@ -24,6 +24,18 @@ const (
 	UpdateKeyOption  = "@tpm-update"
 	CleanKeyOption   = "@tpm-clean"
 	TuiKeyOption     = "@tpm-tui"
+
+	// Tmux option names for color overrides.
+	ColorPrimaryOption   = "@tpm-color-primary"
+	ColorSecondaryOption = "@tpm-color-secondary"
+	ColorAccentOption    = "@tpm-color-accent"
+	ColorErrorOption     = "@tpm-color-error"
+	ColorMutedOption     = "@tpm-color-muted"
+	ColorTextOption      = "@tpm-color-text"
+
+	// Tmux option names for update settings.
+	UpdateIntervalOption = "@tpm-update-interval"
+	UpdateModeOption     = "@tpm-update-mode"
 )
 
 // Config holds resolved TPM configuration.
@@ -40,7 +52,7 @@ type Config struct {
 	CleanKey string
 	// TuiKey is the keybinding for the TUI popup.
 	TuiKey string
-	// Colors holds optional color overrides from the config file.
+	// Colors holds optional color overrides from tmux options.
 	Colors ColorConfig
 	// UpdateCheckInterval is how often to check for plugin updates.
 	UpdateCheckInterval time.Duration

@@ -1,12 +1,12 @@
 package config
 
-// ColorConfig holds optional color overrides from the config file.
+// ColorConfig holds optional color overrides from tmux options.
 // Empty strings mean "keep the existing value".
 type ColorConfig struct {
-	Primary   string `yaml:"primary"`
-	Secondary string `yaml:"secondary"`
-	Accent    string `yaml:"accent"`
-	Error     string `yaml:"error"`
-	Muted     string `yaml:"muted"`
-	Text      string `yaml:"text"`
+	Primary   string
+	Secondary string
+	Accent    string
+	Error     string
+	Muted     string
+	Text      string
 }

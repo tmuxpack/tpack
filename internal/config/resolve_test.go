@@ -2,6 +2,7 @@ package config_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/tmux-plugins/tpm/internal/config"
 	"github.com/tmux-plugins/tpm/internal/tmux"
@@ -152,5 +153,169 @@ func TestResolveStatePathWithXDGState(t *testing.T) {
 	want := "/custom/state/tpm"
 	if cfg.StatePath != want {
 		t.Errorf("StatePath = %q, want %q", cfg.StatePath, want)
+	}
+}
+
+func TestResolveColors(t *testing.T) {
+	tests := []struct {
+		name    string
+		options map[string]string
+		want    config.ColorConfig
+	}{
+		{
+			name: "all colors set",
+			options: map[string]string{
+				"@tpm-color-primary":   "#111111",
+				"@tpm-color-secondary": "#222222",
+				"@tpm-color-accent":    "#333333",
+				"@tpm-color-error":     "#444444",
+				"@tpm-color-muted":     "#555555",
+				"@tpm-color-text":      "#666666",
+			},
+			want: config.ColorConfig{
+				Primary:   "#111111",
+				Secondary: "#222222",
+				Accent:    "#333333",
+				Error:     "#444444",
+				Muted:     "#555555",
+				Text:      "#666666",
+			},
+		},
+		{
+			name: "partial colors",
+			options: map[string]string{
+				"@tpm-color-primary": "#aabbcc",
+				"@tpm-color-text":    "#ddeeff",
+			},
+			want: config.ColorConfig{
+				Primary: "#aabbcc",
+				Text:    "#ddeeff",
+			},
+		},
+		{
+			name:    "no colors set",
+			options: map[string]string{},
+			want:    config.ColorConfig{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := tmux.NewMockRunner()
+			for k, v := range tt.options {
+				m.Options[k] = v
+			}
+			fs := config.NewMockFS()
+
+			cfg, err := config.Resolve(m, testOpts(fs)...)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			if cfg.Colors != tt.want {
+				t.Errorf("Colors = %+v, want %+v", cfg.Colors, tt.want)
+			}
+		})
+	}
+}
+
+func TestResolveUpdateSettings(t *testing.T) {
+	tests := []struct {
+		name         string
+		options      map[string]string
+		wantInterval time.Duration
+		wantMode     string
+	}{
+		{
+			name: "prompt mode with 24h interval",
+			options: map[string]string{
+				"@tpm-update-interval": "24h",
+				"@tpm-update-mode":     "prompt",
+			},
+			wantInterval: 24 * time.Hour,
+			wantMode:     "prompt",
+		},
+		{
+			name: "auto mode with 1h interval",
+			options: map[string]string{
+				"@tpm-update-interval": "1h",
+				"@tpm-update-mode":     "auto",
+			},
+			wantInterval: 1 * time.Hour,
+			wantMode:     "auto",
+		},
+		{
+			name: "off mode",
+			options: map[string]string{
+				"@tpm-update-mode": "off",
+			},
+			wantInterval: 0,
+			wantMode:     "off",
+		},
+		{
+			name:         "no update options",
+			options:      map[string]string{},
+			wantInterval: 0,
+			wantMode:     "",
+		},
+		{
+			name: "invalid interval",
+			options: map[string]string{
+				"@tpm-update-interval": "not-a-duration",
+				"@tpm-update-mode":     "prompt",
+			},
+			wantInterval: 0,
+			wantMode:     "prompt",
+		},
+		{
+			name: "invalid mode ignored",
+			options: map[string]string{
+				"@tpm-update-mode": "bogus",
+			},
+			wantInterval: 0,
+			wantMode:     "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := tmux.NewMockRunner()
+			for k, v := range tt.options {
+				m.Options[k] = v
+			}
+			fs := config.NewMockFS()
+
+			cfg, err := config.Resolve(m, testOpts(fs)...)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			if cfg.UpdateCheckInterval != tt.wantInterval {
+				t.Errorf("UpdateCheckInterval = %v, want %v", cfg.UpdateCheckInterval, tt.wantInterval)
+			}
+			if cfg.UpdateMode != tt.wantMode {
+				t.Errorf("UpdateMode = %q, want %q", cfg.UpdateMode, tt.wantMode)
+			}
+		})
+	}
+}
+
+func TestResolveDefaultsNoColors(t *testing.T) {
+	m := tmux.NewMockRunner()
+	fs := config.NewMockFS()
+
+	cfg, err := config.Resolve(m, testOpts(fs)...)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if cfg.Colors != (config.ColorConfig{}) {
+		t.Errorf("Colors = %+v, want zero value", cfg.Colors)
+	}
+	if cfg.UpdateCheckInterval != 0 {
+		t.Errorf("UpdateCheckInterval = %v, want 0", cfg.UpdateCheckInterval)
+	}
+	if cfg.UpdateMode != "" {
+		t.Errorf("UpdateMode = %q, want empty", cfg.UpdateMode)
 	}
 }
