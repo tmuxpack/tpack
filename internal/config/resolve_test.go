@@ -34,6 +34,9 @@ func TestResolveDefaults(t *testing.T) {
 	if cfg.CleanKey != "M-u" {
 		t.Errorf("CleanKey = %q, want %q", cfg.CleanKey, "M-u")
 	}
+	if cfg.TuiKey != "T" {
+		t.Errorf("TuiKey = %q, want %q", cfg.TuiKey, "T")
+	}
 	if cfg.TmuxConf != "/home/user/.tmux.conf" {
 		t.Errorf("TmuxConf = %q, want default", cfg.TmuxConf)
 	}
@@ -47,6 +50,7 @@ func TestResolveCustomKeybindings(t *testing.T) {
 	m.Options["@tpm-install"] = "T"
 	m.Options["@tpm-update"] = "Y"
 	m.Options["@tpm-clean"] = "M-y"
+	m.Options["@tpm-tui"] = "P"
 
 	fs := config.NewMockFS()
 
@@ -63,6 +67,9 @@ func TestResolveCustomKeybindings(t *testing.T) {
 	}
 	if cfg.CleanKey != "M-y" {
 		t.Errorf("CleanKey = %q, want %q", cfg.CleanKey, "M-y")
+	}
+	if cfg.TuiKey != "P" {
+		t.Errorf("TuiKey = %q, want %q", cfg.TuiKey, "P")
 	}
 }
 

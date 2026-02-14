@@ -64,6 +64,7 @@ func bindKeys(runner tmux.Runner, cfg *config.Config, binary string) {
 	_ = runner.BindKey(cfg.InstallKey, binary+" tui --popup --install", "[tpm] Install plugins")
 	_ = runner.BindKey(cfg.UpdateKey, binary+" tui --popup --update", "[tpm] Update plugins")
 	_ = runner.BindKey(cfg.CleanKey, binary+" tui --popup --clean", "[tpm] Clean plugins")
+	_ = runner.BindKey(cfg.TuiKey, binary+" tui --popup", "[tpm] Open TUI")
 }
 
 // shouldSpawnUpdateCheck returns true if update checks are configured.

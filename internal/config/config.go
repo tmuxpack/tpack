@@ -10,6 +10,8 @@ const (
 	DefaultUpdateKey = "U"
 	// DefaultCleanKey is the default keybinding for plugin cleanup.
 	DefaultCleanKey = "M-u"
+	// DefaultTuiKey is the default keybinding for the TUI popup.
+	DefaultTuiKey = "T"
 	// DefaultTPMPath is the default plugin installation directory.
 	DefaultTPMPath = ".tmux/plugins/"
 	// TPMEnvVar is the tmux environment variable for the plugin path.
@@ -21,6 +23,7 @@ const (
 	InstallKeyOption = "@tpm-install"
 	UpdateKeyOption  = "@tpm-update"
 	CleanKeyOption   = "@tpm-clean"
+	TuiKeyOption     = "@tpm-tui"
 )
 
 // Config holds resolved TPM configuration.
@@ -35,6 +38,8 @@ type Config struct {
 	UpdateKey string
 	// CleanKey is the keybinding for plugin cleanup.
 	CleanKey string
+	// TuiKey is the keybinding for the TUI popup.
+	TuiKey string
 	// Colors holds optional color overrides from the config file.
 	Colors ColorConfig
 	// UpdateCheckInterval is how often to check for plugin updates.

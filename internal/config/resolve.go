@@ -81,6 +81,7 @@ func Resolve(runner tmux.Runner, opts ...Option) (*Config, error) {
 		InstallKey: DefaultInstallKey,
 		UpdateKey:  DefaultUpdateKey,
 		CleanKey:   DefaultCleanKey,
+		TuiKey:     DefaultTuiKey,
 	}
 
 	// Resolve keybindings from tmux options.
@@ -92,6 +93,9 @@ func Resolve(runner tmux.Runner, opts ...Option) (*Config, error) {
 	}
 	if v, err := runner.ShowOption(CleanKeyOption); err == nil && v != "" {
 		cfg.CleanKey = v
+	}
+	if v, err := runner.ShowOption(TuiKeyOption); err == nil && v != "" {
+		cfg.TuiKey = v
 	}
 
 	// Resolve tmux.conf location.
