@@ -29,11 +29,13 @@ func main() {
 		os.Exit(runTui(os.Args[2:]))
 	case "commits":
 		os.Exit(runCommits(os.Args[2:]))
+	case "check-updates":
+		os.Exit(runCheckUpdates())
 	case "version":
 		fmt.Println("tpm " + version)
 	default:
 		fmt.Fprintf(os.Stderr, "tpm: unknown command %q\n", os.Args[1])
-		fmt.Fprintln(os.Stderr, "usage: tpm [init|install|update|clean|source|tui|commits|version]")
+		fmt.Fprintln(os.Stderr, "usage: tpm [init|install|update|clean|source|tui|commits|check-updates|version]")
 		os.Exit(1)
 	}
 }
