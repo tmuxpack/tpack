@@ -1,6 +1,8 @@
 // Package config handles TPM configuration resolution.
 package config
 
+import "time"
+
 const (
 	// DefaultInstallKey is the default keybinding for plugin installation.
 	DefaultInstallKey = "I"
@@ -35,4 +37,8 @@ type Config struct {
 	CleanKey string
 	// Colors holds optional color overrides from the config file.
 	Colors ColorConfig
+	// UpdateCheckInterval is how often to check for plugin updates.
+	UpdateCheckInterval time.Duration
+	// UpdateMode controls update behavior ("auto", "prompt", or "off").
+	UpdateMode string
 }

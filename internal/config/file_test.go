@@ -2,6 +2,7 @@ package config_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/tmux-plugins/tpm/internal/config"
 	"github.com/tmux-plugins/tpm/internal/tmux"
@@ -90,5 +91,91 @@ func TestResolveNoConfigFile(t *testing.T) {
 
 	if cfg.Colors != (config.ColorConfig{}) {
 		t.Errorf("Colors = %+v, want zero value", cfg.Colors)
+	}
+}
+
+func TestResolveLoadsUpdates(t *testing.T) {
+	tests := []struct {
+		name         string
+		yaml         string
+		wantInterval time.Duration
+		wantMode     string
+	}{
+		{
+			name: "full update config",
+			yaml: `updates:
+  check_interval: "24h"
+  mode: "prompt"
+`,
+			wantInterval: 24 * time.Hour,
+			wantMode:     "prompt",
+		},
+		{
+			name: "auto mode with 1h interval",
+			yaml: `updates:
+  check_interval: "1h"
+  mode: "auto"
+`,
+			wantInterval: 1 * time.Hour,
+			wantMode:     "auto",
+		},
+		{
+			name: "off mode",
+			yaml: `updates:
+  mode: "off"
+`,
+			wantInterval: 0,
+			wantMode:     "off",
+		},
+		{
+			name:         "no updates section",
+			yaml:         "colors:\n  primary: \"#aabbcc\"\n",
+			wantInterval: 0,
+			wantMode:     "",
+		},
+		{
+			name:         "empty file",
+			yaml:         "",
+			wantInterval: 0,
+			wantMode:     "",
+		},
+		{
+			name: "invalid interval string",
+			yaml: `updates:
+  check_interval: "not-a-duration"
+  mode: "prompt"
+`,
+			wantInterval: 0,
+			wantMode:     "prompt",
+		},
+		{
+			name: "zero interval string",
+			yaml: `updates:
+  check_interval: "0"
+  mode: "auto"
+`,
+			wantInterval: 0,
+			wantMode:     "auto",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := tmux.NewMockRunner()
+			fs := config.NewMockFS()
+			fs.Files["/home/user/.config/tpm/config.yml"] = tt.yaml
+
+			cfg, err := config.Resolve(m, testOpts(fs)...)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			if cfg.UpdateCheckInterval != tt.wantInterval {
+				t.Errorf("UpdateCheckInterval = %v, want %v", cfg.UpdateCheckInterval, tt.wantInterval)
+			}
+			if cfg.UpdateMode != tt.wantMode {
+				t.Errorf("UpdateMode = %q, want %q", cfg.UpdateMode, tt.wantMode)
+			}
+		})
 	}
 }
