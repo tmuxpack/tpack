@@ -39,8 +39,8 @@ func TestNewModel_InitialState(t *testing.T) {
 	if len(m.plugins) != 2 {
 		t.Errorf("expected 2 plugins, got %d", len(m.plugins))
 	}
-	if m.cursor != 0 {
-		t.Errorf("expected cursor at 0, got %d", m.cursor)
+	if m.listScroll.cursor != 0 {
+		t.Errorf("expected cursor at 0, got %d", m.listScroll.cursor)
 	}
 	if len(m.selected) != 0 {
 		t.Errorf("expected empty selection, got %d", len(m.selected))
@@ -83,23 +83,23 @@ func TestUpdate_CursorNavigation(t *testing.T) {
 	down := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}}
 	result, _ := m.Update(down)
 	m = result.(Model)
-	if m.cursor != 1 {
-		t.Errorf("expected cursor at 1 after j, got %d", m.cursor)
+	if m.listScroll.cursor != 1 {
+		t.Errorf("expected cursor at 1 after j, got %d", m.listScroll.cursor)
 	}
 
 	// Move down again.
 	result, _ = m.Update(down)
 	m = result.(Model)
-	if m.cursor != 2 {
-		t.Errorf("expected cursor at 2 after j, got %d", m.cursor)
+	if m.listScroll.cursor != 2 {
+		t.Errorf("expected cursor at 2 after j, got %d", m.listScroll.cursor)
 	}
 
 	// Move up.
 	up := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}}
 	result, _ = m.Update(up)
 	m = result.(Model)
-	if m.cursor != 1 {
-		t.Errorf("expected cursor at 1 after k, got %d", m.cursor)
+	if m.listScroll.cursor != 1 {
+		t.Errorf("expected cursor at 1 after k, got %d", m.listScroll.cursor)
 	}
 
 	// Can't go above 0.
@@ -107,8 +107,8 @@ func TestUpdate_CursorNavigation(t *testing.T) {
 	m = result.(Model)
 	result, _ = m.Update(up)
 	m = result.(Model)
-	if m.cursor != 0 {
-		t.Errorf("expected cursor at 0, got %d", m.cursor)
+	if m.listScroll.cursor != 0 {
+		t.Errorf("expected cursor at 0, got %d", m.listScroll.cursor)
 	}
 }
 

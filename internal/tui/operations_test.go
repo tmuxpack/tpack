@@ -258,7 +258,7 @@ func TestBuildUninstallOps(t *testing.T) {
 		{Name: "b", Spec: "user/b", Status: StatusNotInstalled},
 		{Name: "c", Spec: "user/c", Status: StatusInstalled},
 	}
-	m.cursor = 0
+	m.listScroll.cursor = 0
 
 	ops := m.buildUninstallOps()
 	if len(ops) != 1 {
@@ -274,7 +274,7 @@ func TestBuildUninstallOps_SkipsNotInstalled(t *testing.T) {
 	m.plugins = []PluginItem{
 		{Name: "a", Spec: "user/a", Status: StatusNotInstalled},
 	}
-	m.cursor = 0
+	m.listScroll.cursor = 0
 
 	ops := m.buildUninstallOps()
 	if len(ops) != 0 {
@@ -289,7 +289,7 @@ func TestBuildInstallOps(t *testing.T) {
 		{Name: "b", Spec: "user/b", Status: StatusInstalled},
 		{Name: "c", Spec: "user/c", Status: StatusNotInstalled},
 	}
-	m.cursor = 0
+	m.listScroll.cursor = 0
 
 	ops := m.buildInstallOps()
 	if len(ops) != 1 {
@@ -319,7 +319,7 @@ func TestBuildUpdateOps_AllInstalled(t *testing.T) {
 		{Name: "a", Spec: "user/a", Status: StatusInstalled},
 		{Name: "b", Spec: "user/b", Status: StatusInstalled},
 	}
-	m.cursor = 0
+	m.listScroll.cursor = 0
 
 	ops := m.buildUpdateOps()
 	// Cursor on installed plugin → 1 op. But if nothing selected and cursor match

@@ -10,7 +10,7 @@ import (
 // GatherPlugins collects all plugin definitions from:
 // 1. Legacy @tpm_plugins tmux option
 // 2. New @plugin syntax in tmux.conf + /etc/tmux.conf + sourced files (one level deep)
-func GatherPlugins(runner tmux.Runner, fs FS, tmuxConf, home string) ([]plugin.Plugin, error) {
+func GatherPlugins(runner tmux.Runner, fs FS, tmuxConf, home string) []plugin.Plugin {
 	var specs []string
 
 	// Legacy: @tpm_plugins option.
@@ -32,7 +32,7 @@ func GatherPlugins(runner tmux.Runner, fs FS, tmuxConf, home string) ([]plugin.P
 	for _, raw := range specs {
 		plugins = append(plugins, plugin.ParseSpec(raw))
 	}
-	return plugins, nil
+	return plugins
 }
 
 // configContent reads /etc/tmux.conf + user tmux.conf + one level of sourced files.

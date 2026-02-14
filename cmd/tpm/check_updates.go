@@ -39,11 +39,7 @@ func runCheckUpdates() int {
 	_ = state.Save(cfg.StatePath, st)
 
 	// Gather plugins from config.
-	plugins, err := config.GatherPlugins(runner, config.RealFS{}, cfg.TmuxConf, os.Getenv("HOME"))
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "tpm: failed to gather plugins:", err)
-		return 1
-	}
+	plugins := config.GatherPlugins(runner, config.RealFS{}, cfg.TmuxConf, cfg.Home)
 
 	outdated := findOutdatedPlugins(plugins, cfg.PluginPath)
 	if len(outdated) == 0 {
@@ -61,6 +57,8 @@ func updateChecksEnabled(cfg *config.Config) bool {
 	return cfg.UpdateCheckInterval > 0
 }
 
+const maxConcurrentChecks = 5
+
 // findOutdatedPlugins checks each installed plugin for available updates in parallel.
 func findOutdatedPlugins(plugins []plugin.Plugin, pluginPath string) []string {
 	validator := git.NewCLIValidator()
@@ -72,6 +70,8 @@ func findOutdatedPlugins(plugins []plugin.Plugin, pluginPath string) []string {
 		wg       sync.WaitGroup
 	)
 
+	sem := make(chan struct{}, maxConcurrentChecks)
+
 	for _, p := range plugins {
 		dir := plugin.PluginPath(p.Name, pluginPath)
 		if !validator.IsGitRepo(dir) {
@@ -81,6 +81,8 @@ func findOutdatedPlugins(plugins []plugin.Plugin, pluginPath string) []string {
 		wg.Add(1)
 		go func(name, dir string) {
 			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
 
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			defer cancel()

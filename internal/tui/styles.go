@@ -165,7 +165,7 @@ func (m *Model) centerText(text string) string {
 	if !m.sizeKnown || m.width <= 0 {
 		return text
 	}
-	contentWidth := m.width - 4 // BaseStyle horizontal padding (2 left + 2 right)
+	contentWidth := m.width - BaseStylePadding
 	if lipgloss.Width(text) >= contentWidth {
 		return text
 	}
@@ -179,7 +179,7 @@ func (m *Model) centerBlock(block string) string {
 	if !m.sizeKnown || m.width <= 0 {
 		return block
 	}
-	contentWidth := m.width - 4
+	contentWidth := m.width - BaseStylePadding
 	blockWidth := lipgloss.Width(block)
 	if blockWidth >= contentWidth {
 		return block
@@ -206,7 +206,7 @@ func renderCheckbox(checked bool) string {
 // padToBottom inserts vertical padding between body and footer so the footer
 // is pinned to the bottom of the available content area.
 func padToBottom(body, footer string, height int) string {
-	contentHeight := height - 2 // BaseStyle vertical padding (1 top + 1 bottom)
+	contentHeight := height - BaseStyleVerticalPadding
 	bodyHeight := lipgloss.Height(body)
 	footerHeight := lipgloss.Height(footer)
 	padding := contentHeight - bodyHeight - footerHeight

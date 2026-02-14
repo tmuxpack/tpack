@@ -37,6 +37,22 @@ func loadFileConfig(o *resolveOpts) fileConfig {
 	return fc
 }
 
+// validUpdateModes is the set of recognized update mode values.
+var validUpdateModes = map[string]bool{
+	"":       true,
+	"off":    true,
+	"prompt": true,
+	"auto":   true,
+}
+
+// parseUpdateMode returns the mode if valid, or empty string otherwise.
+func parseUpdateMode(s string) string {
+	if validUpdateModes[s] {
+		return s
+	}
+	return ""
+}
+
 // parseCheckInterval parses a duration string, returning 0 on any error.
 func parseCheckInterval(s string) time.Duration {
 	if s == "" {

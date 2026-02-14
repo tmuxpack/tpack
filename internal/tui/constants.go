@@ -141,6 +141,8 @@ const (
 	ProgressBarPadding = 8
 	// BaseStylePadding is the total horizontal padding applied by BaseStyle (2 left + 2 right).
 	BaseStylePadding = 4
+	// BaseStyleVerticalPadding is the total vertical padding applied by BaseStyle (1 top + 1 bottom).
+	BaseStyleVerticalPadding = 2
 	// StatusColWidth is the approximate width of the status column.
 	StatusColWidth = 14
 	// progressResultsReservedLines is the overhead for title, counter, progress bar, stats, and help

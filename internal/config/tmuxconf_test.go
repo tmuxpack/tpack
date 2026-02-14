@@ -15,10 +15,7 @@ set -g @plugin "tmux-plugins/tpm"
 set -g @plugin "tmux-plugins/tmux-sensible"
 `
 
-	plugins, err := config.GatherPlugins(m, fs, "/home/user/.tmux.conf", "/home/user")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	plugins := config.GatherPlugins(m, fs, "/home/user/.tmux.conf", "/home/user")
 	if len(plugins) != 2 {
 		t.Fatalf("expected 2 plugins, got %d", len(plugins))
 	}
@@ -36,10 +33,7 @@ func TestGatherPluginsLegacySyntax(t *testing.T) {
 	fs := config.NewMockFS()
 	fs.Files["/home/user/.tmux.conf"] = ""
 
-	plugins, err := config.GatherPlugins(m, fs, "/home/user/.tmux.conf", "/home/user")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	plugins := config.GatherPlugins(m, fs, "/home/user/.tmux.conf", "/home/user")
 	if len(plugins) != 2 {
 		t.Fatalf("expected 2 plugins, got %d", len(plugins))
 	}
@@ -57,10 +51,7 @@ func TestGatherPluginsMixed(t *testing.T) {
 	fs := config.NewMockFS()
 	fs.Files["/home/user/.tmux.conf"] = `set -g @plugin "tmux-plugins/tmux-sensible"`
 
-	plugins, err := config.GatherPlugins(m, fs, "/home/user/.tmux.conf", "/home/user")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	plugins := config.GatherPlugins(m, fs, "/home/user/.tmux.conf", "/home/user")
 	if len(plugins) != 2 {
 		t.Fatalf("expected 2 plugins, got %d", len(plugins))
 	}
@@ -75,10 +66,7 @@ set -g @plugin "tmux-plugins/tpm"
 `
 	fs.Files["/home/user/.tmux/plugins.conf"] = `set -g @plugin "tmux-plugins/tmux-yank"`
 
-	plugins, err := config.GatherPlugins(m, fs, "/home/user/.tmux.conf", "/home/user")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	plugins := config.GatherPlugins(m, fs, "/home/user/.tmux.conf", "/home/user")
 	if len(plugins) != 2 {
 		t.Fatalf("expected 2 plugins, got %d", len(plugins))
 	}
@@ -90,10 +78,7 @@ func TestGatherPluginsIncludesEtcTmuxConf(t *testing.T) {
 	fs.Files["/etc/tmux.conf"] = `set -g @plugin "tmux-plugins/tmux-sensible"`
 	fs.Files["/home/user/.tmux.conf"] = `set -g @plugin "tmux-plugins/tpm"`
 
-	plugins, err := config.GatherPlugins(m, fs, "/home/user/.tmux.conf", "/home/user")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	plugins := config.GatherPlugins(m, fs, "/home/user/.tmux.conf", "/home/user")
 	if len(plugins) != 2 {
 		t.Fatalf("expected 2 plugins, got %d", len(plugins))
 	}
@@ -104,10 +89,7 @@ func TestGatherPluginsEmpty(t *testing.T) {
 	fs := config.NewMockFS()
 	fs.Files["/home/user/.tmux.conf"] = ""
 
-	plugins, err := config.GatherPlugins(m, fs, "/home/user/.tmux.conf", "/home/user")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	plugins := config.GatherPlugins(m, fs, "/home/user/.tmux.conf", "/home/user")
 	if len(plugins) != 0 {
 		t.Fatalf("expected 0 plugins, got %d", len(plugins))
 	}
@@ -118,10 +100,7 @@ func TestGatherPluginsWithBranch(t *testing.T) {
 	fs := config.NewMockFS()
 	fs.Files["/home/user/.tmux.conf"] = `set -g @plugin "user/repo#develop"`
 
-	plugins, err := config.GatherPlugins(m, fs, "/home/user/.tmux.conf", "/home/user")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	plugins := config.GatherPlugins(m, fs, "/home/user/.tmux.conf", "/home/user")
 	if len(plugins) != 1 {
 		t.Fatalf("expected 1 plugin, got %d", len(plugins))
 	}

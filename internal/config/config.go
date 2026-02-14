@@ -14,8 +14,8 @@ const (
 	DefaultTPMPath = ".tmux/plugins/"
 	// TPMEnvVar is the tmux environment variable for the plugin path.
 	TPMEnvVar = "TMUX_PLUGIN_MANAGER_PATH"
-	// SupportedTmuxVersion is the minimum tmux version (as int digits).
-	SupportedTmuxVersion = 19
+	// SupportedTmuxVersion is the minimum tmux version encoded as major*100+minor.
+	SupportedTmuxVersion = 109
 
 	// Tmux option names for keybinding customization.
 	InstallKeyOption = "@tpm-install"
@@ -43,4 +43,6 @@ type Config struct {
 	UpdateMode string
 	// StatePath is the directory for persistent state (e.g. last update check).
 	StatePath string
+	// Home is the user's home directory, resolved during config resolution.
+	Home string
 }

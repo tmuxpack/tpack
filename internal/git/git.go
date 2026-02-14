@@ -8,6 +8,7 @@ type CloneOptions struct {
 	URL    string
 	Dir    string
 	Branch string
+	Depth  int // 0 means no depth limit
 }
 
 // PullOptions configures a git pull operation.

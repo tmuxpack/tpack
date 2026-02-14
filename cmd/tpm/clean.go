@@ -26,11 +26,7 @@ func runClean(args []string) int {
 
 	mgr := newManagerDeps(cfg.PluginPath, output)
 
-	plugins, err := config.GatherPlugins(runner, config.RealFS{}, cfg.TmuxConf, os.Getenv("HOME"))
-	if err != nil {
-		output.Err("Failed to gather plugins: " + err.Error())
-		return exitCode(output)
-	}
+	plugins := config.GatherPlugins(runner, config.RealFS{}, cfg.TmuxConf, cfg.Home)
 
 	mgr.Clean(plugins)
 

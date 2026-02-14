@@ -67,52 +67,52 @@ func TestCommitViewer_View_ShowsHelp(t *testing.T) {
 func TestCommitViewer_Navigation(t *testing.T) {
 	m := NewCommitViewer("test", testCommits())
 
-	if m.cursor != 0 {
-		t.Errorf("expected initial cursor at 0, got %d", m.cursor)
+	if m.scroll.cursor != 0 {
+		t.Errorf("expected initial cursor at 0, got %d", m.scroll.cursor)
 	}
 
 	// Move down.
 	down := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}}
 	result, _ := m.Update(down)
 	m = result.(CommitViewer)
-	if m.cursor != 1 {
-		t.Errorf("expected cursor at 1 after j, got %d", m.cursor)
+	if m.scroll.cursor != 1 {
+		t.Errorf("expected cursor at 1 after j, got %d", m.scroll.cursor)
 	}
 
 	// Move down again.
 	result, _ = m.Update(down)
 	m = result.(CommitViewer)
-	if m.cursor != 2 {
-		t.Errorf("expected cursor at 2 after j, got %d", m.cursor)
+	if m.scroll.cursor != 2 {
+		t.Errorf("expected cursor at 2 after j, got %d", m.scroll.cursor)
 	}
 
 	// Can't go past last item.
 	result, _ = m.Update(down)
 	m = result.(CommitViewer)
-	if m.cursor != 2 {
-		t.Errorf("expected cursor to stay at 2, got %d", m.cursor)
+	if m.scroll.cursor != 2 {
+		t.Errorf("expected cursor to stay at 2, got %d", m.scroll.cursor)
 	}
 
 	// Move up.
 	up := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}}
 	result, _ = m.Update(up)
 	m = result.(CommitViewer)
-	if m.cursor != 1 {
-		t.Errorf("expected cursor at 1 after k, got %d", m.cursor)
+	if m.scroll.cursor != 1 {
+		t.Errorf("expected cursor at 1 after k, got %d", m.scroll.cursor)
 	}
 
 	// Move up to 0.
 	result, _ = m.Update(up)
 	m = result.(CommitViewer)
-	if m.cursor != 0 {
-		t.Errorf("expected cursor at 0, got %d", m.cursor)
+	if m.scroll.cursor != 0 {
+		t.Errorf("expected cursor at 0, got %d", m.scroll.cursor)
 	}
 
 	// Can't go above 0.
 	result, _ = m.Update(up)
 	m = result.(CommitViewer)
-	if m.cursor != 0 {
-		t.Errorf("expected cursor to stay at 0, got %d", m.cursor)
+	if m.scroll.cursor != 0 {
+		t.Errorf("expected cursor to stay at 0, got %d", m.scroll.cursor)
 	}
 }
 

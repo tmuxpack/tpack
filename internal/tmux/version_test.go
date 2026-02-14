@@ -11,14 +11,18 @@ func TestParseVersionDigits(t *testing.T) {
 		input string
 		want  int
 	}{
-		{"tmux 1.9", 19},
-		{"tmux 3.4", 34},
-		{"1.9a", 19},
-		{"tmux 3.3a", 33},
-		{"tmux 2.1", 21},
-		{"tmux 1.8", 18},
-		{"3.0", 30},
-		{"tmux next-3.4", 34},
+		{"tmux 1.9", 109},
+		{"tmux 3.4", 304},
+		{"1.9a", 109},
+		{"tmux 3.3a", 303},
+		{"tmux 2.1", 201},
+		{"tmux 1.8", 108},
+		{"3.0", 300},
+		{"tmux next-3.4", 304},
+		{"tmux 3.10", 310},
+		{"tmux 10.0", 1000},
+		{"", 0},
+		{"no version here", 0},
 	}
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
@@ -37,9 +41,11 @@ func TestIsVersionSupported(t *testing.T) {
 		min     int
 		want    bool
 	}{
-		{"exact match", 19, 19, true},
-		{"newer", 34, 19, true},
-		{"older", 18, 19, false},
+		{"exact match", 109, 109, true},
+		{"newer", 304, 109, true},
+		{"older", 108, 109, false},
+		{"multi-digit minor newer", 310, 304, true},
+		{"multi-digit minor older", 304, 310, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

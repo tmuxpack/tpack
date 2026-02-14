@@ -104,9 +104,11 @@ func Resolve(runner tmux.Runner, opts ...Option) (*Config, error) {
 	fc := loadFileConfig(o)
 	cfg.Colors = fc.Colors
 	cfg.UpdateCheckInterval = parseCheckInterval(fc.Updates.CheckInterval)
-	cfg.UpdateMode = fc.Updates.Mode
+	cfg.UpdateMode = parseUpdateMode(fc.Updates.Mode)
 
 	cfg.StatePath = filepath.Join(o.xdgStateHome(), "tpm")
+
+	cfg.Home = o.home
 
 	return cfg, nil
 }

@@ -56,7 +56,7 @@ func TestBindKeys_UseTuiPopup(t *testing.T) {
 		CleanKey:   "M-u",
 	}
 
-	bindKeys(runner, cfg)
+	bindKeys(runner, cfg, "/usr/bin/tpm-go")
 
 	if len(runner.Calls) != 3 {
 		t.Fatalf("expected 3 BindKey calls, got %d", len(runner.Calls))

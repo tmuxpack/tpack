@@ -27,11 +27,10 @@ type CommitViewer struct {
 	name    string
 	commits []git.Commit
 
-	cursor       int
-	scrollOffset int
-	width        int
-	height       int
-	sizeKnown    bool
+	scroll    scrollState
+	width     int
+	height    int
+	sizeKnown bool
 }
 
 // NewCommitViewer creates a new CommitViewer model.
@@ -66,25 +65,9 @@ func (m CommitViewer) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, SharedKeys.Quit), msg.String() == escKeyName:
 			return m, tea.Quit
 		case key.Matches(msg, ListKeys.Up):
-			if m.cursor > 0 {
-				m.cursor--
-				if m.cursor < m.scrollOffset+ScrollOffsetMargin && m.scrollOffset > 0 {
-					m.scrollOffset--
-				}
-			}
+			m.scroll.moveUp()
 		case key.Matches(msg, ListKeys.Down):
-			if m.cursor < len(m.commits)-1 {
-				m.cursor++
-				if m.cursor >= m.scrollOffset+m.maxVisible()-ScrollOffsetMargin {
-					maxOffset := len(m.commits) - m.maxVisible()
-					if maxOffset < 0 {
-						maxOffset = 0
-					}
-					if m.scrollOffset < maxOffset {
-						m.scrollOffset++
-					}
-				}
-			}
+			m.scroll.moveDown(len(m.commits), m.maxVisible())
 		}
 	}
 	return m, nil
@@ -108,18 +91,18 @@ func (m CommitViewer) View() string {
 	if len(m.commits) < visible {
 		visible = len(m.commits)
 	}
-	end := m.scrollOffset + visible
+	end := m.scroll.scrollOffset + visible
 	if end > len(m.commits) {
 		end = len(m.commits)
 	}
 
-	top, bottom, dataStart, dataEnd := renderScrollIndicators(m.scrollOffset, end, len(m.commits))
+	top, bottom, dataStart, dataEnd := renderScrollIndicators(m.scroll.scrollOffset, end, len(m.commits))
 	b.WriteString(top)
 
 	for i := dataStart; i < dataEnd; i++ {
 		c := m.commits[i]
 		cursor := "  "
-		if i == m.cursor {
+		if i == m.scroll.cursor {
 			cursor = "> "
 		}
 		b.WriteString(cursor + MutedTextStyle.Render(c.Hash) + " " + c.Message + "\n")
@@ -178,18 +161,18 @@ func (m *Model) viewCommits() string {
 	if len(m.commitViewCommits) < visible {
 		visible = len(m.commitViewCommits)
 	}
-	end := m.commitViewScrollOffset + visible
+	end := m.commitScroll.scrollOffset + visible
 	if end > len(m.commitViewCommits) {
 		end = len(m.commitViewCommits)
 	}
 
-	top, bottom, dataStart, dataEnd := renderScrollIndicators(m.commitViewScrollOffset, end, len(m.commitViewCommits))
+	top, bottom, dataStart, dataEnd := renderScrollIndicators(m.commitScroll.scrollOffset, end, len(m.commitViewCommits))
 	b.WriteString(top)
 
 	for i := dataStart; i < dataEnd; i++ {
 		c := m.commitViewCommits[i]
 		cursor := "  "
-		if i == m.commitViewCursor {
+		if i == m.commitScroll.cursor {
 			cursor = "> "
 		}
 		b.WriteString(cursor + MutedTextStyle.Render(c.Hash) + " " + c.Message + "\n")
@@ -210,30 +193,4 @@ func (m *Model) commitMaxVisible() int {
 		return MinViewHeight
 	}
 	return v
-}
-
-// moveCommitCursorUp moves the commit cursor up and adjusts scroll.
-func (m *Model) moveCommitCursorUp() {
-	if m.commitViewCursor > 0 {
-		m.commitViewCursor--
-		if m.commitViewCursor < m.commitViewScrollOffset+ScrollOffsetMargin && m.commitViewScrollOffset > 0 {
-			m.commitViewScrollOffset--
-		}
-	}
-}
-
-// moveCommitCursorDown moves the commit cursor down and adjusts scroll.
-func (m *Model) moveCommitCursorDown() {
-	if m.commitViewCursor < len(m.commitViewCommits)-1 {
-		m.commitViewCursor++
-		if m.commitViewCursor >= m.commitViewScrollOffset+m.commitMaxVisible()-ScrollOffsetMargin {
-			maxOffset := len(m.commitViewCommits) - m.commitMaxVisible()
-			if maxOffset < 0 {
-				maxOffset = 0
-			}
-			if m.commitViewScrollOffset < maxOffset {
-				m.commitViewScrollOffset++
-			}
-		}
-	}
 }

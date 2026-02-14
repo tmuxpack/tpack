@@ -6,10 +6,11 @@ import (
 )
 
 var (
-	// Matches: set -g @plugin "...", set-option -g @plugin '...'
-	// with optional leading whitespace.
+	// Matches: set -g @plugin "...", set-option -g @plugin '...',
+	// or unquoted set -g @plugin value, with optional leading whitespace.
+	// Three alternations handle double-quoted, single-quoted, and unquoted values.
 	pluginLineRe = regexp.MustCompile(
-		`^[ \t]*set(?:-option)?\s+-g\s+@plugin\s+['"]?([^'"]+)['"]?`)
+		`^[ \t]*set(?:-option)?\s+-g\s+@plugin\s+(?:"([^"]+)"|'([^']+)'|(\S+))`)
 
 	// Matches: source "...", source-file -q "...", source '...'
 	sourcedFileRe = regexp.MustCompile(
@@ -27,7 +28,15 @@ func ExtractPluginsFromConfig(content string) []string {
 			continue
 		}
 		if m := pluginLineRe.FindStringSubmatch(line); m != nil {
-			spec := strings.TrimSpace(m[1])
+			// m[1] = double-quoted, m[2] = single-quoted, m[3] = unquoted
+			spec := m[1]
+			if spec == "" {
+				spec = m[2]
+			}
+			if spec == "" {
+				spec = m[3]
+			}
+			spec = strings.TrimSpace(spec)
 			if spec != "" {
 				plugins = append(plugins, spec)
 			}

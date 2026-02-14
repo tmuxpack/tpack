@@ -211,15 +211,15 @@ func TestReturnToList_RemovesCleanedOrphans(t *testing.T) {
 func TestReturnToList_ClampsNegativeCursor(t *testing.T) {
 	m := newTestModel(t, nil)
 	m.plugins = nil
-	m.cursor = 5
+	m.listScroll.cursor = 5
 	m.screen = ScreenProgress
 	m.operation = OpClean
 	m.processing = false
 
 	m = m.returnToList()
 
-	if m.cursor != 0 {
-		t.Errorf("expected cursor clamped to 0, got %d", m.cursor)
+	if m.listScroll.cursor != 0 {
+		t.Errorf("expected cursor clamped to 0, got %d", m.listScroll.cursor)
 	}
 }
 
@@ -230,19 +230,19 @@ func TestMoveCursorDown_Scrolling(t *testing.T) {
 		m.plugins[i] = PluginItem{Name: "plugin", Status: StatusInstalled}
 	}
 	m.viewHeight = 5
-	m.scrollOffset = 0
-	m.cursor = 0
+	m.listScroll.scrollOffset = 0
+	m.listScroll.cursor = 0
 
 	// Move cursor down past the scroll threshold (viewHeight - ScrollOffsetMargin = 5-3 = 2).
 	for i := 0; i < 3; i++ {
-		m.moveCursorDown()
+		m.listScroll.moveDown(len(m.plugins), m.viewHeight)
 	}
 
-	if m.scrollOffset == 0 {
+	if m.listScroll.scrollOffset == 0 {
 		t.Error("expected scrollOffset to increase when cursor moves past visible area")
 	}
-	if m.cursor != 3 {
-		t.Errorf("expected cursor at 3, got %d", m.cursor)
+	if m.listScroll.cursor != 3 {
+		t.Errorf("expected cursor at 3, got %d", m.listScroll.cursor)
 	}
 }
 
@@ -253,14 +253,14 @@ func TestMoveCursorUp_Scrolling(t *testing.T) {
 		m.plugins[i] = PluginItem{Name: "plugin", Status: StatusInstalled}
 	}
 	m.viewHeight = 5
-	m.scrollOffset = 10
-	m.cursor = 12
+	m.listScroll.scrollOffset = 10
+	m.listScroll.cursor = 12
 
 	// Move cursor up into the scroll margin zone.
-	m.moveCursorUp()
-	m.moveCursorUp()
+	m.listScroll.moveUp()
+	m.listScroll.moveUp()
 
-	if m.scrollOffset >= 10 {
+	if m.listScroll.scrollOffset >= 10 {
 		t.Error("expected scrollOffset to decrease when cursor moves above visible area")
 	}
 }
@@ -542,11 +542,11 @@ func TestMoveCursorDown_AtEnd(t *testing.T) {
 		{Name: "b", Status: StatusInstalled},
 	}
 	m.viewHeight = 10
-	m.cursor = 1 // already at last plugin
+	m.listScroll.cursor = 1 // already at last plugin
 
-	m.moveCursorDown()
-	if m.cursor != 1 {
-		t.Errorf("expected cursor to remain at 1 when at end, got %d", m.cursor)
+	m.listScroll.moveDown(len(m.plugins), m.viewHeight)
+	if m.listScroll.cursor != 1 {
+		t.Errorf("expected cursor to remain at 1 when at end, got %d", m.listScroll.cursor)
 	}
 }
 
@@ -556,11 +556,11 @@ func TestMoveCursorUp_AtBeginning(t *testing.T) {
 		{Name: "a", Status: StatusInstalled},
 	}
 	m.viewHeight = 10
-	m.cursor = 0
+	m.listScroll.cursor = 0
 
-	m.moveCursorUp()
-	if m.cursor != 0 {
-		t.Errorf("expected cursor to remain at 0 when at beginning, got %d", m.cursor)
+	m.listScroll.moveUp()
+	if m.listScroll.cursor != 0 {
+		t.Errorf("expected cursor to remain at 0 when at beginning, got %d", m.listScroll.cursor)
 	}
 }
 
@@ -573,32 +573,32 @@ func TestResultCursorNavigation(t *testing.T) {
 		{Name: "b", Success: true},
 		{Name: "c", Success: true},
 	}
-	m.resultCursor = 0
+	m.resultScroll.cursor = 0
 
 	// Move down.
-	m.moveResultCursorDown()
-	if m.resultCursor != 1 {
-		t.Errorf("expected resultCursor=1, got %d", m.resultCursor)
+	m.resultScroll.moveDown(len(m.results), m.resultMaxVisible())
+	if m.resultScroll.cursor != 1 {
+		t.Errorf("expected resultCursor=1, got %d", m.resultScroll.cursor)
 	}
-	m.moveResultCursorDown()
-	if m.resultCursor != 2 {
-		t.Errorf("expected resultCursor=2, got %d", m.resultCursor)
+	m.resultScroll.moveDown(len(m.results), m.resultMaxVisible())
+	if m.resultScroll.cursor != 2 {
+		t.Errorf("expected resultCursor=2, got %d", m.resultScroll.cursor)
 	}
 	// Can't go past end.
-	m.moveResultCursorDown()
-	if m.resultCursor != 2 {
-		t.Errorf("expected resultCursor to stay at 2, got %d", m.resultCursor)
+	m.resultScroll.moveDown(len(m.results), m.resultMaxVisible())
+	if m.resultScroll.cursor != 2 {
+		t.Errorf("expected resultCursor to stay at 2, got %d", m.resultScroll.cursor)
 	}
 	// Move up.
-	m.moveResultCursorUp()
-	if m.resultCursor != 1 {
-		t.Errorf("expected resultCursor=1, got %d", m.resultCursor)
+	m.resultScroll.moveUp()
+	if m.resultScroll.cursor != 1 {
+		t.Errorf("expected resultCursor=1, got %d", m.resultScroll.cursor)
 	}
 	// Can't go past start.
-	m.moveResultCursorUp()
-	m.moveResultCursorUp()
-	if m.resultCursor != 0 {
-		t.Errorf("expected resultCursor to stay at 0, got %d", m.resultCursor)
+	m.resultScroll.moveUp()
+	m.resultScroll.moveUp()
+	if m.resultScroll.cursor != 0 {
+		t.Errorf("expected resultCursor to stay at 0, got %d", m.resultScroll.cursor)
 	}
 }
 
@@ -612,15 +612,15 @@ func TestResultCursorDown_Scrolling(t *testing.T) {
 	for i := range m.results {
 		m.results[i] = ResultItem{Name: "plugin", Success: true}
 	}
-	m.resultCursor = 0
-	m.resultScrollOffset = 0
+	m.resultScroll.cursor = 0
+	m.resultScroll.scrollOffset = 0
 
 	// Move cursor past the scroll threshold.
 	for i := 0; i < maxVis; i++ {
-		m.moveResultCursorDown()
+		m.resultScroll.moveDown(len(m.results), m.resultMaxVisible())
 	}
 
-	if m.resultScrollOffset == 0 {
+	if m.resultScroll.scrollOffset == 0 {
 		t.Error("expected resultScrollOffset to increase when cursor moves past visible area")
 	}
 }
@@ -635,14 +635,14 @@ func TestResultCursorUp_Scrolling(t *testing.T) {
 	for i := range m.results {
 		m.results[i] = ResultItem{Name: "plugin", Success: true}
 	}
-	m.resultScrollOffset = 10
-	m.resultCursor = 12
+	m.resultScroll.scrollOffset = 10
+	m.resultScroll.cursor = 12
 
 	// Move cursor up into the scroll margin zone.
-	m.moveResultCursorUp()
-	m.moveResultCursorUp()
+	m.resultScroll.moveUp()
+	m.resultScroll.moveUp()
 
-	if m.resultScrollOffset >= 10 {
+	if m.resultScroll.scrollOffset >= 10 {
 		t.Error("expected resultScrollOffset to decrease when cursor moves above visible area")
 	}
 }
@@ -654,7 +654,7 @@ func TestShowCommits_NoCommits(t *testing.T) {
 	m.results = []ResultItem{
 		{Name: "a", Success: true}, // no commits
 	}
-	m.resultCursor = 0
+	m.resultScroll.cursor = 0
 
 	ok := m.showCommits()
 	if ok {
@@ -672,7 +672,7 @@ func TestShowCommits_OutOfBounds(t *testing.T) {
 	m.results = []ResultItem{
 		{Name: "a", Success: true},
 	}
-	m.resultCursor = 5
+	m.resultScroll.cursor = 5
 
 	ok := m.showCommits()
 	if ok {
@@ -691,7 +691,7 @@ func TestShowCommits_WithCommits(t *testing.T) {
 			Commits: []git.Commit{{Hash: "abc", Message: "test"}},
 		},
 	}
-	m.resultCursor = 0
+	m.resultScroll.cursor = 0
 
 	ok := m.showCommits()
 	if !ok {
@@ -716,22 +716,22 @@ func TestUpdateProgress_NavigationKeys(t *testing.T) {
 		{Name: "a", Success: true, Commits: []git.Commit{{Hash: "x", Message: "y"}}, Dir: "/tmp/p", BeforeRef: "aaa", AfterRef: "bbb"},
 		{Name: "b", Success: true},
 	}
-	m.resultCursor = 0
+	m.resultScroll.cursor = 0
 
 	// Press j to move down.
 	down := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}}
 	result, _ := m.Update(down)
 	m = result.(Model)
-	if m.resultCursor != 1 {
-		t.Errorf("expected resultCursor=1 after j, got %d", m.resultCursor)
+	if m.resultScroll.cursor != 1 {
+		t.Errorf("expected resultCursor=1 after j, got %d", m.resultScroll.cursor)
 	}
 
 	// Press k to move up.
 	up := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}}
 	result, _ = m.Update(up)
 	m = result.(Model)
-	if m.resultCursor != 0 {
-		t.Errorf("expected resultCursor=0 after k, got %d", m.resultCursor)
+	if m.resultScroll.cursor != 0 {
+		t.Errorf("expected resultCursor=0 after k, got %d", m.resultScroll.cursor)
 	}
 
 	// Press enter - should navigate to commits screen for result with commits.
@@ -812,22 +812,22 @@ func TestUpdateCommitView_Navigation(t *testing.T) {
 		{Hash: "bbb", Message: "second"},
 		{Hash: "ccc", Message: "third"},
 	}
-	m.commitViewCursor = 0
+	m.commitScroll.cursor = 0
 
 	// Move down.
 	down := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}}
 	result, _ := m.Update(down)
 	m = result.(Model)
-	if m.commitViewCursor != 1 {
-		t.Errorf("expected commitViewCursor=1 after j, got %d", m.commitViewCursor)
+	if m.commitScroll.cursor != 1 {
+		t.Errorf("expected commitViewCursor=1 after j, got %d", m.commitScroll.cursor)
 	}
 
 	// Move up.
 	up := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}}
 	result, _ = m.Update(up)
 	m = result.(Model)
-	if m.commitViewCursor != 0 {
-		t.Errorf("expected commitViewCursor=0 after k, got %d", m.commitViewCursor)
+	if m.commitScroll.cursor != 0 {
+		t.Errorf("expected commitViewCursor=0 after k, got %d", m.commitScroll.cursor)
 	}
 }
 
@@ -863,8 +863,8 @@ func TestReturnToProgress_ClearsState(t *testing.T) {
 	m.screen = ScreenCommits
 	m.commitViewName = "test"
 	m.commitViewCommits = []git.Commit{{Hash: "abc", Message: "test"}}
-	m.commitViewCursor = 2
-	m.commitViewScrollOffset = 1
+	m.commitScroll.cursor = 2
+	m.commitScroll.scrollOffset = 1
 
 	m.returnToProgress()
 
@@ -877,10 +877,10 @@ func TestReturnToProgress_ClearsState(t *testing.T) {
 	if m.commitViewCommits != nil {
 		t.Error("expected commitViewCommits cleared")
 	}
-	if m.commitViewCursor != 0 {
-		t.Errorf("expected commitViewCursor reset to 0, got %d", m.commitViewCursor)
+	if m.commitScroll.cursor != 0 {
+		t.Errorf("expected commitViewCursor reset to 0, got %d", m.commitScroll.cursor)
 	}
-	if m.commitViewScrollOffset != 0 {
-		t.Errorf("expected commitViewScrollOffset reset to 0, got %d", m.commitViewScrollOffset)
+	if m.commitScroll.scrollOffset != 0 {
+		t.Errorf("expected commitViewScrollOffset reset to 0, got %d", m.commitScroll.scrollOffset)
 	}
 }

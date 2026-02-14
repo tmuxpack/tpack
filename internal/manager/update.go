@@ -9,11 +9,14 @@ import (
 	"github.com/tmux-plugins/tpm/internal/plugin"
 )
 
+const maxConcurrentUpdates = 5
+
 func (m *Manager) updateAll(ctx context.Context, plugins []plugin.Plugin) {
 	m.output.Ok("Updating all plugins!")
 	m.output.Ok("")
 
 	var wg sync.WaitGroup
+	sem := make(chan struct{}, maxConcurrentUpdates)
 	for _, p := range plugins {
 		if !m.IsPluginInstalled(p.Name) {
 			continue
@@ -21,6 +24,8 @@ func (m *Manager) updateAll(ctx context.Context, plugins []plugin.Plugin) {
 		wg.Add(1)
 		go func(p plugin.Plugin) {
 			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
 			m.updatePlugin(ctx, p)
 		}(p)
 	}
@@ -35,6 +40,7 @@ func (m *Manager) updateSpecific(ctx context.Context, plugins []plugin.Plugin, n
 	}
 
 	var wg sync.WaitGroup
+	sem := make(chan struct{}, maxConcurrentUpdates)
 	for _, name := range names {
 		pName := plugin.PluginName(name)
 		if !m.IsPluginInstalled(pName) {
@@ -48,6 +54,8 @@ func (m *Manager) updateSpecific(ctx context.Context, plugins []plugin.Plugin, n
 		wg.Add(1)
 		go func(p plugin.Plugin) {
 			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
 			m.updatePlugin(ctx, p)
 		}(p)
 	}

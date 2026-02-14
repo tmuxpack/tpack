@@ -311,8 +311,8 @@ func (m *Model) targetIndices() []int {
 	if m.multiSelectActive {
 		return m.selectedIndices()
 	}
-	if m.cursor >= 0 && m.cursor < len(m.plugins) {
-		return []int{m.cursor}
+	if m.listScroll.cursor >= 0 && m.listScroll.cursor < len(m.plugins) {
+		return []int{m.listScroll.cursor}
 	}
 	return nil
 }

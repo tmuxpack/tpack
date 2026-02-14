@@ -1,22 +1,28 @@
 package tmux
 
-import "unicode"
+import (
+	"regexp"
+	"strconv"
+)
 
-// ParseVersionDigits extracts digits from a tmux version string
-// and returns them as an integer. For example:
+var versionRe = regexp.MustCompile(`(\d+)\.(\d+)`)
+
+// ParseVersionDigits extracts a semantic version from a tmux version
+// string and encodes it as major*100 + minor. For example:
 //
-//	"tmux 1.9"  → 19
-//	"tmux 3.4"  → 34
-//	"1.9a"      → 19
-//	"tmux 3.3a" → 33
+//	"tmux 1.9"   → 109
+//	"tmux 3.4"   → 304
+//	"tmux 3.10"  → 310
+//	"1.9a"       → 109
+//	"tmux 3.3a"  → 303
 func ParseVersionDigits(s string) int {
-	result := 0
-	for _, r := range s {
-		if unicode.IsDigit(r) {
-			result = result*10 + int(r-'0')
-		}
+	m := versionRe.FindStringSubmatch(s)
+	if m == nil {
+		return 0
 	}
-	return result
+	major, _ := strconv.Atoi(m[1])
+	minor, _ := strconv.Atoi(m[2])
+	return major*100 + minor
 }
 
 // IsVersionSupported returns true if current >= minimum.

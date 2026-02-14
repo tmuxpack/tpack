@@ -133,15 +133,12 @@ set -g @plugin "user/repo#develop"
 `)
 
 	fs := config.RealFS{}
-	plugins, err := config.GatherPlugins(
+	plugins := config.GatherPlugins(
 		&noopRunner{},
 		fs,
 		confFile,
 		os.Getenv("HOME"),
 	)
-	if err != nil {
-		t.Fatal(err)
-	}
 	if len(plugins) != 3 {
 		t.Fatalf("expected 3 plugins, got %d", len(plugins))
 	}

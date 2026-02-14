@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os/exec"
+	"strconv"
 	"strings"
 )
 
@@ -17,6 +18,9 @@ func NewCLICloner() *CLICloner {
 
 func (c *CLICloner) Clone(ctx context.Context, opts CloneOptions) error {
 	args := []string{"clone", "--single-branch", "--recursive"}
+	if opts.Depth > 0 {
+		args = append(args, "--depth", strconv.Itoa(opts.Depth))
+	}
 	if opts.Branch != "" {
 		args = append(args, "-b", opts.Branch)
 	}

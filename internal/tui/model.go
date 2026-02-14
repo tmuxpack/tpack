@@ -46,13 +46,12 @@ type Model struct {
 	screen    Screen
 	operation Operation
 	autoOp    Operation
-	cursor    int
 
-	scrollOffset int
-	width        int
-	height       int
-	viewHeight   int
-	sizeKnown    bool
+	listScroll scrollState
+	width      int
+	height     int
+	viewHeight int
+	sizeKnown  bool
 
 	selected          map[int]bool
 	multiSelectActive bool
@@ -66,13 +65,11 @@ type Model struct {
 	progressBar     progress.Model
 	checkSpinner    spinner.Model
 
-	resultCursor       int
-	resultScrollOffset int
+	resultScroll scrollState
 
-	commitViewName         string
-	commitViewCommits      []git.Commit
-	commitViewCursor       int
-	commitViewScrollOffset int
+	commitViewName    string
+	commitViewCommits []git.Commit
+	commitScroll      scrollState
 }
 
 // NewModel creates a new Model from the resolved config and gathered plugins.
@@ -220,12 +217,12 @@ func (m Model) updateList(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case key.Matches(msg, SharedKeys.Quit):
 		return m, tea.Quit
 	case key.Matches(msg, ListKeys.Up):
-		m.moveCursorUp()
+		m.listScroll.moveUp()
 	case key.Matches(msg, ListKeys.Down):
-		m.moveCursorDown()
+		m.listScroll.moveDown(len(m.plugins), m.viewHeight)
 	case key.Matches(msg, ListKeys.Toggle):
 		if len(m.plugins) > 0 {
-			m.toggleSelection(m.cursor)
+			m.toggleSelection(m.listScroll.cursor)
 		}
 	case key.Matches(msg, ListKeys.Install):
 		return m.startOperation(OpInstall)
@@ -239,32 +236,6 @@ func (m Model) updateList(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// moveCursorUp moves the cursor up and adjusts scroll.
-func (m *Model) moveCursorUp() {
-	if m.cursor > 0 {
-		m.cursor--
-		if m.cursor < m.scrollOffset+ScrollOffsetMargin && m.scrollOffset > 0 {
-			m.scrollOffset--
-		}
-	}
-}
-
-// moveCursorDown moves the cursor down and adjusts scroll.
-func (m *Model) moveCursorDown() {
-	if m.cursor < len(m.plugins)-1 {
-		m.cursor++
-		if m.cursor >= m.scrollOffset+m.viewHeight-ScrollOffsetMargin {
-			maxOffset := len(m.plugins) - m.viewHeight
-			if maxOffset < 0 {
-				maxOffset = 0
-			}
-			if m.scrollOffset < maxOffset {
-				m.scrollOffset++
-			}
-		}
-	}
-}
-
 // updateProgress handles key events on the progress screen.
 func (m Model) updateProgress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if m.processing {
@@ -276,9 +247,9 @@ func (m Model) updateProgress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, SharedKeys.Quit), msg.String() == escKeyName:
 			return m, tea.Quit
 		case key.Matches(msg, ListKeys.Up):
-			m.moveResultCursorUp()
+			m.resultScroll.moveUp()
 		case key.Matches(msg, ListKeys.Down):
-			m.moveResultCursorDown()
+			m.resultScroll.moveDown(len(m.results), m.resultMaxVisible())
 		case msg.String() == "enter":
 			m.showCommits()
 		}
@@ -291,9 +262,9 @@ func (m Model) updateProgress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case msg.String() == escKeyName:
 		return m.returnToList(), nil
 	case key.Matches(msg, ListKeys.Up):
-		m.moveResultCursorUp()
+		m.resultScroll.moveUp()
 	case key.Matches(msg, ListKeys.Down):
-		m.moveResultCursorDown()
+		m.resultScroll.moveDown(len(m.results), m.resultMaxVisible())
 	case msg.String() == "enter":
 		m.showCommits()
 	}
@@ -309,46 +280,19 @@ func (m *Model) resultMaxVisible() int {
 	return v
 }
 
-// moveResultCursorUp moves the result cursor up and adjusts scroll.
-func (m *Model) moveResultCursorUp() {
-	if m.resultCursor > 0 {
-		m.resultCursor--
-		if m.resultCursor < m.resultScrollOffset+ScrollOffsetMargin && m.resultScrollOffset > 0 {
-			m.resultScrollOffset--
-		}
-	}
-}
-
-// moveResultCursorDown moves the result cursor down and adjusts scroll.
-func (m *Model) moveResultCursorDown() {
-	if m.resultCursor < len(m.results)-1 {
-		m.resultCursor++
-		if m.resultCursor >= m.resultScrollOffset+m.resultMaxVisible()-ScrollOffsetMargin {
-			maxOffset := len(m.results) - m.resultMaxVisible()
-			if maxOffset < 0 {
-				maxOffset = 0
-			}
-			if m.resultScrollOffset < maxOffset {
-				m.resultScrollOffset++
-			}
-		}
-	}
-}
-
 // showCommits navigates to the inline commit viewer for the current result.
 func (m *Model) showCommits() bool {
-	if m.resultCursor < 0 || m.resultCursor >= len(m.results) {
+	if m.resultScroll.cursor < 0 || m.resultScroll.cursor >= len(m.results) {
 		return false
 	}
-	r := m.results[m.resultCursor]
+	r := m.results[m.resultScroll.cursor]
 	if len(r.Commits) == 0 {
 		return false
 	}
 	m.screen = ScreenCommits
 	m.commitViewName = r.Name
 	m.commitViewCommits = r.Commits
-	m.commitViewCursor = 0
-	m.commitViewScrollOffset = 0
+	m.commitScroll.reset()
 	return true
 }
 
@@ -357,8 +301,7 @@ func (m *Model) returnToProgress() {
 	m.screen = ScreenProgress
 	m.commitViewName = ""
 	m.commitViewCommits = nil
-	m.commitViewCursor = 0
-	m.commitViewScrollOffset = 0
+	m.commitScroll.reset()
 }
 
 // updateCommitView handles key events on the commit viewer screen.
@@ -367,9 +310,9 @@ func (m Model) updateCommitView(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case key.Matches(msg, SharedKeys.Quit), msg.String() == escKeyName:
 		m.returnToProgress()
 	case key.Matches(msg, ListKeys.Up):
-		m.moveCommitCursorUp()
+		m.commitScroll.moveUp()
 	case key.Matches(msg, ListKeys.Down):
-		m.moveCommitCursorDown()
+		m.commitScroll.moveDown(len(m.commitViewCommits), m.commitMaxVisible())
 	}
 	return m, nil
 }
@@ -402,8 +345,7 @@ func (m Model) startOperation(op Operation) (tea.Model, tea.Cmd) {
 	m.results = nil
 	m.processing = true
 	m.currentItemName = ""
-	m.resultCursor = 0
-	m.resultScrollOffset = 0
+	m.resultScroll.reset()
 
 	cmd := m.dispatchNext()
 	return m, cmd
@@ -436,8 +378,7 @@ func (m Model) startAutoOperation() (tea.Model, tea.Cmd) {
 	m.results = nil
 	m.processing = true
 	m.currentItemName = ""
-	m.resultCursor = 0
-	m.resultScrollOffset = 0
+	m.resultScroll.reset()
 
 	cmd := m.dispatchNext()
 	return m, cmd
@@ -445,14 +386,10 @@ func (m Model) startAutoOperation() (tea.Model, tea.Cmd) {
 
 // handleOpResult is the shared logic for processing an operation result:
 // increment counter, append result, optionally update plugin status, dispatch next.
-func (m *Model) handleOpResult(name string, success bool, message string, updateStatus func()) tea.Cmd {
+func (m *Model) handleOpResult(result ResultItem, updateStatus func()) tea.Cmd {
 	m.completedItems++
-	m.results = append(m.results, ResultItem{
-		Name:    name,
-		Success: success,
-		Message: message,
-	})
-	if success && updateStatus != nil {
+	m.results = append(m.results, result)
+	if result.Success && updateStatus != nil {
 		updateStatus()
 	}
 	return m.dispatchNext()
@@ -460,7 +397,7 @@ func (m *Model) handleOpResult(name string, success bool, message string, update
 
 // handleInstallResult processes an install result and dispatches next.
 func (m Model) handleInstallResult(msg pluginInstallResultMsg) (tea.Model, tea.Cmd) {
-	cmd := m.handleOpResult(msg.Name, msg.Success, msg.Message, func() {
+	cmd := m.handleOpResult(ResultItem{Name: msg.Name, Success: msg.Success, Message: msg.Message}, func() {
 		for i := range m.plugins {
 			if m.plugins[i].Name == msg.Name {
 				m.plugins[i].Status = StatusInstalled
@@ -473,29 +410,26 @@ func (m Model) handleInstallResult(msg pluginInstallResultMsg) (tea.Model, tea.C
 
 // handleUpdateResult processes an update result and dispatches next.
 func (m Model) handleUpdateResult(msg pluginUpdateResultMsg) (tea.Model, tea.Cmd) {
-	m.completedItems++
-	m.results = append(m.results, ResultItem(msg))
-	if msg.Success {
+	cmd := m.handleOpResult(ResultItem(msg), func() {
 		for i := range m.plugins {
 			if m.plugins[i].Name == msg.Name {
 				m.plugins[i].Status = StatusInstalled
 				break
 			}
 		}
-	}
-	cmd := m.dispatchNext()
+	})
 	return m, cmd
 }
 
 // handleCleanResult processes a clean result and dispatches next.
 func (m Model) handleCleanResult(msg pluginCleanResultMsg) (tea.Model, tea.Cmd) {
-	cmd := m.handleOpResult(msg.Name, msg.Success, msg.Message, nil)
+	cmd := m.handleOpResult(ResultItem{Name: msg.Name, Success: msg.Success, Message: msg.Message}, nil)
 	return m, cmd
 }
 
 // handleUninstallResult processes an uninstall result and dispatches next.
 func (m Model) handleUninstallResult(msg pluginUninstallResultMsg) (tea.Model, tea.Cmd) {
-	cmd := m.handleOpResult(msg.Name, msg.Success, msg.Message, func() {
+	cmd := m.handleOpResult(ResultItem{Name: msg.Name, Success: msg.Success, Message: msg.Message}, func() {
 		for i := range m.plugins {
 			if m.plugins[i].Name == msg.Name {
 				m.plugins[i].Status = StatusNotInstalled
@@ -570,15 +504,14 @@ func (m Model) returnToList() Model {
 
 	m.results = nil
 	m.pendingItems = nil
-	m.resultCursor = 0
-	m.resultScrollOffset = 0
+	m.resultScroll.reset()
 
 	// Clamp cursor.
-	if m.cursor >= len(m.plugins) {
-		m.cursor = len(m.plugins) - 1
+	if m.listScroll.cursor >= len(m.plugins) {
+		m.listScroll.cursor = len(m.plugins) - 1
 	}
-	if m.cursor < 0 {
-		m.cursor = 0
+	if m.listScroll.cursor < 0 {
+		m.listScroll.cursor = 0
 	}
 
 	return m

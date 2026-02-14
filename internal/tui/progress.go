@@ -84,7 +84,7 @@ func (m *Model) renderResults() string {
 	if viewHeight <= 0 {
 		viewHeight = len(m.results)
 	}
-	start, end := calculateVisibleRange(m.resultScrollOffset, viewHeight, len(m.results))
+	start, end := calculateVisibleRange(m.resultScroll.scrollOffset, viewHeight, len(m.results))
 	topIndicator, bottomIndicator, dataStart, dataEnd := renderScrollIndicators(start, end, len(m.results))
 
 	var rb strings.Builder
@@ -92,7 +92,7 @@ func (m *Model) renderResults() string {
 	for i := dataStart; i < dataEnd; i++ {
 		r := m.results[i]
 		cursor := "  "
-		if i == m.resultCursor {
+		if i == m.resultScroll.cursor {
 			cursor = "> "
 		}
 		if r.Success {

@@ -39,7 +39,7 @@ func (m *Model) viewList() string {
 		if viewHeight <= 0 {
 			viewHeight = len(m.plugins)
 		}
-		start, end := calculateVisibleRange(m.scrollOffset, viewHeight, len(m.plugins))
+		start, end := calculateVisibleRange(m.listScroll.scrollOffset, viewHeight, len(m.plugins))
 
 		// Scroll indicators (indicators replace data rows to keep layout stable)
 		topIndicator, bottomIndicator, dataStart, dataEnd := renderScrollIndicators(start, end, len(m.plugins))
@@ -48,7 +48,7 @@ func (m *Model) viewList() string {
 		// Plugin rows
 		for i := dataStart; i < dataEnd; i++ {
 			p := m.plugins[i]
-			cursor := renderCursor(i == m.cursor)
+			cursor := renderCursor(i == m.listScroll.cursor)
 
 			var checkbox string
 			if m.multiSelectActive {
@@ -59,7 +59,7 @@ func (m *Model) viewList() string {
 
 			row := fmt.Sprintf("%s%s%-*s  %s", cursor, checkbox, m.nameColWidth(), p.Name, status)
 
-			if i == m.cursor {
+			if i == m.listScroll.cursor {
 				row = SelectedRowStyle.Render(row)
 			} else if m.selected[i] {
 				row = CheckedStyle.Render(row)

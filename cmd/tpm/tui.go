@@ -37,11 +37,7 @@ func runTui(args []string) int {
 	}
 	tui.ApplyConfigColors(cfg.Colors)
 
-	plugins, err := config.GatherPlugins(runner, config.RealFS{}, cfg.TmuxConf, os.Getenv("HOME"))
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "tpm: failed to gather plugins:", err)
-		return 1
-	}
+	plugins := config.GatherPlugins(runner, config.RealFS{}, cfg.TmuxConf, cfg.Home)
 
 	deps := tui.Deps{
 		Cloner:    git.NewCLICloner(),
@@ -87,7 +83,7 @@ func launchPopup(
 	}
 
 	// Build the subprocess command.
-	subcmd := shellescape(binary) + " tui"
+	subcmd := shellEscapeSingleQuoted(binary) + " tui"
 	if autoOp != tui.OpNone {
 		subcmd += " --" + strings.ToLower(autoOp.String())
 	}
@@ -108,7 +104,11 @@ func launchPopup(
 	return 0
 }
 
-// shellescape wraps s in single quotes, escaping any embedded single quotes.
-func shellescape(s string) string {
+// shellEscapeSingleQuoted wraps s in single quotes for safe use as a POSIX
+// shell argument. In single-quoted strings, only the single quote itself needs
+// escaping (using the '\” break-and-rejoin technique). Null bytes are stripped
+// as they can truncate shell arguments.
+func shellEscapeSingleQuoted(s string) string {
+	s = strings.ReplaceAll(s, "\x00", "")
 	return "'" + strings.ReplaceAll(s, "'", "'\\''") + "'"
 }

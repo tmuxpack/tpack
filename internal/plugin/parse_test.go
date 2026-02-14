@@ -68,6 +68,31 @@ set -g @plugin "tmux-plugins/tmux-yank"`,
 			content: `set -g @plugin "https://github.com/user/plugin.git"`,
 			want:    []string{"https://github.com/user/plugin.git"},
 		},
+		{
+			name:    "double-quoted value containing single quote",
+			content: `set -g @plugin "foo'bar"`,
+			want:    []string{"foo'bar"},
+		},
+		{
+			name:    "single-quoted value containing double quote",
+			content: `set -g @plugin 'foo"bar'`,
+			want:    []string{`foo"bar`},
+		},
+		{
+			name:    "double-quoted value with special chars",
+			content: `set -g @plugin "user/plug-in_v2.0"`,
+			want:    []string{"user/plug-in_v2.0"},
+		},
+		{
+			name:    "single-quoted full URL",
+			content: `set -g @plugin 'https://github.com/user/plugin.git'`,
+			want:    []string{"https://github.com/user/plugin.git"},
+		},
+		{
+			name:    "unquoted plugin with trailing whitespace",
+			content: "set -g @plugin tmux-plugins/tpm   ",
+			want:    []string{"tmux-plugins/tpm"},
+		},
 	}
 
 	for _, tt := range tests {

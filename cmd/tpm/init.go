@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -39,33 +38,29 @@ func runInit() int {
 	// Set TPM path in tmux environment.
 	_ = runner.SetEnvironment(config.TPMEnvVar, cfg.PluginPath)
 
+	// Find binary once and pass to functions that need it.
+	binary := findBinary()
+
 	// Bind keys.
-	bindKeys(runner, cfg)
+	bindKeys(runner, cfg, binary)
 
 	// Source plugins.
 	output := ui.NewShellOutput()
 	mgr := newManagerDeps(cfg.PluginPath, output)
 
-	plugins, err := config.GatherPlugins(runner, config.RealFS{}, cfg.TmuxConf, os.Getenv("HOME"))
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "tpm: failed to gather plugins:", err)
-		return 1
-	}
+	plugins := config.GatherPlugins(runner, config.RealFS{}, cfg.TmuxConf, cfg.Home)
 
 	mgr.Source(plugins)
 
 	// Spawn background update check if configured.
 	if shouldSpawnUpdateCheck(cfg) {
-		spawnUpdateCheck()
+		spawnUpdateCheck(binary)
 	}
 
 	return 0
 }
 
-func bindKeys(runner tmux.Runner, cfg *config.Config) {
-	// Find the Go binary path for self-referencing.
-	binary := findBinary()
-
+func bindKeys(runner tmux.Runner, cfg *config.Config, binary string) {
 	_ = runner.BindKey(cfg.InstallKey, binary+" tui --popup --install", "[tpm] Install plugins")
 	_ = runner.BindKey(cfg.UpdateKey, binary+" tui --popup --update", "[tpm] Update plugins")
 	_ = runner.BindKey(cfg.CleanKey, binary+" tui --popup --clean", "[tpm] Clean plugins")
@@ -77,13 +72,14 @@ func shouldSpawnUpdateCheck(cfg *config.Config) bool {
 }
 
 // spawnUpdateCheck launches `tpm check-updates` as a detached background process.
-func spawnUpdateCheck() {
-	binary := findBinary()
-	cmd := exec.CommandContext(context.Background(), binary, "check-updates")
+func spawnUpdateCheck(binary string) {
+	cmd := exec.Command(binary, "check-updates") //nolint:noctx // intentionally detached, no cancellation
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	cmd.Stdout = nil
 	cmd.Stderr = nil
-	_ = cmd.Start()
+	if err := cmd.Start(); err != nil {
+		fmt.Fprintf(os.Stderr, "tpm: failed to spawn update check: %v\n", err)
+	}
 }
 
 // findBinary returns the absolute path to the tpm-go binary.
