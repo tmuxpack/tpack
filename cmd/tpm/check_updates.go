@@ -50,7 +50,7 @@ func runCheckUpdates() int {
 		return 0
 	}
 
-	return handleOutdated(runner, cfg, outdated)
+	return handleOutdated(runner, cfg, plugins, outdated)
 }
 
 // updateChecksEnabled reports whether the update check feature is active.
@@ -101,33 +101,27 @@ func findOutdatedPlugins(plugins []plugin.Plugin, pluginPath string) []string {
 }
 
 // handleOutdated acts on the list of outdated plugins based on the configured update mode.
-func handleOutdated(runner *tmux.RealRunner, cfg *config.Config, outdated []string) int {
+func handleOutdated(runner *tmux.RealRunner, cfg *config.Config, plugins []plugin.Plugin, outdated []string) int {
 	switch cfg.UpdateMode {
 	case "prompt":
 		msg := "TPM: " + strconv.Itoa(len(outdated)) + " plugin update(s) available. Press prefix+U to update."
 		_ = runner.DisplayMessage(msg)
 
 	case "auto":
-		return autoUpdatePlugins(runner, cfg, outdated)
+		return autoUpdatePlugins(runner, cfg, plugins, outdated)
 	}
 
 	return 0
 }
 
 // autoUpdatePlugins performs automatic updates for the given outdated plugins.
-func autoUpdatePlugins(runner *tmux.RealRunner, cfg *config.Config, outdated []string) int {
+func autoUpdatePlugins(runner *tmux.RealRunner, cfg *config.Config, plugins []plugin.Plugin, outdated []string) int {
 	output := newOutput(false, runner)
 	mgr := newManagerDeps(cfg.PluginPath, output)
 
-	allPlugins, err := config.GatherPlugins(runner, config.RealFS{}, cfg.TmuxConf, os.Getenv("HOME"))
-	if err != nil {
-		_ = runner.DisplayMessage("TPM: auto-update failed: " + err.Error())
-		return 1
-	}
-
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
-	mgr.Update(ctx, allPlugins, outdated)
+	mgr.Update(ctx, plugins, outdated)
 
 	if output.HasFailed() {
 		_ = runner.DisplayMessage("TPM: auto-update failed for some plugins: " + strings.Join(outdated, ", "))

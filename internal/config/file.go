@@ -43,7 +43,7 @@ func parseCheckInterval(s string) time.Duration {
 		return 0
 	}
 	d, err := time.ParseDuration(s)
-	if err != nil {
+	if err != nil || d < 0 {
 		return 0
 	}
 	return d
