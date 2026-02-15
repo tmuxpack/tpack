@@ -8,6 +8,9 @@ import (
 // version is set via -ldflags at build time.
 var version = "dev"
 
+// binaryName is the name of the compiled Go binary.
+const binaryName = "tpm-go"
+
 func main() {
 	if len(os.Args) < 2 {
 		// No args = init (backward compat: `run '~/.tmux/plugins/tpm/tpm'`).
@@ -31,11 +34,13 @@ func main() {
 		os.Exit(runCommits(os.Args[2:]))
 	case "check-updates":
 		os.Exit(runCheckUpdates())
+	case "self-update":
+		os.Exit(runSelfUpdate())
 	case "version":
 		fmt.Println("tpm " + version)
 	default:
 		fmt.Fprintf(os.Stderr, "tpm: unknown command %q\n", os.Args[1])
-		fmt.Fprintln(os.Stderr, "usage: tpm [init|install|update|clean|source|tui|commits|check-updates|version]")
+		fmt.Fprintln(os.Stderr, "usage: tpm [init|install|update|clean|source|tui|commits|check-updates|self-update|version]")
 		os.Exit(1)
 	}
 }

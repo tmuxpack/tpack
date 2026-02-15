@@ -74,7 +74,7 @@ func bindKeys(runner tmux.Runner, cfg *config.Config, binary string) {
 
 // isAutoDownloaded reports whether the binary is at the auto-download location.
 func isAutoDownloaded(binary, pluginPath string) bool {
-	expected := filepath.Join(pluginPath, "tpm", "tpm-go")
+	expected := filepath.Join(pluginPath, "tpm", binaryName)
 	return binary == expected
 }
 
@@ -123,10 +123,10 @@ func findBinary() string {
 	}
 	// Fallback: try to find alongside the tpm script.
 	if dir := os.Getenv("CURRENT_DIR"); dir != "" {
-		candidate := filepath.Join(dir, "tpm-go")
+		candidate := filepath.Join(dir, binaryName)
 		if _, err := os.Stat(candidate); err == nil {
 			return candidate
 		}
 	}
-	return "tpm-go"
+	return binaryName
 }
