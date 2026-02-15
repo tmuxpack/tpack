@@ -109,6 +109,10 @@ func Resolve(runner tmux.Runner, opts ...Option) (*Config, error) {
 	cfg.Colors = resolveColors(runner)
 	cfg.UpdateCheckInterval, cfg.UpdateMode = resolveUpdateSettings(runner)
 
+	if v, err := runner.ShowOption(VersionOption); err == nil && v != "" {
+		cfg.PinnedVersion = v
+	}
+
 	cfg.StatePath = filepath.Join(o.xdgStateHome(), "tpm")
 
 	cfg.Home = o.home

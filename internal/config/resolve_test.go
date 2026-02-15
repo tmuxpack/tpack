@@ -300,6 +300,46 @@ func TestResolveUpdateSettings(t *testing.T) {
 	}
 }
 
+func TestResolvePinnedVersion(t *testing.T) {
+	tests := []struct {
+		name    string
+		options map[string]string
+		want    string
+	}{
+		{
+			name:    "no pinned version",
+			options: map[string]string{},
+			want:    "",
+		},
+		{
+			name: "pinned to specific version",
+			options: map[string]string{
+				"@tpm-version": "v1.2.3",
+			},
+			want: "v1.2.3",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := tmux.NewMockRunner()
+			for k, v := range tt.options {
+				m.Options[k] = v
+			}
+			fs := config.NewMockFS()
+
+			cfg, err := config.Resolve(m, testOpts(fs)...)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			if cfg.PinnedVersion != tt.want {
+				t.Errorf("PinnedVersion = %q, want %q", cfg.PinnedVersion, tt.want)
+			}
+		})
+	}
+}
+
 func TestResolveDefaultsNoColors(t *testing.T) {
 	m := tmux.NewMockRunner()
 	fs := config.NewMockFS()

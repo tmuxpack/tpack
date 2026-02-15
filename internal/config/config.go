@@ -36,6 +36,9 @@ const (
 	// Tmux option names for update settings.
 	UpdateIntervalOption = "@tpm-update-interval"
 	UpdateModeOption     = "@tpm-update-mode"
+
+	// VersionOption is the tmux option for pinning the tpm version.
+	VersionOption = "@tpm-version"
 )
 
 // Config holds resolved TPM configuration.
@@ -58,6 +61,8 @@ type Config struct {
 	UpdateCheckInterval time.Duration
 	// UpdateMode controls update behavior ("auto", "prompt", or "off").
 	UpdateMode string
+	// PinnedVersion is the pinned tpm version from @tpm-version (empty = auto-update).
+	PinnedVersion string
 	// StatePath is the directory for persistent state (e.g. last update check).
 	StatePath string
 	// Home is the user's home directory, resolved during config resolution.
