@@ -60,6 +60,41 @@ func TestSaveCreatesDirectory(t *testing.T) {
 	}
 }
 
+func TestSaveAndLoadSelfUpdateCheck(t *testing.T) {
+	dir := t.TempDir()
+	statePath := filepath.Join(dir, "tpm")
+
+	now := time.Now().Truncate(time.Second)
+	s := state.State{LastSelfUpdateCheck: now}
+
+	if err := state.Save(statePath, s); err != nil {
+		t.Fatalf("Save failed: %v", err)
+	}
+
+	loaded := state.Load(statePath)
+	if !loaded.LastSelfUpdateCheck.Equal(now) {
+		t.Errorf("LastSelfUpdateCheck = %v, want %v", loaded.LastSelfUpdateCheck, now)
+	}
+}
+
+func TestLoadExistingStateWithoutSelfUpdateCheck(t *testing.T) {
+	dir := t.TempDir()
+	statePath := filepath.Join(dir, "tpm")
+	os.MkdirAll(statePath, 0o755)
+
+	// Write a state file with only the old field (backward compat).
+	content := "last_update_check: 2026-01-01T00:00:00Z\n"
+	os.WriteFile(filepath.Join(statePath, "state.yml"), []byte(content), 0o644)
+
+	loaded := state.Load(statePath)
+	if loaded.LastUpdateCheck.IsZero() {
+		t.Error("expected LastUpdateCheck to be set")
+	}
+	if !loaded.LastSelfUpdateCheck.IsZero() {
+		t.Errorf("expected LastSelfUpdateCheck to be zero, got %v", loaded.LastSelfUpdateCheck)
+	}
+}
+
 func TestSaveOverwritesExisting(t *testing.T) {
 	dir := t.TempDir()
 	statePath := filepath.Join(dir, "tpm")

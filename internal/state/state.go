@@ -13,7 +13,8 @@ const stateFile = "state.yml"
 
 // State holds persistent TPM state.
 type State struct {
-	LastUpdateCheck time.Time `yaml:"last_update_check"`
+	LastUpdateCheck     time.Time `yaml:"last_update_check"`
+	LastSelfUpdateCheck time.Time `yaml:"last_self_update_check"`
 }
 
 // Load reads state from statePath/state.yml.
