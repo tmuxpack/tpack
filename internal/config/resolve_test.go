@@ -44,6 +44,9 @@ func TestResolveDefaults(t *testing.T) {
 	if cfg.PluginPath != "/home/user/.tmux/plugins/" {
 		t.Errorf("PluginPath = %q, want default", cfg.PluginPath)
 	}
+	if cfg.PinnedVersion != "" {
+		t.Errorf("PinnedVersion = %q, want empty", cfg.PinnedVersion)
+	}
 }
 
 func TestResolveCustomKeybindings(t *testing.T) {
@@ -357,5 +360,8 @@ func TestResolveDefaultsNoColors(t *testing.T) {
 	}
 	if cfg.UpdateMode != "" {
 		t.Errorf("UpdateMode = %q, want empty", cfg.UpdateMode)
+	}
+	if cfg.PinnedVersion != "" {
+		t.Errorf("PinnedVersion = %q, want empty", cfg.PinnedVersion)
 	}
 }
