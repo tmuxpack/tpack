@@ -57,6 +57,11 @@ func runInit() int {
 		spawnUpdateCheck(binary)
 	}
 
+	// Spawn background self-update check for auto-downloaded binaries.
+	if shouldSpawnSelfUpdate(binary, cfg.PluginPath, cfg.PinnedVersion) {
+		spawnSelfUpdate(binary)
+	}
+
 	return 0
 }
 
@@ -65,6 +70,28 @@ func bindKeys(runner tmux.Runner, cfg *config.Config, binary string) {
 	_ = runner.BindKey(cfg.UpdateKey, binary+" tui --popup --update", "[tpm] Update plugins")
 	_ = runner.BindKey(cfg.CleanKey, binary+" tui --popup --clean", "[tpm] Clean plugins")
 	_ = runner.BindKey(cfg.TuiKey, binary+" tui --popup", "[tpm] Open TUI")
+}
+
+// isAutoDownloaded reports whether the binary is at the auto-download location.
+func isAutoDownloaded(binary, pluginPath string) bool {
+	expected := filepath.Join(pluginPath, "tpm", "tpm-go")
+	return binary == expected
+}
+
+// shouldSpawnSelfUpdate reports whether the self-update check should run.
+func shouldSpawnSelfUpdate(binary, pluginPath, pinnedVersion string) bool {
+	return isAutoDownloaded(binary, pluginPath) && pinnedVersion == ""
+}
+
+// spawnSelfUpdate launches `tpm self-update` as a detached background process.
+func spawnSelfUpdate(binary string) {
+	cmd := exec.Command(binary, "self-update") //nolint:noctx // intentionally detached, no cancellation
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.Stdout = nil
+	cmd.Stderr = nil
+	if err := cmd.Start(); err != nil {
+		fmt.Fprintf(os.Stderr, "tpm: failed to spawn self-update: %v\n", err)
+	}
 }
 
 // shouldSpawnUpdateCheck returns true if update checks are configured.
