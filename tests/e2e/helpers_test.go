@@ -103,6 +103,25 @@ func e2eEnv(t *testing.T, tmuxConf string) (home, socket string) {
 	return home, socket
 }
 
+// cleanEnv builds an environment slice from os.Environ() with HOME set to the
+// given value and TMUX/TMUX_PANE removed. This avoids two problems:
+//   - Duplicate HOME entries (C getenv returns the first match, Go's os.Getenv
+//     may return a different one, leading to subtle bugs).
+//   - Leaking the parent TMUX socket into child tmux servers, which causes
+//     commands inside run-shell to target the wrong server.
+func cleanEnv(home string) []string {
+	var env []string
+	for _, e := range os.Environ() {
+		key := e[:strings.Index(e, "=")+1]
+		switch key {
+		case "HOME=", "TMUX=", "TMUX_PANE=", "TMUX_PLUGIN_MANAGER_PATH=":
+			continue
+		}
+		env = append(env, e)
+	}
+	return append(env, "HOME="+home)
+}
+
 // startTmux starts a tmux server with the given socket and HOME.
 // It registers a cleanup function to kill the server when the test finishes.
 // Polls tmux list-sessions until the server is ready (5s timeout).
@@ -110,9 +129,10 @@ func startTmux(t *testing.T, home, socket string) {
 	t.Helper()
 
 	confPath := filepath.Join(home, ".tmux.conf")
+	env := cleanEnv(home)
 
 	cmd := exec.CommandContext(context.Background(), "tmux", "-L", socket, "-f", confPath, "new-session", "-d")
-	cmd.Env = append(os.Environ(), "HOME="+home)
+	cmd.Env = env
 
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -121,7 +141,7 @@ func startTmux(t *testing.T, home, socket string) {
 
 	t.Cleanup(func() {
 		kill := exec.CommandContext(context.Background(), "tmux", "-L", socket, "kill-server")
-		kill.Env = append(os.Environ(), "HOME="+home)
+		kill.Env = env
 		_ = kill.Run()
 	})
 
@@ -129,7 +149,7 @@ func startTmux(t *testing.T, home, socket string) {
 	deadline := time.Now().Add(5 * time.Second)
 	for time.Now().Before(deadline) {
 		check := exec.CommandContext(context.Background(), "tmux", "-L", socket, "list-sessions")
-		check.Env = append(os.Environ(), "HOME="+home)
+		check.Env = env
 		if err := check.Run(); err == nil {
 			return
 		}
