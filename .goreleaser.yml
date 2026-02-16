@@ -54,14 +54,18 @@ brews:
     test: |
       system "#{bin}/tpack", "version"
 
-# nfpms:
-#   - id: tpack
-#     package_name: tpack
-#     homepage: https://github.com/tmuxpack/tpack
-#     description: Tmux Plugin Manager
-#     maintainer: tmuxpack
-#     license: MIT
-#     formats:
-#       - deb
-#       - rpm
-#     bindir: /usr/bin
+nfpms:
+  - id: tpack
+    package_name: tpack
+    homepage: https://github.com/tmuxpack/tpack
+    description: Tmux Plugin Manager
+    maintainer: tmuxpack <tmuxpack@users.noreply.github.com>
+    license: MIT
+    formats:
+      - deb
+      - rpm
+    bindir: /usr/bin
+    section: utils
+    priority: optional
+    dependencies:
+      - tmux
