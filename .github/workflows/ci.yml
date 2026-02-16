@@ -22,10 +22,11 @@ jobs:
           version: latest
 
   test:
-    runs-on: ubuntu-latest
     strategy:
       matrix:
+        os: [ubuntu-latest, macos-latest]
         go-version: ["1.24", "1.25"]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v6
 
@@ -33,8 +34,13 @@ jobs:
         with:
           go-version: ${{ matrix.go-version }}
 
-      - name: Install tmux
+      - name: Install tmux (Linux)
+        if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y tmux
+
+      - name: Install tmux (macOS)
+        if: runner.os == 'macOS'
+        run: brew install tmux
 
       - name: Build
         run: make build
