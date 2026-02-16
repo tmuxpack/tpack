@@ -26,3 +26,37 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GORELEASER_TOKEN: ${{ secrets.GORELEASER_TOKEN }}
+
+  aur-publish:
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Extract version from tag
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Download release checksums
+        run: |
+          curl -sL "https://github.com/tmuxpack/tpack/releases/download/${GITHUB_REF_NAME}/checksums.txt" -o checksums.txt
+
+      - name: Prepare PKGBUILD
+        run: |
+          AMD64_SHA=$(grep "tpack_${{ steps.version.outputs.version }}_linux_amd64.tar.gz" checksums.txt | awk '{print $1}')
+          ARM64_SHA=$(grep "tpack_${{ steps.version.outputs.version }}_linux_arm64.tar.gz" checksums.txt | awk '{print $1}')
+
+          sed -e "s/PKGVER_PLACEHOLDER/${{ steps.version.outputs.version }}/" \
+              -e "s/SHA256SUM_AMD64_PLACEHOLDER/${AMD64_SHA}/" \
+              -e "s/SHA256SUM_ARM64_PLACEHOLDER/${ARM64_SHA}/" \
+              aur/PKGBUILD > /tmp/PKGBUILD
+
+      - name: Publish to AUR
+        uses: KSXGitHub/github-actions-deploy-aur@v4
+        with:
+          pkgname: tpack-bin
+          pkgbuild: /tmp/PKGBUILD
+          commit_username: tmuxpack
+          commit_email: tmuxpack@users.noreply.github.com
+          ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
