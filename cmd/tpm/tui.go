@@ -29,6 +29,14 @@ func runTui(args []string) int {
 	}
 
 	runner := tmux.NewRealRunner()
+
+	// Fall back to inline TUI if tmux doesn't support display-popup (< 3.2).
+	if popup {
+		if verStr, err := runner.Version(); err != nil || !popupSupported(verStr) {
+			popup = false
+		}
+	}
+
 	theme := tui.BuildTheme(runner)
 	cfg, err := config.Resolve(runner)
 	if err != nil {
@@ -99,10 +107,23 @@ func launchPopup(
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
-		fmt.Fprintln(os.Stderr, "tpm: popup failed:", err)
-		return 1
+		// Popup failed (e.g. terminal too small); fall back to inline TUI.
+		if err := tui.Run(cfg, plugins, deps, opts...); err != nil {
+			fmt.Fprintln(os.Stderr, "tpm:", err)
+			return 1
+		}
 	}
 	return 0
+}
+
+// popupMinVersion is the minimum tmux version that supports display-popup,
+// encoded as major*100 + minor (tmux 3.2).
+const popupMinVersion = 302
+
+// popupSupported reports whether the given tmux version string supports
+// display-popup (introduced in tmux 3.2).
+func popupSupported(versionStr string) bool {
+	return tmux.ParseVersionDigits(versionStr) >= popupMinVersion
 }
 
 // shellEscapeSingleQuoted wraps s in single quotes for safe use as a POSIX
