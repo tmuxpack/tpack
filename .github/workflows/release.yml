@@ -50,13 +50,13 @@ jobs:
           sed -e "s/PKGVER_PLACEHOLDER/${{ steps.version.outputs.version }}/" \
               -e "s/SHA256SUM_AMD64_PLACEHOLDER/${AMD64_SHA}/" \
               -e "s/SHA256SUM_ARM64_PLACEHOLDER/${ARM64_SHA}/" \
-              aur/PKGBUILD > /tmp/PKGBUILD
+              aur/PKGBUILD > ${{ github.workspace }}/PKGBUILD
 
       - name: Publish to AUR
         uses: KSXGitHub/github-actions-deploy-aur@v4.1.1
         with:
           pkgname: tpack-bin
-          pkgbuild: /tmp/PKGBUILD
+          pkgbuild: ${{ github.workspace }}/PKGBUILD
           commit_username: tmuxpack
           commit_email: tmuxpack@users.noreply.github.com
           ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
