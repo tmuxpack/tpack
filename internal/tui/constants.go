@@ -147,7 +147,7 @@ const (
 	StatusColWidth = 14
 	// progressResultsReservedLines is the overhead for title, counter, progress bar, stats, and help
 	// on the progress screen.
-	progressResultsReservedLines = 21
+	progressResultsReservedLines = 15
 	// maxConcurrentOps is the maximum number of plugin operations dispatched concurrently.
 	maxConcurrentOps = 3
 )

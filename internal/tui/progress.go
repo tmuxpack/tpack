@@ -28,7 +28,7 @@ func (m *Model) viewProgress() string {
 	// Counter
 	counter := fmt.Sprintf("Processing %d of %d plugins", m.completedItems, m.totalItems)
 	b.WriteString(m.centerText(m.theme.SubtitleStyle.Render(counter)))
-	b.WriteString("\n\n")
+	b.WriteString("\n")
 
 	// Current item
 	if len(m.inFlightNames) > 0 {
