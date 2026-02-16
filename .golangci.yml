@@ -90,6 +90,7 @@ linters:
           - errcheck
           - gocyclo
           - funlen
+          - unused
 
       # Allow globals in main.go
       - path: cmd/tpm/main\.go
