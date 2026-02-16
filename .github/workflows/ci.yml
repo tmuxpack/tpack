@@ -59,6 +59,23 @@ jobs:
       - name: Integration tests
         run: go test -race -count=1 -timeout 300s ./tests/integration/...
 
+  test-freebsd:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Test on FreeBSD
+        uses: cross-platform-actions/action@v0.32.0
+        with:
+          operating_system: freebsd
+          version: "14.2"
+          run: |
+            sudo pkg install -y go tmux
+            go build -o dist/tpack ./cmd/tpack
+            go vet ./...
+            go test -race -count=1 ./internal/...
+            go test -race -count=1 -timeout 300s ./tests/integration/...
+
   goreleaser-check:
     runs-on: ubuntu-latest
     steps:
