@@ -40,19 +40,16 @@ release:
     owner: tmuxpack
     name: tpack
 
-brews:
-  - repository:
+homebrew_casks:
+  - name: tpack
+    binaries:
+      - tpack
+    homepage: https://github.com/tmuxpack/tpack
+    description: Tmux Plugin Manager
+    repository:
       owner: tmuxpack
       name: homebrew-tpack
       token: "{{ .Env.GORELEASER_TOKEN }}"
-    name: tpack
-    homepage: https://github.com/tmuxpack/tpack
-    description: Tmux Plugin Manager
-    license: MIT
-    install: |
-      bin.install "tpack"
-    test: |
-      system "#{bin}/tpack", "version"
 
 nfpms:
   - id: tpack
