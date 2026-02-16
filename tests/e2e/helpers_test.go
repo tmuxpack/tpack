@@ -344,6 +344,8 @@ func waitForFile(t *testing.T, path string, timeoutSec int) {
 
 // waitForEnv polls a tmux environment variable until it matches the expected value.
 // Checks every 100ms up to the given timeout.
+//
+//nolint:unparam // name is always TMUX_PLUGIN_MANAGER_PATH today but kept generic for future tests.
 func waitForEnv(t *testing.T, socket, name, expected string, timeoutSec int) {
 	t.Helper()
 
