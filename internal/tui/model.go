@@ -35,6 +35,16 @@ func WithTheme(t Theme) ModelOption {
 	return func(m *Model) { m.theme = t }
 }
 
+// WithVersion returns a ModelOption that sets the version string.
+func WithVersion(v string) ModelOption {
+	return func(m *Model) { m.version = v }
+}
+
+// WithBinaryPath returns a ModelOption that sets the binary path.
+func WithBinaryPath(p string) ModelOption {
+	return func(m *Model) { m.binaryPath = p }
+}
+
 // autoStartMsg is sent by Init when an auto-operation is configured.
 type autoStartMsg struct{}
 
@@ -77,6 +87,9 @@ type Model struct {
 	commitViewName    string
 	commitViewCommits []git.Commit
 	commitScroll      scrollState
+
+	version    string
+	binaryPath string
 }
 
 // NewModel creates a new Model from the resolved config and gathered plugins.
@@ -199,6 +212,8 @@ func (m Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.updateCommitView(msg)
 	case ScreenProgress:
 		return m.updateProgress(msg)
+	case ScreenDebug:
+		return m.updateDebug(msg)
 	case ScreenList:
 		return m.updateList(msg)
 	}
@@ -215,6 +230,8 @@ func (m Model) View() string {
 		content = m.viewProgress()
 	case ScreenCommits:
 		content = m.viewCommits()
+	case ScreenDebug:
+		content = m.viewDebug()
 	}
 	return m.theme.BaseStyle.Render(content)
 }
@@ -240,6 +257,8 @@ func (m Model) updateList(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.startOperation(OpClean)
 	case key.Matches(msg, ListKeys.Uninstall):
 		return m.startOperation(OpUninstall)
+	case key.Matches(msg, ListKeys.Debug):
+		m.screen = ScreenDebug
 	}
 	return m, nil
 }
@@ -321,6 +340,17 @@ func (m Model) updateCommitView(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.commitScroll.moveUp()
 	case key.Matches(msg, ListKeys.Down):
 		m.commitScroll.moveDown(len(m.commitViewCommits), m.commitMaxVisible())
+	}
+	return m, nil
+}
+
+// updateDebug handles key events on the debug screen.
+func (m Model) updateDebug(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch {
+	case key.Matches(msg, SharedKeys.Quit):
+		return m, tea.Quit
+	case msg.String() == escKeyName:
+		m.screen = ScreenList
 	}
 	return m, nil
 }

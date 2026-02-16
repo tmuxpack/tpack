@@ -13,6 +13,7 @@ const (
 	ScreenList Screen = iota
 	ScreenProgress
 	ScreenCommits
+	ScreenDebug
 )
 
 // Operation represents the current plugin operation.

@@ -61,6 +61,8 @@ func runTui(args []string) int {
 
 	var opts []tui.ModelOption
 	opts = append(opts, tui.WithTheme(theme))
+	opts = append(opts, tui.WithVersion(version))
+	opts = append(opts, tui.WithBinaryPath(findBinary()))
 	if autoOp != tui.OpNone {
 		opts = append(opts, tui.WithAutoOp(autoOp))
 	}

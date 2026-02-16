@@ -15,6 +15,7 @@ type listKeys struct {
 	Update    key.Binding
 	Clean     key.Binding
 	Uninstall key.Binding
+	Debug     key.Binding
 }
 
 var SharedKeys = sharedKeys{
@@ -56,5 +57,8 @@ var ListKeys = listKeys{
 	Uninstall: key.NewBinding(
 		key.WithKeys("x"),
 		key.WithHelp("x", "uninstall"),
+	),
+	Debug: key.NewBinding(
+		key.WithKeys("@"),
 	),
 }
