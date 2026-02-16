@@ -310,3 +310,66 @@ func TestGolden_ScreenProgress(t *testing.T) {
 		})
 	}
 }
+
+func TestGolden_ScreenCommits(t *testing.T) {
+	tests := []struct {
+		name  string
+		setup func(m *Model)
+	}{
+		{
+			name: "commits_few",
+			setup: func(m *Model) {
+				m.screen = ScreenCommits
+				m.commitViewName = "tmux-sensible"
+				m.commitViewCommits = []git.Commit{
+					{Hash: "abc1234", Message: "add feature X"},
+					{Hash: "def5678", Message: "fix bug Y"},
+					{Hash: "ghi9012", Message: "refactor Z"},
+				}
+			},
+		},
+		{
+			name: "commits_overflow",
+			setup: func(m *Model) {
+				m.screen = ScreenCommits
+				m.commitViewName = "tmux-yank"
+				// commitViewerReservedLines = 13, so max visible = 25 - 13 = 12.
+				// Use 20 commits to trigger scroll indicators.
+				commits := make([]git.Commit, 20)
+				for i := range commits {
+					commits[i] = git.Commit{
+						Hash:    fmt.Sprintf("%07x", i+1),
+						Message: fmt.Sprintf("commit message %d", i+1),
+					}
+				}
+				m.commitViewCommits = commits
+			},
+		},
+		{
+			name: "commits_single",
+			setup: func(m *Model) {
+				m.screen = ScreenCommits
+				m.commitViewName = "tmux-resurrect"
+				m.commitViewCommits = []git.Commit{
+					{Hash: "abc1234", Message: "bump version to 1.0"},
+				}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := newTestModel(t, nil)
+			tt.setup(&m)
+			assertGolden(t, tt.name, m.View())
+		})
+	}
+}
+
+func TestGolden_ScreenDebug(t *testing.T) {
+	m := newTestModel(t, nil)
+	m.screen = ScreenDebug
+	m.version = "1.2.3"
+	m.binaryPath = "/usr/local/bin/tpack"
+	assertGolden(t, "debug_view", m.View())
+}
