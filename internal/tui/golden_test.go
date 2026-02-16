@@ -74,3 +74,126 @@ func TestStripANSI(t *testing.T) {
 		t.Errorf("stripANSI: got %q, want %q", got, want)
 	}
 }
+
+func TestGolden_ScreenList(t *testing.T) {
+	tests := []struct {
+		name  string
+		setup func(m *Model)
+	}{
+		{
+			name: "list_empty",
+			setup: func(m *Model) {
+				m.plugins = nil
+			},
+		},
+		{
+			name: "list_single_plugin",
+			setup: func(m *Model) {
+				m.plugins = []PluginItem{
+					{Name: "tmux-sensible", Spec: "tmux-plugins/tmux-sensible", Status: StatusNotInstalled},
+				}
+			},
+		},
+		{
+			name: "list_few_plugins",
+			setup: func(m *Model) {
+				m.plugins = []PluginItem{
+					{Name: "tmux-sensible", Spec: "tmux-plugins/tmux-sensible", Status: StatusInstalled},
+					{Name: "tmux-yank", Spec: "tmux-plugins/tmux-yank", Status: StatusNotInstalled},
+					{Name: "tmux-resurrect", Spec: "tmux-plugins/tmux-resurrect", Status: StatusOutdated},
+				}
+			},
+		},
+		{
+			name: "list_fill_screen",
+			setup: func(m *Model) {
+				// viewHeight = FixedHeight - TitleReservedLines = 25 - 12 = 13
+				m.plugins = make([]PluginItem, 13)
+				for i := range m.plugins {
+					m.plugins[i] = PluginItem{
+						Name:   fmt.Sprintf("plugin-%02d", i+1),
+						Spec:   fmt.Sprintf("user/plugin-%02d", i+1),
+						Status: StatusInstalled,
+					}
+				}
+			},
+		},
+		{
+			name: "list_overflow",
+			setup: func(m *Model) {
+				// 20 plugins > viewHeight (13) → scroll indicators appear.
+				m.plugins = make([]PluginItem, 20)
+				for i := range m.plugins {
+					m.plugins[i] = PluginItem{
+						Name:   fmt.Sprintf("plugin-%02d", i+1),
+						Spec:   fmt.Sprintf("user/plugin-%02d", i+1),
+						Status: StatusInstalled,
+					}
+				}
+			},
+		},
+		{
+			name: "list_long_names",
+			setup: func(m *Model) {
+				m.plugins = []PluginItem{
+					{Name: "tmux-very-long-plugin-name-that-stretches", Spec: "user/long1", Status: StatusInstalled},
+					{Name: "another-extremely-long-name-plugin", Spec: "user/long2", Status: StatusNotInstalled},
+					{Name: "short", Spec: "user/short", Status: StatusOutdated},
+				}
+			},
+		},
+		{
+			name: "list_with_orphans",
+			setup: func(m *Model) {
+				m.plugins = []PluginItem{
+					{Name: "tmux-sensible", Spec: "tmux-plugins/tmux-sensible", Status: StatusInstalled},
+					{Name: "tmux-yank", Spec: "tmux-plugins/tmux-yank", Status: StatusInstalled},
+				}
+				m.orphans = []OrphanItem{
+					{Name: "old-plugin", Path: "/tmp/old-plugin"},
+					{Name: "stale-plugin", Path: "/tmp/stale-plugin"},
+				}
+			},
+		},
+		{
+			name: "list_multiselect",
+			setup: func(m *Model) {
+				m.plugins = []PluginItem{
+					{Name: "tmux-sensible", Spec: "tmux-plugins/tmux-sensible", Status: StatusInstalled},
+					{Name: "tmux-yank", Spec: "tmux-plugins/tmux-yank", Status: StatusNotInstalled},
+					{Name: "tmux-resurrect", Spec: "tmux-plugins/tmux-resurrect", Status: StatusInstalled},
+				}
+				m.multiSelectActive = true
+				m.selected = map[int]bool{0: true, 2: true}
+			},
+		},
+		{
+			name: "list_all_installed",
+			setup: func(m *Model) {
+				m.plugins = []PluginItem{
+					{Name: "tmux-sensible", Spec: "tmux-plugins/tmux-sensible", Status: StatusInstalled},
+					{Name: "tmux-yank", Spec: "tmux-plugins/tmux-yank", Status: StatusInstalled},
+					{Name: "tmux-resurrect", Spec: "tmux-plugins/tmux-resurrect", Status: StatusInstalled},
+				}
+			},
+		},
+		{
+			name: "list_all_not_installed",
+			setup: func(m *Model) {
+				m.plugins = []PluginItem{
+					{Name: "tmux-sensible", Spec: "tmux-plugins/tmux-sensible", Status: StatusNotInstalled},
+					{Name: "tmux-yank", Spec: "tmux-plugins/tmux-yank", Status: StatusNotInstalled},
+					{Name: "tmux-resurrect", Spec: "tmux-plugins/tmux-resurrect", Status: StatusNotInstalled},
+				}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := newTestModel(t, nil)
+			tt.setup(&m)
+			assertGolden(t, tt.name, m.View())
+		})
+	}
+}

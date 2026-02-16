@@ -1,0 +1,24 @@
+                                                                                
+                           ╭────────────────────────╮                           
+                           │   TPM Plugin Manager   │                           
+                           ╰────────────────────────╯                           
+                                                                                
+                    1 installed, 1 not installed, 1 outdated                    
+                                                                                
+           name                                         status                  
+           ───────────────────────────────────────────────────────────          
+         > tmux-very-long-plugin-name-that-stretches    Installed               
+           another-extremely-long-name-plugin           Not Installed           
+           short                                        Outdated                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                         u update  x uninstall  q quit                          
+                                                                                

@@ -1,0 +1,24 @@
+                                                                                
+                           ╭────────────────────────╮                           
+                           │   TPM Plugin Manager   │                           
+                           ╰────────────────────────╯                           
+                                                                                
+                    1 installed, 1 not installed, 1 outdated                    
+                                                                                
+                         name              status                               
+                         ────────────────────────────────                       
+                       > tmux-sensible     Installed                            
+                         tmux-yank         Not Installed                        
+                         tmux-resurrect    Outdated                             
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                         u update  x uninstall  q quit                          
+                                                                                

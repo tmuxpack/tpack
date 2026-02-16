@@ -1,0 +1,24 @@
+                                                                                
+                           ╭────────────────────────╮                           
+                           │   TPM Plugin Manager   │                           
+                           ╰────────────────────────╯                           
+                                                                                
+                          2 installed, 0 not installed                          
+                                                                                
+                         name             status                                
+                         ───────────────────────────────                        
+                       > tmux-sensible    Installed                             
+                         tmux-yank        Installed                             
+                                                                                
+                       Orphaned: old-plugin, stale-plugin                       
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                     u update  x uninstall  c clean  q quit                     
+                                                                                

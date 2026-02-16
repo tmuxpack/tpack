@@ -1,0 +1,24 @@
+                                                                                
+                           ╭────────────────────────╮                           
+                           │   TPM Plugin Manager   │                           
+                           ╰────────────────────────╯                           
+                                                                                
+                          2 installed, 1 not installed                          
+                                                                                
+                       name              status                                 
+                       ────────────────────────────────                         
+                     > [✓] tmux-sensible     Installed                          
+                       [ ] tmux-yank         Not Installed                      
+                       [✓] tmux-resurrect    Installed                          
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                         u update  x uninstall  q quit                          
+                                                                                
