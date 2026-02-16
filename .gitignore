@@ -5,5 +5,5 @@ tests/helpers/helpers.sh
 
 # Go build artifacts
 dist/
-tpm-go
+tpack
 coverage.out

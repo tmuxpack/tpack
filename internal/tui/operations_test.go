@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/tmux-plugins/tpm/internal/config"
-	"github.com/tmux-plugins/tpm/internal/git"
-	"github.com/tmux-plugins/tpm/internal/tmux"
+	"github.com/tmuxpack/tpack/internal/config"
+	"github.com/tmuxpack/tpack/internal/git"
+	"github.com/tmuxpack/tpack/internal/tmux"
 )
 
 func TestInstallPluginCmd_Success(t *testing.T) {

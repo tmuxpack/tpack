@@ -7,9 +7,9 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"github.com/tmux-plugins/tpm/internal/config"
-	"github.com/tmux-plugins/tpm/internal/tmux"
-	"github.com/tmux-plugins/tpm/internal/ui"
+	"github.com/tmuxpack/tpack/internal/config"
+	"github.com/tmuxpack/tpack/internal/tmux"
+	"github.com/tmuxpack/tpack/internal/ui"
 )
 
 func runInit() int {
@@ -18,7 +18,7 @@ func runInit() int {
 	// Check tmux version.
 	verStr, err := runner.Version()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "tpm: failed to get tmux version")
+		fmt.Fprintln(os.Stderr, "tpack: failed to get tmux version")
 		return 1
 	}
 	current := tmux.ParseVersionDigits(verStr)
@@ -31,12 +31,13 @@ func runInit() int {
 	// Resolve config.
 	cfg, err := config.Resolve(runner)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "tpm: config error:", err)
+		fmt.Fprintln(os.Stderr, "tpack: config error:", err)
 		return 1
 	}
 
-	// Set TPM path in tmux environment.
-	_ = runner.SetEnvironment(config.TPMEnvVar, cfg.PluginPath)
+	// Set plugin path in tmux environment (set both for compatibility).
+	_ = runner.SetEnvironment(config.PluginPathEnvVar, cfg.PluginPath)
+	_ = runner.SetEnvironment(config.LegacyPluginPathEnvVar, cfg.PluginPath)
 
 	// Find binary once and pass to functions that need it.
 	binary := findBinary()
@@ -66,10 +67,10 @@ func runInit() int {
 }
 
 func bindKeys(runner tmux.Runner, cfg *config.Config, binary string) {
-	_ = runner.BindKey(cfg.InstallKey, binary+" tui --popup --install", "[tpm] Install plugins")
-	_ = runner.BindKey(cfg.UpdateKey, binary+" tui --popup --update", "[tpm] Update plugins")
-	_ = runner.BindKey(cfg.CleanKey, binary+" tui --popup --clean", "[tpm] Clean plugins")
-	_ = runner.BindKey(cfg.TuiKey, binary+" tui --popup", "[tpm] Open TUI")
+	_ = runner.BindKey(cfg.InstallKey, binary+" tui --popup --install", "[tpack] Install plugins")
+	_ = runner.BindKey(cfg.UpdateKey, binary+" tui --popup --update", "[tpack] Update plugins")
+	_ = runner.BindKey(cfg.CleanKey, binary+" tui --popup --clean", "[tpack] Clean plugins")
+	_ = runner.BindKey(cfg.TuiKey, binary+" tui --popup", "[tpack] Open TUI")
 }
 
 // isAutoDownloaded reports whether the binary is at the auto-download location.
@@ -83,14 +84,14 @@ func shouldSpawnSelfUpdate(binary, pluginPath, pinnedVersion string) bool {
 	return isAutoDownloaded(binary, pluginPath) && pinnedVersion == ""
 }
 
-// spawnSelfUpdate launches `tpm self-update` as a detached background process.
+// spawnSelfUpdate launches `tpack self-update` as a detached background process.
 func spawnSelfUpdate(binary string) {
 	cmd := exec.Command(binary, "self-update") //nolint:noctx // intentionally detached, no cancellation
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	cmd.Stdout = nil
 	cmd.Stderr = nil
 	if err := cmd.Start(); err != nil {
-		fmt.Fprintf(os.Stderr, "tpm: failed to spawn self-update: %v\n", err)
+		fmt.Fprintf(os.Stderr, "tpack: failed to spawn self-update: %v\n", err)
 	}
 }
 
@@ -99,18 +100,18 @@ func shouldSpawnUpdateCheck(cfg *config.Config) bool {
 	return cfg.UpdateMode != "" && cfg.UpdateMode != "off" && cfg.UpdateCheckInterval > 0
 }
 
-// spawnUpdateCheck launches `tpm check-updates` as a detached background process.
+// spawnUpdateCheck launches `tpack check-updates` as a detached background process.
 func spawnUpdateCheck(binary string) {
 	cmd := exec.Command(binary, "check-updates") //nolint:noctx // intentionally detached, no cancellation
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	cmd.Stdout = nil
 	cmd.Stderr = nil
 	if err := cmd.Start(); err != nil {
-		fmt.Fprintf(os.Stderr, "tpm: failed to spawn update check: %v\n", err)
+		fmt.Fprintf(os.Stderr, "tpack: failed to spawn update check: %v\n", err)
 	}
 }
 
-// findBinary returns the absolute path to the tpm-go binary.
+// findBinary returns the absolute path to the tpack binary.
 func findBinary() string {
 	// Try the executable path first.
 	exe, err := os.Executable()

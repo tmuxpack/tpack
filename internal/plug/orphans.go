@@ -29,7 +29,7 @@ func FindOrphans(plugins []Plugin, pluginPath string) []Orphan {
 			continue
 		}
 		name := PluginName(entry.Name())
-		if name == "tpm" || nameSet[name] {
+		if name == "tpm" || name == "tpack" || nameSet[name] {
 			continue
 		}
 		orphans = append(orphans, Orphan{

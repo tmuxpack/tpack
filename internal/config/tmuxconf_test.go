@@ -3,8 +3,8 @@ package config_test
 import (
 	"testing"
 
-	"github.com/tmux-plugins/tpm/internal/config"
-	"github.com/tmux-plugins/tpm/internal/tmux"
+	"github.com/tmuxpack/tpack/internal/config"
+	"github.com/tmuxpack/tpack/internal/tmux"
 )
 
 func TestGatherPluginsNewSyntax(t *testing.T) {

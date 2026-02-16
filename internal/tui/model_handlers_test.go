@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/tmux-plugins/tpm/internal/git"
+	"github.com/tmuxpack/tpack/internal/git"
 )
 
 func TestHandleCheckResult_Outdated(t *testing.T) {

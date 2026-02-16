@@ -29,19 +29,19 @@ func projectRoot() string {
 	return root
 }
 
-// buildBinary compiles the tpm binary once per test invocation using sync.Once.
+// buildBinary compiles the tpack binary once per test invocation using sync.Once.
 // Returns the path to the compiled binary. Skips the test on build failure.
 func buildBinary(t *testing.T) string {
 	t.Helper()
 
 	buildOnce.Do(func() {
-		dir, dirErr := os.MkdirTemp("", "tpm-e2e-bin-*")
+		dir, dirErr := os.MkdirTemp("", "tpack-e2e-bin-*")
 		if dirErr != nil {
 			buildErr = dirErr
 			return
 		}
-		builtBinPath = filepath.Join(dir, "tpm")
-		cmd := exec.CommandContext(context.Background(), "go", "build", "-o", builtBinPath, "./cmd/tpm")
+		builtBinPath = filepath.Join(dir, "tpack")
+		cmd := exec.CommandContext(context.Background(), "go", "build", "-o", builtBinPath, "./cmd/tpack")
 		cmd.Dir = projectRoot()
 		out, err := cmd.CombinedOutput()
 		if err != nil {
@@ -50,14 +50,14 @@ func buildBinary(t *testing.T) string {
 	})
 
 	if buildErr != nil {
-		t.Skipf("failed to build tpm binary: %v", buildErr)
+		t.Skipf("failed to build tpack binary: %v", buildErr)
 	}
 
 	return builtBinPath
 }
 
 // socketName returns a unique tmux socket name for test isolation.
-// Format: tpm-e2e-<sanitized name>-<nanotime mod>.
+// Format: tp-e2e-<sanitized name>-<nanotime mod>.
 // Kept under 40 characters to avoid socket path length limits.
 func socketName(t *testing.T) string {
 	t.Helper()
@@ -73,7 +73,7 @@ func socketName(t *testing.T) string {
 
 	nanoMod := time.Now().UnixNano() % 1_000_000
 
-	sock := fmt.Sprintf("tpm-e2e-%s-%d", sanitized, nanoMod)
+	sock := fmt.Sprintf("tp-e2e-%s-%d", sanitized, nanoMod)
 	if len(sock) > 40 {
 		sock = sock[:40]
 	}
@@ -114,7 +114,7 @@ func cleanEnv(home string) []string {
 	for _, e := range os.Environ() {
 		key := e[:strings.Index(e, "=")+1]
 		switch key {
-		case "HOME=", "TMUX=", "TMUX_PANE=", "TMUX_PLUGIN_MANAGER_PATH=":
+		case "HOME=", "TMUX=", "TMUX_PANE=", "TPACK_PLUGIN_PATH=", "TMUX_PLUGIN_MANAGER_PATH=":
 			continue
 		}
 		env = append(env, e)

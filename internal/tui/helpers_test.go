@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/tmux-plugins/tpm/internal/git"
-	"github.com/tmux-plugins/tpm/internal/plug"
+	"github.com/tmuxpack/tpack/internal/git"
+	"github.com/tmuxpack/tpack/internal/plug"
 )
 
 func TestBuildPluginItems_AllNotInstalled(t *testing.T) {

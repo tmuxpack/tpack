@@ -9,18 +9,18 @@ import (
 	"sync"
 	"time"
 
-	"github.com/tmux-plugins/tpm/internal/config"
-	"github.com/tmux-plugins/tpm/internal/git"
-	"github.com/tmux-plugins/tpm/internal/plug"
-	"github.com/tmux-plugins/tpm/internal/state"
-	"github.com/tmux-plugins/tpm/internal/tmux"
+	"github.com/tmuxpack/tpack/internal/config"
+	"github.com/tmuxpack/tpack/internal/git"
+	"github.com/tmuxpack/tpack/internal/plug"
+	"github.com/tmuxpack/tpack/internal/state"
+	"github.com/tmuxpack/tpack/internal/tmux"
 )
 
 func runCheckUpdates() int {
 	runner := tmux.NewRealRunner()
 	cfg, err := config.Resolve(runner)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "tpm: config error:", err)
+		fmt.Fprintln(os.Stderr, "tpack: config error:", err)
 		return 1
 	}
 
@@ -106,7 +106,7 @@ func findOutdatedPlugins(plugins []plug.Plugin, pluginPath string) []string {
 func handleOutdated(runner *tmux.RealRunner, cfg *config.Config, plugins []plug.Plugin, outdated []string) int {
 	switch cfg.UpdateMode {
 	case "prompt":
-		msg := "TPM: " + strconv.Itoa(len(outdated)) + " plugin update(s) available. Press prefix+U to update."
+		msg := "tpack: " + strconv.Itoa(len(outdated)) + " plugin update(s) available. Press prefix+U to update."
 		_ = runner.DisplayMessage(msg)
 
 	case "auto":
@@ -126,9 +126,9 @@ func autoUpdatePlugins(runner *tmux.RealRunner, cfg *config.Config, plugins []pl
 	mgr.Update(ctx, plugins, outdated)
 
 	if output.HasFailed() {
-		_ = runner.DisplayMessage("TPM: auto-update failed for some plugins: " + strings.Join(outdated, ", "))
+		_ = runner.DisplayMessage("tpack: auto-update failed for some plugins: " + strings.Join(outdated, ", "))
 		return 1
 	}
-	_ = runner.DisplayMessage("TPM: " + strconv.Itoa(len(outdated)) + " plugin(s) updated successfully.")
+	_ = runner.DisplayMessage("tpack: " + strconv.Itoa(len(outdated)) + " plugin(s) updated successfully.")
 	return 0
 }

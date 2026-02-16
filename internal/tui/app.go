@@ -4,8 +4,8 @@ import (
 	"fmt"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/tmux-plugins/tpm/internal/config"
-	"github.com/tmux-plugins/tpm/internal/plug"
+	"github.com/tmuxpack/tpack/internal/config"
+	"github.com/tmuxpack/tpack/internal/plug"
 )
 
 // IdealSize returns the fixed popup dimensions.

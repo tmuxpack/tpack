@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/tmux-plugins/tpm/internal/tmux"
+	"github.com/tmuxpack/tpack/internal/tmux"
 )
 
 // Option is a functional option for Resolve.
@@ -60,7 +60,7 @@ func (o *resolveOpts) xdgStateHome() string {
 
 // Resolve builds a Config by reading tmux options and checking filesystem paths.
 // Priority for plugin path:
-//  1. TMUX_PLUGIN_MANAGER_PATH env var already set in tmux
+//  1. TPACK_PLUGIN_PATH / TMUX_PLUGIN_MANAGER_PATH env var already set in tmux
 //  2. XDG config home (~/.config/tmux/tmux.conf exists → ~/.config/tmux/plugins/)
 //  3. Default (~/.tmux/plugins/)
 func Resolve(runner tmux.Runner, opts ...Option) (*Config, error) {
@@ -85,19 +85,11 @@ func Resolve(runner tmux.Runner, opts ...Option) (*Config, error) {
 		TuiKey:     DefaultTuiKey,
 	}
 
-	// Resolve keybindings from tmux options.
-	if v, err := runner.ShowOption(InstallKeyOption); err == nil && v != "" {
-		cfg.InstallKey = v
-	}
-	if v, err := runner.ShowOption(UpdateKeyOption); err == nil && v != "" {
-		cfg.UpdateKey = v
-	}
-	if v, err := runner.ShowOption(CleanKeyOption); err == nil && v != "" {
-		cfg.CleanKey = v
-	}
-	if v, err := runner.ShowOption(TuiKeyOption); err == nil && v != "" {
-		cfg.TuiKey = v
-	}
+	// Resolve keybindings from tmux options (current @tpack-* first, legacy @tpm-* fallback).
+	cfg.InstallKey = resolveOptionWithFallback(runner, InstallKeyOption, LegacyInstallKeyOption, cfg.InstallKey)
+	cfg.UpdateKey = resolveOptionWithFallback(runner, UpdateKeyOption, LegacyUpdateKeyOption, cfg.UpdateKey)
+	cfg.CleanKey = resolveOptionWithFallback(runner, CleanKeyOption, LegacyCleanKeyOption, cfg.CleanKey)
+	cfg.TuiKey = resolveOptionWithFallback(runner, TuiKeyOption, "", cfg.TuiKey)
 
 	// Resolve tmux.conf location.
 	cfg.TmuxConf = getUserTmuxConf(o)
@@ -113,7 +105,7 @@ func Resolve(runner tmux.Runner, opts ...Option) (*Config, error) {
 		cfg.PinnedVersion = v
 	}
 
-	cfg.StatePath = filepath.Join(o.xdgStateHome(), "tpm")
+	cfg.StatePath = filepath.Join(o.xdgStateHome(), "tpack")
 
 	cfg.Home = o.home
 
@@ -131,8 +123,14 @@ func getUserTmuxConf(o *resolveOpts) string {
 
 // resolvePluginPath determines the plugin installation directory.
 func resolvePluginPath(runner tmux.Runner, o *resolveOpts) string {
-	// Check if already set in tmux environment.
-	if val, err := runner.ShowEnvironment(TPMEnvVar); err == nil && val != "" && val != "/" {
+	// Check current env var first, then legacy.
+	if val, err := runner.ShowEnvironment(PluginPathEnvVar); err == nil && val != "" && val != "/" {
+		if val[len(val)-1] != '/' {
+			val += "/"
+		}
+		return val
+	}
+	if val, err := runner.ShowEnvironment(LegacyPluginPathEnvVar); err == nil && val != "" && val != "/" {
 		if val[len(val)-1] != '/' {
 			val += "/"
 		}
@@ -146,7 +144,7 @@ func resolvePluginPath(runner tmux.Runner, o *resolveOpts) string {
 	}
 
 	// Default.
-	return filepath.Join(o.home, DefaultTPMPath) + "/"
+	return filepath.Join(o.home, DefaultPluginPath) + "/"
 }
 
 // resolveColors reads per-color tmux options into a ColorConfig.
@@ -212,4 +210,18 @@ func parseCheckInterval(s string) time.Duration {
 		return 0
 	}
 	return d
+}
+
+// resolveOptionWithFallback reads a tmux option, falling back to a legacy name.
+// Returns the default if neither is set. Pass empty legacy to skip fallback.
+func resolveOptionWithFallback(runner tmux.Runner, current, legacy, def string) string {
+	if v, err := runner.ShowOption(current); err == nil && v != "" {
+		return v
+	}
+	if legacy != "" {
+		if v, err := runner.ShowOption(legacy); err == nil && v != "" {
+			return v
+		}
+	}
+	return def
 }

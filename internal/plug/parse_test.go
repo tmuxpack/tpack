@@ -3,7 +3,7 @@ package plug_test
 import (
 	"testing"
 
-	"github.com/tmux-plugins/tpm/internal/plug"
+	"github.com/tmuxpack/tpack/internal/plug"
 )
 
 func TestExtractPluginsFromConfig(t *testing.T) {

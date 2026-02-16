@@ -93,7 +93,7 @@ linters:
           - unused
 
       # Allow globals in main.go
-      - path: cmd/tpm/main\.go
+      - path: cmd/tpack/main\.go
         linters:
           - gochecknoglobals
 

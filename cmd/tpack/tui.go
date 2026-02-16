@@ -7,11 +7,11 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/tmux-plugins/tpm/internal/config"
-	"github.com/tmux-plugins/tpm/internal/git"
-	"github.com/tmux-plugins/tpm/internal/plug"
-	"github.com/tmux-plugins/tpm/internal/tmux"
-	"github.com/tmux-plugins/tpm/internal/tui"
+	"github.com/tmuxpack/tpack/internal/config"
+	"github.com/tmuxpack/tpack/internal/git"
+	"github.com/tmuxpack/tpack/internal/plug"
+	"github.com/tmuxpack/tpack/internal/tmux"
+	"github.com/tmuxpack/tpack/internal/tui"
 )
 
 func runTui(args []string) int {
@@ -40,7 +40,7 @@ func runTui(args []string) int {
 	theme := tui.BuildTheme(runner)
 	cfg, err := config.Resolve(runner)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "tpm: config error:", err)
+		fmt.Fprintln(os.Stderr, "tpack: config error:", err)
 		return 1
 	}
 	theme = tui.OverlayConfigColors(theme, cfg.Colors)
@@ -72,7 +72,7 @@ func runTui(args []string) int {
 	}
 
 	if err := tui.Run(cfg, plugins, deps, opts...); err != nil {
-		fmt.Fprintln(os.Stderr, "tpm:", err)
+		fmt.Fprintln(os.Stderr, "tpack:", err)
 		return 1
 	}
 	return 0
@@ -89,7 +89,7 @@ func launchPopup(
 
 	binary, err := os.Executable()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "tpm: cannot find executable:", err)
+		fmt.Fprintln(os.Stderr, "tpack: cannot find executable:", err)
 		return 1
 	}
 
@@ -111,7 +111,7 @@ func launchPopup(
 	if err := cmd.Run(); err != nil {
 		// Popup failed (e.g. terminal too small); fall back to inline TUI.
 		if err := tui.Run(cfg, plugins, deps, opts...); err != nil {
-			fmt.Fprintln(os.Stderr, "tpm:", err)
+			fmt.Fprintln(os.Stderr, "tpack:", err)
 			return 1
 		}
 	}

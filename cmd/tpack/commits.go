@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tmux-plugins/tpm/internal/git"
-	"github.com/tmux-plugins/tpm/internal/tui"
+	"github.com/tmuxpack/tpack/internal/git"
+	"github.com/tmuxpack/tpack/internal/tui"
 )
 
 func runCommits(args []string) int {
@@ -18,7 +18,7 @@ func runCommits(args []string) int {
 	name := flagValue(args, "--name")
 
 	if dir == "" || from == "" || to == "" || name == "" {
-		fmt.Fprintln(os.Stderr, "tpm commits: --dir, --from, --to, and --name are required")
+		fmt.Fprintln(os.Stderr, "tpack commits: --dir, --from, --to, and --name are required")
 		return 1
 	}
 
@@ -29,7 +29,7 @@ func runCommits(args []string) int {
 	logger := git.NewCLILogger()
 	commits, err := logger.Log(ctx, dir, from, to)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "tpm commits: git log failed:", err)
+		fmt.Fprintln(os.Stderr, "tpack commits: git log failed:", err)
 		return 1
 	}
 
@@ -38,7 +38,7 @@ func runCommits(args []string) int {
 	}
 
 	if err := tui.RunCommitViewer(name, commits, tui.DefaultTheme()); err != nil {
-		fmt.Fprintln(os.Stderr, "tpm:", err)
+		fmt.Fprintln(os.Stderr, "tpack:", err)
 		return 1
 	}
 	return 0

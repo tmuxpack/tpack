@@ -1,4 +1,4 @@
-// Package state manages TPM persistent state (e.g. last update check timestamp).
+// Package state manages tpack persistent state (e.g. last update check timestamp).
 package state
 
 import (
@@ -11,7 +11,7 @@ import (
 
 const stateFile = "state.yml"
 
-// State holds persistent TPM state.
+// State holds persistent tpack state.
 type State struct {
 	LastUpdateCheck     time.Time `yaml:"last_update_check"`
 	LastSelfUpdateCheck time.Time `yaml:"last_self_update_check"`

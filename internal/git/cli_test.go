@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tmux-plugins/tpm/internal/git"
+	"github.com/tmuxpack/tpack/internal/git"
 )
 
 // ---------------------------------------------------------------------------

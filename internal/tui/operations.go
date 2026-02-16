@@ -5,9 +5,9 @@ import (
 	"os"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/tmux-plugins/tpm/internal/git"
-	"github.com/tmux-plugins/tpm/internal/plug"
-	"github.com/tmux-plugins/tpm/internal/tmux"
+	"github.com/tmuxpack/tpack/internal/git"
+	"github.com/tmuxpack/tpack/internal/plug"
+	"github.com/tmuxpack/tpack/internal/tmux"
 )
 
 // Messages returned by operations.

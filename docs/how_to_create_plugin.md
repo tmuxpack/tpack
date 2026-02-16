@@ -3,7 +3,7 @@
 Creating a new plugin is easy.
 
 For demonstration purposes we'll create a simple plugin that lists all
-installed TPM plugins. Yes, a plugin that lists plugins :) We'll bind that to
+installed tpack plugins. Yes, a plugin that lists plugins :) We'll bind that to
 `prefix + T`.
 
 The source code for this example plugin can be found
@@ -11,7 +11,7 @@ The source code for this example plugin can be found
 
 ### 1. create a new git project
 
-TPM depends on git for downloading and updating plugins.
+tpack depends on git for downloading and updating plugins.
 
 To create a new git project:
 
@@ -21,7 +21,7 @@ To create a new git project:
 
 ### 2. create a `*.tmux` plugin run file
 
-When it sources a plugin, TPM executes all `*.tmux` files in your plugins'
+When it sources a plugin, tpack executes all `*.tmux` files in your plugins'
 directory. That's how plugins are run.
 
 Create a plugin run file in plugin directory:
@@ -37,7 +37,7 @@ you'll need just one.
 We want the behavior of the plugin to trigger when a user hits `prefix + T`.
 
 Key `T` is chosen because:
- - it's "kind of" a mnemonic for `TPM`
+ - it's "kind of" a mnemonic for `tpack`
  - the key is not used by Tmux natively. Tmux man page, KEY BINDINGS section
    contains a list of all the bindings Tmux uses. There's plenty of unused keys
    and we don't want to override any of Tmux default key bindings.

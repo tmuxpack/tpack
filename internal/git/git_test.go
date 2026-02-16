@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/tmux-plugins/tpm/internal/git"
+	"github.com/tmuxpack/tpack/internal/git"
 )
 
 func TestMockClonerImplementsCloner(t *testing.T) {

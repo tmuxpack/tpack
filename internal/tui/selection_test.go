@@ -3,7 +3,7 @@ package tui
 import (
 	"testing"
 
-	"github.com/tmux-plugins/tpm/internal/plug"
+	"github.com/tmuxpack/tpack/internal/plug"
 )
 
 func TestToggleSelection(t *testing.T) {

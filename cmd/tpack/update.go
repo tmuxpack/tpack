@@ -6,9 +6,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/tmux-plugins/tpm/internal/config"
-	"github.com/tmux-plugins/tpm/internal/tmux"
-	"github.com/tmux-plugins/tpm/internal/ui"
+	"github.com/tmuxpack/tpack/internal/config"
+	"github.com/tmuxpack/tpack/internal/tmux"
+	"github.com/tmuxpack/tpack/internal/ui"
 )
 
 func runUpdate(args []string) int {
@@ -25,7 +25,7 @@ func runUpdate(args []string) int {
 	runner := tmux.NewRealRunner()
 	cfg, err := config.Resolve(runner)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "tpm: config error:", err)
+		fmt.Fprintln(os.Stderr, "tpack: config error:", err)
 		return 1
 	}
 
@@ -36,9 +36,9 @@ func runUpdate(args []string) int {
 			return 0
 		}
 		fmt.Fprintln(os.Stderr, "usage:")
-		fmt.Fprintf(os.Stderr, "  tpm update all                   update all plugins\n")
-		fmt.Fprintf(os.Stderr, "  tpm update tmux-foo              update plugin 'tmux-foo'\n")
-		fmt.Fprintf(os.Stderr, "  tpm update tmux-bar tmux-baz     update multiple plugins\n")
+		fmt.Fprintf(os.Stderr, "  tpack update all                   update all plugins\n")
+		fmt.Fprintf(os.Stderr, "  tpack update tmux-foo              update plugin 'tmux-foo'\n")
+		fmt.Fprintf(os.Stderr, "  tpack update tmux-bar tmux-baz     update multiple plugins\n")
 		return 1
 	}
 

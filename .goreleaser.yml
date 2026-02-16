@@ -1,9 +1,9 @@
 version: 2
 
 builds:
-  - id: tpm-go
-    main: ./cmd/tpm
-    binary: tpm-go
+  - id: tpack
+    main: ./cmd/tpack
+    binary: tpack
     env:
       - CGO_ENABLED=0
     goos:
@@ -17,10 +17,10 @@ builds:
       - -s -w -X main.version={{.Version}}
 
 archives:
-  - id: tpm-go
+  - id: tpack
     ids:
-      - tpm-go
-    name_template: "tpm-go_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+      - tpack
+    name_template: "tpack_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     formats:
       - tar.gz
 
@@ -37,25 +37,25 @@ changelog:
 
 release:
   github:
-    owner: AntoineGS
-    name: tpm
+    owner: tmuxpack
+    name: tpack
 
 # brews:
 #   - repository:
-#       owner: tmux-plugins
-#       name: homebrew-tpm
-#     name: tpm
-#     homepage: https://github.com/tmux-plugins/tpm
+#       owner: tmuxpack
+#       name: homebrew-tpack
+#     name: tpack
+#     homepage: https://github.com/tmuxpack/tpack
 #     description: Tmux Plugin Manager
 #     install: |
-#       bin.install "tpm-go"
+#       bin.install "tpack"
 
 # nfpms:
-#   - id: tpm-go
-#     package_name: tpm
-#     homepage: https://github.com/tmux-plugins/tpm
+#   - id: tpack
+#     package_name: tpack
+#     homepage: https://github.com/tmuxpack/tpack
 #     description: Tmux Plugin Manager
-#     maintainer: tmux-plugins
+#     maintainer: tmuxpack
 #     license: MIT
 #     formats:
 #       - deb

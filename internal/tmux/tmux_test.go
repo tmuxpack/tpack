@@ -3,7 +3,7 @@ package tmux_test
 import (
 	"testing"
 
-	"github.com/tmux-plugins/tpm/internal/tmux"
+	"github.com/tmuxpack/tpack/internal/tmux"
 )
 
 func TestMockRunnerImplementsRunner(t *testing.T) {

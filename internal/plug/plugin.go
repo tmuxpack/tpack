@@ -1,4 +1,4 @@
-// Package plug provides the plugin model and parsing for TPM.
+// Package plug provides the plugin model and parsing for tpack.
 package plug
 
 // Plugin represents a tmux plugin definition.

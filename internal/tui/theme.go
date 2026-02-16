@@ -2,8 +2,8 @@ package tui
 
 import (
 	"github.com/charmbracelet/lipgloss"
-	"github.com/tmux-plugins/tpm/internal/config"
-	"github.com/tmux-plugins/tpm/internal/tmux"
+	"github.com/tmuxpack/tpack/internal/config"
+	"github.com/tmuxpack/tpack/internal/tmux"
 )
 
 // BuildTheme queries the tmux server for the user's theme colors and

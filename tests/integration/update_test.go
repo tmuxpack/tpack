@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tmux-plugins/tpm/internal/git"
-	"github.com/tmux-plugins/tpm/internal/manager"
-	"github.com/tmux-plugins/tpm/internal/plug"
-	"github.com/tmux-plugins/tpm/internal/ui"
+	"github.com/tmuxpack/tpack/internal/git"
+	"github.com/tmuxpack/tpack/internal/manager"
+	"github.com/tmuxpack/tpack/internal/plug"
+	"github.com/tmuxpack/tpack/internal/ui"
 )
 
 func TestUpdateInstalledPlugin(t *testing.T) {

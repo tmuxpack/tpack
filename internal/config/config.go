@@ -1,4 +1,4 @@
-// Package config handles TPM configuration resolution.
+// Package config handles tpack configuration resolution.
 package config
 
 import "time"
@@ -12,36 +12,48 @@ const (
 	DefaultCleanKey = "M-u"
 	// DefaultTuiKey is the default keybinding for the TUI popup.
 	DefaultTuiKey = "T"
-	// DefaultTPMPath is the default plugin installation directory.
-	DefaultTPMPath = ".tmux/plugins/"
-	// TPMEnvVar is the tmux environment variable for the plugin path.
-	TPMEnvVar = "TMUX_PLUGIN_MANAGER_PATH"
+	// DefaultPluginPath is the default plugin installation directory.
+	DefaultPluginPath = ".tmux/plugins/"
+	// PluginPathEnvVar is the current tmux environment variable for the plugin path.
+	PluginPathEnvVar = "TPACK_PLUGIN_PATH"
+	// LegacyPluginPathEnvVar is the legacy tmux environment variable for the plugin path.
+	LegacyPluginPathEnvVar = "TMUX_PLUGIN_MANAGER_PATH"
 	// SupportedTmuxVersion is the minimum tmux version encoded as major*100+minor.
 	SupportedTmuxVersion = 109
 
-	// Tmux option names for keybinding customization.
-	InstallKeyOption = "@tpm-install"
-	UpdateKeyOption  = "@tpm-update"
-	CleanKeyOption   = "@tpm-clean"
-	TuiKeyOption     = "@tpm-tui"
+	// Current tmux option names for keybinding customization.
+	InstallKeyOption = "@tpack-install"
+	UpdateKeyOption  = "@tpack-update"
+	CleanKeyOption   = "@tpack-clean"
+	TuiKeyOption     = "@tpack-tui"
 
-	// Tmux option names for color overrides.
-	ColorPrimaryOption   = "@tpm-color-primary"
-	ColorSecondaryOption = "@tpm-color-secondary"
-	ColorAccentOption    = "@tpm-color-accent"
-	ColorErrorOption     = "@tpm-color-error"
-	ColorMutedOption     = "@tpm-color-muted"
-	ColorTextOption      = "@tpm-color-text"
+	// Legacy tmux option names for keybinding customization (backwards compat).
+	LegacyInstallKeyOption = "@tpm-install"
+	LegacyUpdateKeyOption  = "@tpm-update"
+	LegacyCleanKeyOption   = "@tpm-clean"
 
-	// Tmux option names for update settings.
-	UpdateIntervalOption = "@tpm-update-interval"
-	UpdateModeOption     = "@tpm-update-mode"
+	// Current tmux option names for color overrides.
+	ColorPrimaryOption   = "@tpack-color-primary"
+	ColorSecondaryOption = "@tpack-color-secondary"
+	ColorAccentOption    = "@tpack-color-accent"
+	ColorErrorOption     = "@tpack-color-error"
+	ColorMutedOption     = "@tpack-color-muted"
+	ColorTextOption      = "@tpack-color-text"
 
-	// VersionOption is the tmux option for pinning the tpm version.
-	VersionOption = "@tpm-version"
+	// Current tmux option names for update settings.
+	UpdateIntervalOption = "@tpack-update-interval"
+	UpdateModeOption     = "@tpack-update-mode"
+
+	// VersionOption is the tmux option for pinning the tpack version.
+	VersionOption = "@tpack-version"
+
+	// AutoDownloadEnvVar is the current env var to opt out of auto-download.
+	AutoDownloadEnvVar = "TPACK_AUTO_DOWNLOAD"
+	// LegacyAutoDownloadEnvVar is the legacy env var to opt out of auto-download.
+	LegacyAutoDownloadEnvVar = "TPM_AUTO_DOWNLOAD"
 )
 
-// Config holds resolved TPM configuration.
+// Config holds resolved tpack configuration.
 type Config struct {
 	// PluginPath is the absolute path where plugins are installed.
 	PluginPath string
@@ -61,7 +73,7 @@ type Config struct {
 	UpdateCheckInterval time.Duration
 	// UpdateMode controls update behavior ("auto", "prompt", or "off").
 	UpdateMode string
-	// PinnedVersion is the pinned tpm version from @tpm-version (empty = auto-update).
+	// PinnedVersion is the pinned tpack version from @tpack-version (empty = auto-update).
 	PinnedVersion string
 	// StatePath is the directory for persistent state (e.g. last update check).
 	StatePath string

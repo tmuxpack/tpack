@@ -6,11 +6,11 @@ import (
 	"os"
 	"time"
 
-	"github.com/tmux-plugins/tpm/internal/config"
-	"github.com/tmux-plugins/tpm/internal/git"
-	"github.com/tmux-plugins/tpm/internal/manager"
-	"github.com/tmux-plugins/tpm/internal/tmux"
-	"github.com/tmux-plugins/tpm/internal/ui"
+	"github.com/tmuxpack/tpack/internal/config"
+	"github.com/tmuxpack/tpack/internal/git"
+	"github.com/tmuxpack/tpack/internal/manager"
+	"github.com/tmuxpack/tpack/internal/tmux"
+	"github.com/tmuxpack/tpack/internal/ui"
 )
 
 func runInstall(args []string) int {
@@ -19,7 +19,7 @@ func runInstall(args []string) int {
 	runner := tmux.NewRealRunner()
 	cfg, err := config.Resolve(runner)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "tpm: config error:", err)
+		fmt.Fprintln(os.Stderr, "tpack: config error:", err)
 		return 1
 	}
 

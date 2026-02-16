@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tmux-plugins/tpm/internal/config"
-	"github.com/tmux-plugins/tpm/internal/tmux"
+	"github.com/tmuxpack/tpack/internal/config"
+	"github.com/tmuxpack/tpack/internal/tmux"
 )
 
 func TestFindBinary(t *testing.T) {
@@ -32,7 +32,7 @@ func TestFindBinary_WithCurrentDirEnv(t *testing.T) {
 	// the test binary path regardless of CURRENT_DIR. We verify that
 	// findBinary still returns a valid, existing path when CURRENT_DIR is set.
 	tmpDir := t.TempDir()
-	fakeBinary := filepath.Join(tmpDir, "tpm-go")
+	fakeBinary := filepath.Join(tmpDir, "tpack")
 	if err := os.WriteFile(fakeBinary, []byte("#!/bin/sh\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -57,7 +57,7 @@ func TestBindKeys_UseTuiPopup(t *testing.T) {
 		TuiKey:     "T",
 	}
 
-	bindKeys(runner, cfg, "/usr/bin/tpm-go")
+	bindKeys(runner, cfg, "/usr/bin/tpack")
 
 	if len(runner.Calls) != 4 {
 		t.Fatalf("expected 4 BindKey calls, got %d", len(runner.Calls))
@@ -100,31 +100,31 @@ func TestIsAutoDownloaded(t *testing.T) {
 	}{
 		{
 			name:       "auto-downloaded binary",
-			binary:     "/home/user/.tmux/plugins/tpm/tpm-go",
+			binary:     "/home/user/.tmux/plugins/tpm/tpack",
 			pluginPath: "/home/user/.tmux/plugins/",
 			want:       true,
 		},
 		{
 			name:       "go install binary",
-			binary:     "/home/user/go/bin/tpm-go",
+			binary:     "/home/user/go/bin/tpack",
 			pluginPath: "/home/user/.tmux/plugins/",
 			want:       false,
 		},
 		{
 			name:       "manual build binary",
-			binary:     "/home/user/gits/tpm/dist/tpm-go",
+			binary:     "/home/user/gits/tpm/dist/tpack",
 			pluginPath: "/home/user/.tmux/plugins/",
 			want:       false,
 		},
 		{
 			name:       "system package binary",
-			binary:     "/usr/bin/tpm-go",
+			binary:     "/usr/bin/tpack",
 			pluginPath: "/home/user/.tmux/plugins/",
 			want:       false,
 		},
 		{
 			name:       "xdg plugin path",
-			binary:     "/home/user/.config/tmux/plugins/tpm/tpm-go",
+			binary:     "/home/user/.config/tmux/plugins/tpm/tpack",
 			pluginPath: "/home/user/.config/tmux/plugins/",
 			want:       true,
 		},
@@ -150,21 +150,21 @@ func TestShouldSpawnSelfUpdate(t *testing.T) {
 	}{
 		{
 			name:       "auto-downloaded, not pinned",
-			binary:     "/home/user/.tmux/plugins/tpm/tpm-go",
+			binary:     "/home/user/.tmux/plugins/tpm/tpack",
 			pluginPath: "/home/user/.tmux/plugins/",
 			pinned:     "",
 			want:       true,
 		},
 		{
 			name:       "auto-downloaded, pinned",
-			binary:     "/home/user/.tmux/plugins/tpm/tpm-go",
+			binary:     "/home/user/.tmux/plugins/tpm/tpack",
 			pluginPath: "/home/user/.tmux/plugins/",
 			pinned:     "v1.2.3",
 			want:       false,
 		},
 		{
 			name:       "not auto-downloaded",
-			binary:     "/usr/bin/tpm-go",
+			binary:     "/usr/bin/tpack",
 			pluginPath: "/home/user/.tmux/plugins/",
 			pinned:     "",
 			want:       false,

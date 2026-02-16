@@ -7,7 +7,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/tmux-plugins/tpm/internal/git"
+	"github.com/tmuxpack/tpack/internal/git"
 )
 
 // commitViewerReservedLines is the overhead for title, help, and padding in the commit viewer.

@@ -1,4 +1,4 @@
-module github.com/tmux-plugins/tpm
+module github.com/tmuxpack/tpack
 
 go 1.24.2
 

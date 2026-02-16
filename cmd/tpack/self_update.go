@@ -16,16 +16,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tmux-plugins/tpm/internal/config"
-	"github.com/tmux-plugins/tpm/internal/state"
-	"github.com/tmux-plugins/tpm/internal/tmux"
+	"github.com/tmuxpack/tpack/internal/config"
+	"github.com/tmuxpack/tpack/internal/state"
+	"github.com/tmuxpack/tpack/internal/tmux"
 )
 
 const (
 	selfUpdateInterval = 24 * time.Hour
 	selfUpdateTimeout  = 30 * time.Second
-	githubAPIURL       = "https://api.github.com/repos/AntoineGS/tpm/releases/latest"
-	githubDownloadURL  = "https://github.com/AntoineGS/tpm/releases/download"
+	githubAPIURL       = "https://api.github.com/repos/tmuxpack/tpack/releases/latest"
+	githubDownloadURL  = "https://github.com/tmuxpack/tpack/releases/download"
 )
 
 // selfUpdateResult represents the outcome of a self-update check.
@@ -44,7 +44,7 @@ type selfUpdateParams struct {
 	binaryPath  string // path to the current binary
 	apiURL      string // GitHub API URL (overridable for tests)
 	downloadURL string // download URL template (overridable for tests)
-	repoDir     string // tpm repo directory for git sync
+	repoDir     string // tpack repo directory for git sync
 	skipGitSync bool   // skip git checkout (for tests)
 }
 
@@ -53,18 +53,18 @@ type githubRelease struct {
 	TagName string `json:"tag_name"`
 }
 
-// runSelfUpdate is the entry point for the `tpm self-update` command.
+// runSelfUpdate is the entry point for the `tpack self-update` command.
 func runSelfUpdate() int {
 	runner := tmux.NewRealRunner()
 
 	cfg, err := config.Resolve(runner)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "tpm: config error:", err)
+		fmt.Fprintln(os.Stderr, "tpack: config error:", err)
 		return 1
 	}
 
 	binary := findBinary()
-	repoDir := filepath.Dir(binary) // tpm repo is the directory containing the binary
+	repoDir := filepath.Dir(binary) // tpack repo is the directory containing the binary
 
 	p := selfUpdateParams{
 		statePath:   cfg.StatePath,
@@ -102,7 +102,7 @@ func selfUpdateCheck(p selfUpdateParams, runner tmux.Runner) selfUpdateResult {
 	// 3. Fetch latest release version from GitHub API.
 	latest, err := fetchLatestVersion(p.apiURL)
 	if err != nil {
-		_ = runner.DisplayMessage("TPM: self-update failed (download error)")
+		_ = runner.DisplayMessage("tpack: self-update failed (download error)")
 		return selfUpdateFailed
 	}
 
@@ -113,19 +113,19 @@ func selfUpdateCheck(p selfUpdateParams, runner tmux.Runner) selfUpdateResult {
 	}
 
 	// 5-6. Download and extract the new binary.
-	archiveURL := fmt.Sprintf("%s/v%s/tpm-go_%s_%s_%s.tar.gz",
+	archiveURL := fmt.Sprintf("%s/v%s/tpack_%s_%s_%s.tar.gz",
 		p.downloadURL, latest, latest, runtime.GOOS, runtime.GOARCH)
 
 	newBinaryPath, cleanup, err := downloadAndExtract(archiveURL)
 	if err != nil {
-		_ = runner.DisplayMessage("TPM: self-update failed (extract error)")
+		_ = runner.DisplayMessage("tpack: self-update failed (extract error)")
 		return selfUpdateFailed
 	}
 	defer cleanup()
 
 	// 7. Atomic replace: rename temp binary over current binary.
 	if err := os.Rename(newBinaryPath, p.binaryPath); err != nil {
-		_ = runner.DisplayMessage("TPM: self-update failed (permission error)")
+		_ = runner.DisplayMessage("tpack: self-update failed (permission error)")
 		return selfUpdateFailed
 	}
 
@@ -133,13 +133,13 @@ func selfUpdateCheck(p selfUpdateParams, runner tmux.Runner) selfUpdateResult {
 	tag := "v" + latest
 	if !p.skipGitSync {
 		if err := syncGitRepo(p.repoDir, tag); err != nil {
-			_ = runner.DisplayMessage(fmt.Sprintf("TPM: updated to %s (warning: repo sync failed)", tag))
+			_ = runner.DisplayMessage(fmt.Sprintf("tpack: updated to %s (warning: repo sync failed)", tag))
 			return selfUpdateSuccess
 		}
 	}
 
 	// 9. Display success message.
-	_ = runner.DisplayMessage(fmt.Sprintf("TPM: updated to %s", tag))
+	_ = runner.DisplayMessage(fmt.Sprintf("tpack: updated to %s", tag))
 	return selfUpdateSuccess
 }
 
@@ -196,7 +196,7 @@ func downloadAndExtract(url string) (string, func(), error) {
 		return "", nil, fmt.Errorf("download failed: status %d", resp.StatusCode)
 	}
 
-	tmpDir, err := os.MkdirTemp("", "tpm-update-*")
+	tmpDir, err := os.MkdirTemp("", "tpack-update-*")
 	if err != nil {
 		return "", nil, fmt.Errorf("creating temp dir: %w", err)
 	}
@@ -232,7 +232,7 @@ func extractBinaryFromArchive(r io.Reader, destDir string) (string, error) {
 			return "", fmt.Errorf("reading tar: %w", err)
 		}
 
-		// Only extract regular files named tpm-go (skip symlinks, dirs, etc.).
+		// Only extract regular files named tpack (skip symlinks, dirs, etc.).
 		if hdr.Typeflag != tar.TypeReg || filepath.Base(hdr.Name) != binaryName {
 			continue
 		}

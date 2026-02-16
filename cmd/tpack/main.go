@@ -9,7 +9,7 @@ import (
 var version = "dev"
 
 // binaryName is the name of the compiled Go binary.
-const binaryName = "tpm-go"
+const binaryName = "tpack"
 
 func main() {
 	if len(os.Args) < 2 {
@@ -37,10 +37,10 @@ func main() {
 	case "self-update":
 		os.Exit(runSelfUpdate())
 	case "version":
-		fmt.Println("tpm " + version)
+		fmt.Println("tpack " + version)
 	default:
-		fmt.Fprintf(os.Stderr, "tpm: unknown command %q\n", os.Args[1])
-		fmt.Fprintln(os.Stderr, "usage: tpm [init|install|update|clean|source|tui|commits|check-updates|self-update|version]")
+		fmt.Fprintf(os.Stderr, "tpack: unknown command %q\n", os.Args[1])
+		fmt.Fprintln(os.Stderr, "usage: tpack [init|install|update|clean|source|tui|commits|check-updates|self-update|version]")
 		os.Exit(1)
 	}
 }

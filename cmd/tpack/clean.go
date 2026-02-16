@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/tmux-plugins/tpm/internal/config"
-	"github.com/tmux-plugins/tpm/internal/tmux"
+	"github.com/tmuxpack/tpack/internal/config"
+	"github.com/tmuxpack/tpack/internal/tmux"
 )
 
 func runClean(args []string) int {
@@ -14,7 +14,7 @@ func runClean(args []string) int {
 	runner := tmux.NewRealRunner()
 	cfg, err := config.Resolve(runner)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "tpm: config error:", err)
+		fmt.Fprintln(os.Stderr, "tpack: config error:", err)
 		return 1
 	}
 

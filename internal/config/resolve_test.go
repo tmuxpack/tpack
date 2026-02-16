@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tmux-plugins/tpm/internal/config"
-	"github.com/tmux-plugins/tpm/internal/tmux"
+	"github.com/tmuxpack/tpack/internal/config"
+	"github.com/tmuxpack/tpack/internal/tmux"
 )
 
 // testOpts returns common options that isolate tests from the real environment.
@@ -51,10 +51,10 @@ func TestResolveDefaults(t *testing.T) {
 
 func TestResolveCustomKeybindings(t *testing.T) {
 	m := tmux.NewMockRunner()
-	m.Options["@tpm-install"] = "T"
-	m.Options["@tpm-update"] = "Y"
-	m.Options["@tpm-clean"] = "M-y"
-	m.Options["@tpm-tui"] = "P"
+	m.Options["@tpack-install"] = "T"
+	m.Options["@tpack-update"] = "Y"
+	m.Options["@tpack-clean"] = "M-y"
+	m.Options["@tpack-tui"] = "P"
 
 	fs := config.NewMockFS()
 
@@ -74,6 +74,58 @@ func TestResolveCustomKeybindings(t *testing.T) {
 	}
 	if cfg.TuiKey != "P" {
 		t.Errorf("TuiKey = %q, want %q", cfg.TuiKey, "P")
+	}
+}
+
+func TestResolveLegacyKeybindings(t *testing.T) {
+	m := tmux.NewMockRunner()
+	m.Options["@tpm-install"] = "X"
+	m.Options["@tpm-update"] = "Z"
+	m.Options["@tpm-clean"] = "M-z"
+
+	fs := config.NewMockFS()
+
+	cfg, err := config.Resolve(m, testOpts(fs)...)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if cfg.InstallKey != "X" {
+		t.Errorf("InstallKey = %q, want %q", cfg.InstallKey, "X")
+	}
+	if cfg.UpdateKey != "Z" {
+		t.Errorf("UpdateKey = %q, want %q", cfg.UpdateKey, "Z")
+	}
+	if cfg.CleanKey != "M-z" {
+		t.Errorf("CleanKey = %q, want %q", cfg.CleanKey, "M-z")
+	}
+}
+
+func TestResolveCurrentKeybindingsOverrideLegacy(t *testing.T) {
+	m := tmux.NewMockRunner()
+	// Set both legacy and current; current should win.
+	m.Options["@tpm-install"] = "X"
+	m.Options["@tpack-install"] = "T"
+	m.Options["@tpm-update"] = "Z"
+	m.Options["@tpack-update"] = "Y"
+	m.Options["@tpm-clean"] = "M-z"
+	m.Options["@tpack-clean"] = "M-y"
+
+	fs := config.NewMockFS()
+
+	cfg, err := config.Resolve(m, testOpts(fs)...)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if cfg.InstallKey != "T" {
+		t.Errorf("InstallKey = %q, want %q (current should override legacy)", cfg.InstallKey, "T")
+	}
+	if cfg.UpdateKey != "Y" {
+		t.Errorf("UpdateKey = %q, want %q (current should override legacy)", cfg.UpdateKey, "Y")
+	}
+	if cfg.CleanKey != "M-y" {
+		t.Errorf("CleanKey = %q, want %q (current should override legacy)", cfg.CleanKey, "M-y")
 	}
 }
 
@@ -136,7 +188,7 @@ func TestResolveStatePath(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	want := "/home/user/.local/state/tpm"
+	want := "/home/user/.local/state/tpack"
 	if cfg.StatePath != want {
 		t.Errorf("StatePath = %q, want %q", cfg.StatePath, want)
 	}
@@ -153,7 +205,7 @@ func TestResolveStatePathWithXDGState(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	want := "/custom/state/tpm"
+	want := "/custom/state/tpack"
 	if cfg.StatePath != want {
 		t.Errorf("StatePath = %q, want %q", cfg.StatePath, want)
 	}
@@ -168,12 +220,12 @@ func TestResolveColors(t *testing.T) {
 		{
 			name: "all colors set",
 			options: map[string]string{
-				"@tpm-color-primary":   "#111111",
-				"@tpm-color-secondary": "#222222",
-				"@tpm-color-accent":    "#333333",
-				"@tpm-color-error":     "#444444",
-				"@tpm-color-muted":     "#555555",
-				"@tpm-color-text":      "#666666",
+				"@tpack-color-primary":   "#111111",
+				"@tpack-color-secondary": "#222222",
+				"@tpack-color-accent":    "#333333",
+				"@tpack-color-error":     "#444444",
+				"@tpack-color-muted":     "#555555",
+				"@tpack-color-text":      "#666666",
 			},
 			want: config.ColorConfig{
 				Primary:   "#111111",
@@ -187,8 +239,8 @@ func TestResolveColors(t *testing.T) {
 		{
 			name: "partial colors",
 			options: map[string]string{
-				"@tpm-color-primary": "#aabbcc",
-				"@tpm-color-text":    "#ddeeff",
+				"@tpack-color-primary": "#aabbcc",
+				"@tpack-color-text":    "#ddeeff",
 			},
 			want: config.ColorConfig{
 				Primary: "#aabbcc",
@@ -232,8 +284,8 @@ func TestResolveUpdateSettings(t *testing.T) {
 		{
 			name: "prompt mode with 24h interval",
 			options: map[string]string{
-				"@tpm-update-interval": "24h",
-				"@tpm-update-mode":     "prompt",
+				"@tpack-update-interval": "24h",
+				"@tpack-update-mode":     "prompt",
 			},
 			wantInterval: 24 * time.Hour,
 			wantMode:     "prompt",
@@ -241,8 +293,8 @@ func TestResolveUpdateSettings(t *testing.T) {
 		{
 			name: "auto mode with 1h interval",
 			options: map[string]string{
-				"@tpm-update-interval": "1h",
-				"@tpm-update-mode":     "auto",
+				"@tpack-update-interval": "1h",
+				"@tpack-update-mode":     "auto",
 			},
 			wantInterval: 1 * time.Hour,
 			wantMode:     "auto",
@@ -250,7 +302,7 @@ func TestResolveUpdateSettings(t *testing.T) {
 		{
 			name: "off mode",
 			options: map[string]string{
-				"@tpm-update-mode": "off",
+				"@tpack-update-mode": "off",
 			},
 			wantInterval: 0,
 			wantMode:     "off",
@@ -264,8 +316,8 @@ func TestResolveUpdateSettings(t *testing.T) {
 		{
 			name: "invalid interval",
 			options: map[string]string{
-				"@tpm-update-interval": "not-a-duration",
-				"@tpm-update-mode":     "prompt",
+				"@tpack-update-interval": "not-a-duration",
+				"@tpack-update-mode":     "prompt",
 			},
 			wantInterval: 0,
 			wantMode:     "prompt",
@@ -273,7 +325,7 @@ func TestResolveUpdateSettings(t *testing.T) {
 		{
 			name: "invalid mode ignored",
 			options: map[string]string{
-				"@tpm-update-mode": "bogus",
+				"@tpack-update-mode": "bogus",
 			},
 			wantInterval: 0,
 			wantMode:     "",
@@ -317,7 +369,7 @@ func TestResolvePinnedVersion(t *testing.T) {
 		{
 			name: "pinned to specific version",
 			options: map[string]string{
-				"@tpm-version": "v1.2.3",
+				"@tpack-version": "v1.2.3",
 			},
 			want: "v1.2.3",
 		},

@@ -5,8 +5,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/tmux-plugins/tpm/internal/git"
-	"github.com/tmux-plugins/tpm/internal/plug"
+	"github.com/tmuxpack/tpack/internal/git"
+	"github.com/tmuxpack/tpack/internal/plug"
 )
 
 const maxConcurrentUpdates = 5

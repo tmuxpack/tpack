@@ -1,16 +1,16 @@
 # Managing plugins via the command line
 
-Aside from tmux key bindings, TPM provides shell interface for managing plugins
+Aside from tmux key bindings, tpack provides shell interface for managing plugins
 via scripts located in [bin/](../bin/) directory.
 
 Tmux does not need to be started in order to run scripts (but it's okay if it
-is). If you [changed tpm install dir](../docs/changing_plugins_install_dir.md)
+is). If you [changed tpack install dir](../docs/changing_plugins_install_dir.md)
 in `.tmux.conf` that should work fine too.
 
 Prerequisites:
 
 - tmux installed on the system (doh)
-- `.tmux.conf` set up for TPM
+- `.tmux.conf` set up for tpack
 
 ### Installing plugins
 

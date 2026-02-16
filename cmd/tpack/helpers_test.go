@@ -3,8 +3,8 @@ package main
 import (
 	"testing"
 
-	"github.com/tmux-plugins/tpm/internal/tmux"
-	"github.com/tmux-plugins/tpm/internal/ui"
+	"github.com/tmuxpack/tpack/internal/tmux"
+	"github.com/tmuxpack/tpack/internal/ui"
 )
 
 func TestHasFlag(t *testing.T) {

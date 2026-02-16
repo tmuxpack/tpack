@@ -3,8 +3,8 @@ package tui
 import (
 	"os"
 
-	"github.com/tmux-plugins/tpm/internal/git"
-	"github.com/tmux-plugins/tpm/internal/plug"
+	"github.com/tmuxpack/tpack/internal/git"
+	"github.com/tmuxpack/tpack/internal/plug"
 )
 
 // buildPluginItems converts raw plugins into enriched PluginItems with status.

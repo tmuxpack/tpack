@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
 
-# TPM - Tmux Plugin Manager
+# tpack - Tmux Plugin Manager
 #
-# This shell shim detects the Go binary (tpm-go) and delegates to it.
+# This shell shim detects the Go binary (tpack) and delegates to it.
 
 CURRENT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 source "$CURRENT_DIR/lib/find_binary.sh"
 
-TPM_GO="$(_find_tpm_go "$CURRENT_DIR")"
+TPACK_BIN="$(_find_tpack "$CURRENT_DIR")"
 
-if [ -n "$TPM_GO" ]; then
-	exec "$TPM_GO" init "$@"
+if [ -n "$TPACK_BIN" ]; then
+	exec "$TPACK_BIN" init "$@"
 fi
 
-echo "Error: tpm-go binary not found. Please build it or ensure it's in your PATH." >&2
+echo "Error: tpack binary not found. Please build it or ensure it's in your PATH." >&2
 exit 1

@@ -13,11 +13,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tmux-plugins/tpm/internal/state"
-	"github.com/tmux-plugins/tpm/internal/tmux"
+	"github.com/tmuxpack/tpack/internal/state"
+	"github.com/tmuxpack/tpack/internal/tmux"
 )
 
-// createTestArchive creates a tar.gz archive containing a "tpm-go" file
+// createTestArchive creates a tar.gz archive containing a "tpack" file
 // with the given content.
 func createTestArchive(t *testing.T, content string) []byte {
 	t.Helper()
@@ -27,7 +27,7 @@ func createTestArchive(t *testing.T, content string) []byte {
 	tw := tar.NewWriter(gw)
 
 	hdr := &tar.Header{
-		Name: "tpm-go",
+		Name: "tpack",
 		Mode: 0o755,
 		Size: int64(len(content)),
 	}
@@ -66,7 +66,7 @@ func TestSelfUpdateSkipsWhenRecent(t *testing.T) {
 	p := selfUpdateParams{
 		statePath:   statePath,
 		version:     "1.0.0",
-		binaryPath:  filepath.Join(dir, "tpm-go"),
+		binaryPath:  filepath.Join(dir, "tpack"),
 		apiURL:      "http://unused",
 		downloadURL: "http://unused",
 		skipGitSync: true,
@@ -102,7 +102,7 @@ func TestSelfUpdateSkipsWhenAlreadyLatest(t *testing.T) {
 	p := selfUpdateParams{
 		statePath:   statePath,
 		version:     "1.2.3",
-		binaryPath:  filepath.Join(dir, "tpm-go"),
+		binaryPath:  filepath.Join(dir, "tpack"),
 		apiURL:      apiServer.URL,
 		downloadURL: "http://unused",
 		skipGitSync: true,
@@ -130,7 +130,7 @@ func TestSelfUpdateSkipsDevVersion(t *testing.T) {
 	p := selfUpdateParams{
 		statePath:   statePath,
 		version:     "dev",
-		binaryPath:  filepath.Join(dir, "tpm-go"),
+		binaryPath:  filepath.Join(dir, "tpack"),
 		apiURL:      apiServer.URL,
 		downloadURL: "http://unused",
 		skipGitSync: true,
@@ -147,7 +147,7 @@ func TestSelfUpdateDownloadsNewVersion(t *testing.T) {
 	statePath := filepath.Join(dir, "state")
 
 	// Create the existing binary file.
-	binaryPath := filepath.Join(dir, "tpm-go")
+	binaryPath := filepath.Join(dir, "tpack")
 	if err := os.WriteFile(binaryPath, []byte("old-binary"), 0o755); err != nil {
 		t.Fatalf("failed to create binary: %v", err)
 	}
@@ -198,12 +198,12 @@ func TestSelfUpdateDownloadsNewVersion(t *testing.T) {
 	// Verify success message was displayed.
 	found := false
 	for _, call := range runner.Calls {
-		if call.Method == "DisplayMessage" && len(call.Args) > 0 && call.Args[0] == "TPM: updated to v2.0.0" {
+		if call.Method == "DisplayMessage" && len(call.Args) > 0 && call.Args[0] == "tpack: updated to v2.0.0" {
 			found = true
 		}
 	}
 	if !found {
-		t.Error("expected success DisplayMessage 'TPM: updated to v2.0.0'")
+		t.Error("expected success DisplayMessage 'tpack: updated to v2.0.0'")
 	}
 }
 
@@ -277,7 +277,7 @@ func TestSelfUpdateDisplaysDownloadError(t *testing.T) {
 	p := selfUpdateParams{
 		statePath:   statePath,
 		version:     "1.0.0",
-		binaryPath:  filepath.Join(dir, "tpm-go"),
+		binaryPath:  filepath.Join(dir, "tpack"),
 		apiURL:      apiServer.URL,
 		downloadURL: "http://unused",
 		skipGitSync: true,
@@ -291,12 +291,12 @@ func TestSelfUpdateDisplaysDownloadError(t *testing.T) {
 	// Verify the download error message was displayed.
 	found := false
 	for _, call := range runner.Calls {
-		if call.Method == "DisplayMessage" && len(call.Args) > 0 && call.Args[0] == "TPM: self-update failed (download error)" {
+		if call.Method == "DisplayMessage" && len(call.Args) > 0 && call.Args[0] == "tpack: self-update failed (download error)" {
 			found = true
 		}
 	}
 	if !found {
-		t.Error("expected DisplayMessage 'TPM: self-update failed (download error)'")
+		t.Error("expected DisplayMessage 'tpack: self-update failed (download error)'")
 	}
 }
 
@@ -323,7 +323,7 @@ func TestSelfUpdateDisplaysExtractError(t *testing.T) {
 	p := selfUpdateParams{
 		statePath:   statePath,
 		version:     "1.0.0",
-		binaryPath:  filepath.Join(dir, "tpm-go"),
+		binaryPath:  filepath.Join(dir, "tpack"),
 		apiURL:      apiServer.URL,
 		downloadURL: downloadServer.URL,
 		skipGitSync: true,
@@ -337,12 +337,12 @@ func TestSelfUpdateDisplaysExtractError(t *testing.T) {
 	// Verify the extract error message was displayed.
 	found := false
 	for _, call := range runner.Calls {
-		if call.Method == "DisplayMessage" && len(call.Args) > 0 && call.Args[0] == "TPM: self-update failed (extract error)" {
+		if call.Method == "DisplayMessage" && len(call.Args) > 0 && call.Args[0] == "tpack: self-update failed (extract error)" {
 			found = true
 		}
 	}
 	if !found {
-		t.Error("expected DisplayMessage 'TPM: self-update failed (extract error)'")
+		t.Error("expected DisplayMessage 'tpack: self-update failed (extract error)'")
 	}
 }
 
@@ -373,7 +373,7 @@ func TestSelfUpdateDisplaysPermissionError(t *testing.T) {
 	p := selfUpdateParams{
 		statePath:   statePath,
 		version:     "1.0.0",
-		binaryPath:  filepath.Join(dir, "nonexistent", "subdir", "tpm-go"),
+		binaryPath:  filepath.Join(dir, "nonexistent", "subdir", "tpack"),
 		apiURL:      apiServer.URL,
 		downloadURL: downloadServer.URL,
 		skipGitSync: true,
@@ -387,12 +387,12 @@ func TestSelfUpdateDisplaysPermissionError(t *testing.T) {
 	// Verify the permission error message was displayed.
 	found := false
 	for _, call := range runner.Calls {
-		if call.Method == "DisplayMessage" && len(call.Args) > 0 && call.Args[0] == "TPM: self-update failed (permission error)" {
+		if call.Method == "DisplayMessage" && len(call.Args) > 0 && call.Args[0] == "tpack: self-update failed (permission error)" {
 			found = true
 		}
 	}
 	if !found {
-		t.Error("expected DisplayMessage 'TPM: self-update failed (permission error)'")
+		t.Error("expected DisplayMessage 'tpack: self-update failed (permission error)'")
 	}
 }
 
@@ -411,7 +411,7 @@ func TestSelfUpdateTimestampSavedBeforeCheck(t *testing.T) {
 	p := selfUpdateParams{
 		statePath:   statePath,
 		version:     "1.0.0",
-		binaryPath:  filepath.Join(dir, "tpm-go"),
+		binaryPath:  filepath.Join(dir, "tpack"),
 		apiURL:      apiServer.URL,
 		downloadURL: "http://unused",
 		skipGitSync: true,
@@ -448,7 +448,7 @@ func TestSelfUpdateVersionWithVPrefix(t *testing.T) {
 	p := selfUpdateParams{
 		statePath:   statePath,
 		version:     "v1.2.3",
-		binaryPath:  filepath.Join(dir, "tpm-go"),
+		binaryPath:  filepath.Join(dir, "tpack"),
 		apiURL:      apiServer.URL,
 		downloadURL: "http://unused",
 		skipGitSync: true,
@@ -465,7 +465,7 @@ func TestSelfUpdateIntegration(t *testing.T) {
 	statePath := filepath.Join(dir, "state")
 
 	// Create the existing binary file.
-	binaryPath := filepath.Join(dir, "tpm-go")
+	binaryPath := filepath.Join(dir, "tpack")
 	if err := os.WriteFile(binaryPath, []byte("old-binary-v1"), 0o755); err != nil {
 		t.Fatalf("failed to create binary: %v", err)
 	}
@@ -529,12 +529,12 @@ func TestSelfUpdateIntegration(t *testing.T) {
 	// Verify success message.
 	found := false
 	for _, call := range runner.Calls {
-		if call.Method == "DisplayMessage" && len(call.Args) > 0 && call.Args[0] == "TPM: updated to v3.1.0" {
+		if call.Method == "DisplayMessage" && len(call.Args) > 0 && call.Args[0] == "tpack: updated to v3.1.0" {
 			found = true
 		}
 	}
 	if !found {
-		t.Error("expected DisplayMessage 'TPM: updated to v3.1.0'")
+		t.Error("expected DisplayMessage 'tpack: updated to v3.1.0'")
 	}
 
 	// Verify state was saved.
@@ -584,9 +584,9 @@ func TestDownloadAndExtract(t *testing.T) {
 		t.Error("expected file to be executable")
 	}
 
-	// Verify file name is tpm-go.
-	if filepath.Base(binaryPath) != "tpm-go" {
-		t.Errorf("base name = %q, want %q", filepath.Base(binaryPath), "tpm-go")
+	// Verify file name is tpack.
+	if filepath.Base(binaryPath) != "tpack" {
+		t.Errorf("base name = %q, want %q", filepath.Base(binaryPath), "tpack")
 	}
 }
 
@@ -631,8 +631,8 @@ func TestCreateTestArchive(t *testing.T) {
 		t.Fatalf("failed to read tar header: %v", err)
 	}
 
-	if hdr.Name != "tpm-go" {
-		t.Errorf("header name = %q, want %q", hdr.Name, "tpm-go")
+	if hdr.Name != "tpack" {
+		t.Errorf("header name = %q, want %q", hdr.Name, "tpack")
 	}
 	if hdr.Mode != 0o755 {
 		t.Errorf("header mode = %o, want %o", hdr.Mode, 0o755)

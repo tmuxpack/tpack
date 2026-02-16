@@ -3,7 +3,7 @@ package manager
 import (
 	"os"
 
-	"github.com/tmux-plugins/tpm/internal/plug"
+	"github.com/tmuxpack/tpack/internal/plug"
 )
 
 func (m *Manager) cleanPlugins(plugins []plug.Plugin) {

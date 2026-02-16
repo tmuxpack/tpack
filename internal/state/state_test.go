@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tmux-plugins/tpm/internal/state"
+	"github.com/tmuxpack/tpack/internal/state"
 )
 
 func TestLoadMissingFile(t *testing.T) {
@@ -18,7 +18,7 @@ func TestLoadMissingFile(t *testing.T) {
 
 func TestLoadCorruptFile(t *testing.T) {
 	dir := t.TempDir()
-	statePath := filepath.Join(dir, "tpm")
+	statePath := filepath.Join(dir, "tpack")
 	os.MkdirAll(statePath, 0o755)
 	os.WriteFile(filepath.Join(statePath, "state.yml"), []byte("{{bad yaml!"), 0o644)
 
@@ -30,7 +30,7 @@ func TestLoadCorruptFile(t *testing.T) {
 
 func TestSaveAndLoad(t *testing.T) {
 	dir := t.TempDir()
-	statePath := filepath.Join(dir, "tpm")
+	statePath := filepath.Join(dir, "tpack")
 
 	now := time.Now().Truncate(time.Second)
 	s := state.State{LastUpdateCheck: now}
@@ -47,7 +47,7 @@ func TestSaveAndLoad(t *testing.T) {
 
 func TestSaveCreatesDirectory(t *testing.T) {
 	dir := t.TempDir()
-	statePath := filepath.Join(dir, "nested", "tpm")
+	statePath := filepath.Join(dir, "nested", "tpack")
 
 	s := state.State{LastUpdateCheck: time.Now()}
 
@@ -62,7 +62,7 @@ func TestSaveCreatesDirectory(t *testing.T) {
 
 func TestSaveAndLoadSelfUpdateCheck(t *testing.T) {
 	dir := t.TempDir()
-	statePath := filepath.Join(dir, "tpm")
+	statePath := filepath.Join(dir, "tpack")
 
 	now := time.Now().Truncate(time.Second)
 	s := state.State{LastSelfUpdateCheck: now}
@@ -79,7 +79,7 @@ func TestSaveAndLoadSelfUpdateCheck(t *testing.T) {
 
 func TestLoadExistingStateWithoutSelfUpdateCheck(t *testing.T) {
 	dir := t.TempDir()
-	statePath := filepath.Join(dir, "tpm")
+	statePath := filepath.Join(dir, "tpack")
 	os.MkdirAll(statePath, 0o755)
 
 	// Write a state file with only the old field (backward compat).
@@ -97,7 +97,7 @@ func TestLoadExistingStateWithoutSelfUpdateCheck(t *testing.T) {
 
 func TestSaveOverwritesExisting(t *testing.T) {
 	dir := t.TempDir()
-	statePath := filepath.Join(dir, "tpm")
+	statePath := filepath.Join(dir, "tpack")
 
 	first := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 	second := time.Date(2026, 6, 15, 12, 0, 0, 0, time.UTC)

@@ -3,8 +3,8 @@ package config
 import (
 	"strings"
 
-	"github.com/tmux-plugins/tpm/internal/plug"
-	"github.com/tmux-plugins/tpm/internal/tmux"
+	"github.com/tmuxpack/tpack/internal/plug"
+	"github.com/tmuxpack/tpack/internal/tmux"
 )
 
 // GatherPlugins collects all plugin definitions from:

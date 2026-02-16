@@ -1,11 +1,11 @@
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 LDFLAGS := -ldflags "-X main.version=$(VERSION)"
-BINARY := tpm-go
+BINARY := tpack
 
 .PHONY: build test test-unit test-integration test-e2e vet lint lint-fix coverage clean-build setup-hooks
 
 build:
-	go build $(LDFLAGS) -o dist/$(BINARY) ./cmd/tpm
+	go build $(LDFLAGS) -o dist/$(BINARY) ./cmd/tpack
 
 test: test-unit
 

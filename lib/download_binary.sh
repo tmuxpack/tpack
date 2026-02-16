@@ -1,14 +1,14 @@
-# Auto-download tpm-go binary from GitHub Releases.
-# Usage: source this file, then call _download_tpm_go <tpm_root_dir>
+# Auto-download tpack binary from GitHub Releases.
+# Usage: source this file, then call _download_tpack <tpm_root_dir>
 # Returns the path to the downloaded binary on success, empty on failure.
 
-_TPM_GITHUB_REPO="AntoineGS/tpm"
+_TPACK_GITHUB_REPO="tmuxpack/tpack"
 
-_download_tpm_go() {
+_download_tpack() {
 	local root_dir="$1"
 
-	# Opt-out via environment variable
-	if [ "${TPM_AUTO_DOWNLOAD:-}" = "0" ]; then
+	# Opt-out via environment variable (current or legacy)
+	if [ "${TPACK_AUTO_DOWNLOAD:-}" = "0" ] || [ "${TPM_AUTO_DOWNLOAD:-}" = "0" ]; then
 		return
 	fi
 
@@ -42,10 +42,10 @@ _download_tpm_go() {
 	# Find latest release version via GitHub redirect
 	local version=""
 	if [ "$download_cmd" = "curl" ]; then
-		version=$(curl -sI "https://github.com/${_TPM_GITHUB_REPO}/releases/latest" 2>/dev/null \
+		version=$(curl -sI "https://github.com/${_TPACK_GITHUB_REPO}/releases/latest" 2>/dev/null \
 			| grep -i '^location:' | sed 's|.*/tag/v\{0,1\}||' | tr -d '[:space:]')
 	else
-		version=$(wget --server-response --max-redirect=0 "https://github.com/${_TPM_GITHUB_REPO}/releases/latest" 2>&1 \
+		version=$(wget --server-response --max-redirect=0 "https://github.com/${_TPACK_GITHUB_REPO}/releases/latest" 2>&1 \
 			| grep -i 'location:' | sed 's|.*/tag/v\{0,1\}||' | tr -d '[:space:]')
 	fi
 
@@ -54,8 +54,8 @@ _download_tpm_go() {
 	fi
 
 	# Download archive to temp file
-	local archive_name="tpm-go_${version}_${os}_${arch}.tar.gz"
-	local url="https://github.com/${_TPM_GITHUB_REPO}/releases/download/v${version}/${archive_name}"
+	local archive_name="tpack_${version}_${os}_${arch}.tar.gz"
+	local url="https://github.com/${_TPACK_GITHUB_REPO}/releases/download/v${version}/${archive_name}"
 	local tmp_dir
 	tmp_dir=$(mktemp -d 2>/dev/null) || return
 	local tmp_archive="${tmp_dir}/${archive_name}"
@@ -72,18 +72,18 @@ _download_tpm_go() {
 		return
 	fi
 
-	# Extract tpm-go binary
-	tar -xzf "$tmp_archive" -C "$tmp_dir" tpm-go 2>/dev/null || { rm -rf "$tmp_dir"; return; }
+	# Extract tpack binary
+	tar -xzf "$tmp_archive" -C "$tmp_dir" tpack 2>/dev/null || { rm -rf "$tmp_dir"; return; }
 
-	if [ ! -f "$tmp_dir/tpm-go" ]; then
+	if [ ! -f "$tmp_dir/tpack" ]; then
 		rm -rf "$tmp_dir"
 		return
 	fi
 
 	# Move binary into place
-	mv "$tmp_dir/tpm-go" "$root_dir/tpm-go" 2>/dev/null || { rm -rf "$tmp_dir"; return; }
-	chmod +x "$root_dir/tpm-go" 2>/dev/null
+	mv "$tmp_dir/tpack" "$root_dir/tpack" 2>/dev/null || { rm -rf "$tmp_dir"; return; }
+	chmod +x "$root_dir/tpack" 2>/dev/null
 	rm -rf "$tmp_dir"
 
-	echo "$root_dir/tpm-go"
+	echo "$root_dir/tpack"
 }

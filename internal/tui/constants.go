@@ -3,7 +3,7 @@ package tui
 import (
 	"time"
 
-	"github.com/tmux-plugins/tpm/internal/git"
+	"github.com/tmuxpack/tpack/internal/git"
 )
 
 // Screen represents the current TUI screen.

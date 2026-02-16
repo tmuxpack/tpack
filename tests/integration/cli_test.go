@@ -9,17 +9,17 @@ import (
 	"testing"
 )
 
-// buildBinary compiles the tpm binary into the given directory and returns
+// buildBinary compiles the tpack binary into the given directory and returns
 // the path to the resulting executable. The test is skipped if the build fails.
 func buildBinary(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
-	binPath := filepath.Join(dir, "tpm")
-	cmd := exec.CommandContext(context.Background(), "go", "build", "-o", binPath, "./cmd/tpm")
-	cmd.Dir = "/home/antoinegs/gits/tpm"
+	binPath := filepath.Join(dir, "tpack")
+	cmd := exec.CommandContext(context.Background(), "go", "build", "-o", binPath, "./cmd/tpack")
+	cmd.Dir = "/home/antoinegs/gits/tpack"
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Skipf("failed to build tpm binary: %v\n%s", err, out)
+		t.Skipf("failed to build tpack binary: %v\n%s", err, out)
 	}
 	return binPath
 }
@@ -38,8 +38,8 @@ func TestCLIVersion(t *testing.T) {
 	}
 
 	stdout := string(out)
-	if !strings.Contains(stdout, "tpm") {
-		t.Errorf("expected stdout to contain %q, got: %q", "tpm", stdout)
+	if !strings.Contains(stdout, "tpack") {
+		t.Errorf("expected stdout to contain %q, got: %q", "tpack", stdout)
 	}
 }
 

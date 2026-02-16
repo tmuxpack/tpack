@@ -1,6 +1,4 @@
-# Tmux Plugin Manager
-
-[![Build Status](https://travis-ci.org/tmux-plugins/tpm.svg?branch=master)](https://travis-ci.org/tmux-plugins/tpm)
+# tpack - Tmux Plugin Manager
 
 Installs and loads `tmux` plugins.
 
@@ -12,10 +10,10 @@ See list of plugins [here](https://github.com/tmux-plugins/list).
 
 Requirements: `tmux` version 1.9 (or higher), `git`, `bash`.
 
-Clone TPM:
+Clone tpack:
 
 ```bash
-git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm
+git clone https://github.com/tmuxpack/tpack ~/.tmux/plugins/tpm
 ```
 
 Put this at the bottom of `~/.tmux.conf` (`$XDG_CONFIG_HOME/tmux/tmux.conf`
@@ -23,7 +21,7 @@ works too):
 
 ```bash
 # List of plugins
-set -g @plugin 'tmux-plugins/tpm'
+set -g @plugin 'tmuxpack/tpack'
 set -g @plugin 'tmux-plugins/tmux-sensible'
 
 # Other examples:
@@ -32,11 +30,11 @@ set -g @plugin 'tmux-plugins/tmux-sensible'
 # set -g @plugin 'git@github.com:user/plugin'
 # set -g @plugin 'git@bitbucket.com:user/plugin'
 
-# Initialize TMUX plugin manager (keep this line at the very bottom of tmux.conf)
+# Initialize tpack (keep this line at the very bottom of tmux.conf)
 run '~/.tmux/plugins/tpm/tpm'
 ```
 
-Reload TMUX environment so TPM is sourced:
+Reload TMUX environment so tpack is sourced:
 
 ```bash
 # type this in terminal if tmux is already running
@@ -74,7 +72,7 @@ find plugin directory there and remove it.
 
 ### Docs
 
-- [Help, tpm not working](docs/tpm_not_working.md) - problem solutions
+- [Help, tpack not working](docs/tpack_not_working.md) - problem solutions
 
 More advanced features and instructions, regular users probably do not need
 this:
@@ -82,18 +80,14 @@ this:
 - [How to create a plugin](docs/how_to_create_plugin.md). It's easy.
 - [Managing plugins via the command line](docs/managing_plugins_via_cmd_line.md)
 - [Changing plugins install dir](docs/changing_plugins_install_dir.md)
-- [Automatic TPM installation on a new machine](docs/automatic_tpm_installation.md)
+- [Automatic tpack installation on a new machine](docs/automatic_tpack_installation.md)
 
 ### Tests
 
-Tests for this project run on [Travis CI](https://travis-ci.org/tmux-plugins/tpm).
-
-When run locally, [vagrant](https://www.vagrantup.com/) is required.
 Run tests with:
 
 ```bash
-# within project directory
-./run_tests
+make test
 ```
 
 ### License
