@@ -40,12 +40,14 @@ release:
     owner: tmuxpack
     name: tpack
 
-homebrew_casks:
+brews:
   - name: tpack
-    binaries:
-      - tpack
     homepage: https://github.com/tmuxpack/tpack
     description: Tmux Plugin Manager
+    license: MIT
+    dependencies:
+      - name: tmux
+      - name: git
     repository:
       owner: tmuxpack
       name: homebrew-tpack

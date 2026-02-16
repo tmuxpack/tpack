@@ -4,7 +4,7 @@
 [![Release](https://github.com/tmuxpack/tpack/actions/workflows/release.yml/badge.svg)](https://github.com/tmuxpack/tpack/actions/workflows/release.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/tmuxpack/tpack)](https://github.com/tmuxpack/tpack/releases/latest)
 [![AUR](https://img.shields.io/aur/version/tpack-bin)](https://aur.archlinux.org/packages/tpack-bin)
-[![Homebrew](https://img.shields.io/homebrew/cask/v/tpack)](https://github.com/tmuxpack/homebrew-tpack)
+[![Homebrew](https://img.shields.io/badge/homebrew-tap-orange)](https://github.com/tmuxpack/homebrew-tpack)
 [![Go Version](https://img.shields.io/github/go-mod/go-version/tmuxpack/tpack)](https://go.dev/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE.md)
 
@@ -23,7 +23,7 @@ Requirements: `tmux` version 1.9 (or higher), `git`, `bash`.
 ### Homebrew (macOS / Linux)
 
 ```bash
-brew install --cask tmuxpack/tpack/tpack
+brew install tmuxpack/tpack/tpack
 ```
 
 ### AUR (Arch Linux)
