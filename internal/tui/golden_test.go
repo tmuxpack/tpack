@@ -8,6 +8,8 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/tmuxpack/tpack/internal/git"
 )
 
 var update = flag.Bool("update", false, "update golden files")
@@ -184,6 +186,117 @@ func TestGolden_ScreenList(t *testing.T) {
 					{Name: "tmux-sensible", Spec: "tmux-plugins/tmux-sensible", Status: StatusNotInstalled},
 					{Name: "tmux-yank", Spec: "tmux-plugins/tmux-yank", Status: StatusNotInstalled},
 					{Name: "tmux-resurrect", Spec: "tmux-plugins/tmux-resurrect", Status: StatusNotInstalled},
+				}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := newTestModel(t, nil)
+			tt.setup(&m)
+			assertGolden(t, tt.name, m.View())
+		})
+	}
+}
+
+func TestGolden_ScreenProgress(t *testing.T) {
+	tests := []struct {
+		name  string
+		setup func(m *Model)
+	}{
+		{
+			name: "progress_in_flight",
+			setup: func(m *Model) {
+				m.screen = ScreenProgress
+				m.operation = OpInstall
+				m.totalItems = 3
+				m.completedItems = 1
+				m.processing = true
+				m.inFlightNames = []string{"tmux-yank", "tmux-resurrect"}
+			},
+		},
+		{
+			name: "progress_complete_success",
+			setup: func(m *Model) {
+				m.screen = ScreenProgress
+				m.operation = OpInstall
+				m.totalItems = 3
+				m.completedItems = 3
+				m.processing = false
+				m.results = []ResultItem{
+					{Name: "tmux-sensible", Success: true, Message: "installed"},
+					{Name: "tmux-yank", Success: true, Message: "installed"},
+					{Name: "tmux-resurrect", Success: true, Message: "installed"},
+				}
+			},
+		},
+		{
+			name: "progress_complete_mixed",
+			setup: func(m *Model) {
+				m.screen = ScreenProgress
+				m.operation = OpInstall
+				m.totalItems = 3
+				m.completedItems = 3
+				m.processing = false
+				m.results = []ResultItem{
+					{Name: "tmux-sensible", Success: true, Message: "installed"},
+					{Name: "tmux-yank", Success: false, Message: "clone failed: timeout"},
+					{Name: "tmux-resurrect", Success: true, Message: "installed"},
+				}
+			},
+		},
+		{
+			name: "progress_complete_with_commits",
+			setup: func(m *Model) {
+				m.screen = ScreenProgress
+				m.operation = OpUpdate
+				m.totalItems = 3
+				m.completedItems = 3
+				m.processing = false
+				m.results = []ResultItem{
+					{Name: "tmux-sensible", Success: true, Message: "updated", Commits: []git.Commit{
+						{Hash: "abc1234", Message: "add feature X"},
+						{Hash: "def5678", Message: "fix bug Y"},
+						{Hash: "ghi9012", Message: "refactor Z"},
+					}},
+					{Name: "tmux-yank", Success: true, Message: "updated", Commits: []git.Commit{
+						{Hash: "jkl3456", Message: "bump version"},
+					}},
+					{Name: "tmux-resurrect", Success: true, Message: "already up-to-date"},
+				}
+			},
+		},
+		{
+			name: "progress_auto_op",
+			setup: func(m *Model) {
+				m.screen = ScreenProgress
+				m.operation = OpInstall
+				m.autoOp = OpInstall
+				m.totalItems = 2
+				m.completedItems = 2
+				m.processing = false
+				m.results = []ResultItem{
+					{Name: "tmux-sensible", Success: true, Message: "installed"},
+					{Name: "tmux-yank", Success: true, Message: "installed"},
+				}
+			},
+		},
+		{
+			name: "progress_many_results",
+			setup: func(m *Model) {
+				m.screen = ScreenProgress
+				m.operation = OpInstall
+				m.totalItems = 15
+				m.completedItems = 15
+				m.processing = false
+				m.results = make([]ResultItem, 15)
+				for i := range m.results {
+					m.results[i] = ResultItem{
+						Name:    fmt.Sprintf("plugin-%02d", i+1),
+						Success: i%3 != 2, // every 3rd fails
+						Message: "done",
+					}
 				}
 			},
 		},
