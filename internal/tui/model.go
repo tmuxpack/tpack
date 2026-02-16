@@ -269,6 +269,8 @@ func (m Model) updateProgress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
+	visible := m.displayResults()
+
 	if m.autoOp != OpNone {
 		switch {
 		case key.Matches(msg, SharedKeys.Quit), msg.String() == escKeyName:
@@ -276,9 +278,9 @@ func (m Model) updateProgress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, ListKeys.Up):
 			m.resultScroll.moveUp()
 		case key.Matches(msg, ListKeys.Down):
-			m.resultScroll.moveDown(len(m.results), m.resultMaxVisible())
+			m.resultScroll.moveDown(len(visible), m.resultMaxVisible())
 		case msg.String() == "enter":
-			m.showCommits()
+			m.showCommitsFromVisible(visible)
 		}
 		return m, nil
 	}
@@ -291,9 +293,9 @@ func (m Model) updateProgress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case key.Matches(msg, ListKeys.Up):
 		m.resultScroll.moveUp()
 	case key.Matches(msg, ListKeys.Down):
-		m.resultScroll.moveDown(len(m.results), m.resultMaxVisible())
+		m.resultScroll.moveDown(len(visible), m.resultMaxVisible())
 	case msg.String() == "enter":
-		m.showCommits()
+		m.showCommitsFromVisible(visible)
 	}
 	return m, nil
 }
@@ -307,12 +309,12 @@ func (m *Model) resultMaxVisible() int {
 	return v
 }
 
-// showCommits navigates to the inline commit viewer for the current result.
-func (m *Model) showCommits() bool {
-	if m.resultScroll.cursor < 0 || m.resultScroll.cursor >= len(m.results) {
+// showCommitsFromVisible navigates to the commit viewer using the given visible results slice.
+func (m *Model) showCommitsFromVisible(visible []ResultItem) bool {
+	if m.resultScroll.cursor < 0 || m.resultScroll.cursor >= len(visible) {
 		return false
 	}
-	r := m.results[m.resultScroll.cursor]
+	r := visible[m.resultScroll.cursor]
 	if len(r.Commits) == 0 {
 		return false
 	}
@@ -321,6 +323,11 @@ func (m *Model) showCommits() bool {
 	m.commitViewCommits = r.Commits
 	m.commitScroll.reset()
 	return true
+}
+
+// showCommits navigates to the inline commit viewer for the current result.
+func (m *Model) showCommits() bool {
+	return m.showCommitsFromVisible(m.displayResults())
 }
 
 // returnToProgress transitions back to the progress screen from the commit viewer.

@@ -46,27 +46,21 @@ func (m *Model) viewProgress() string {
 	b.WriteString("\n\n")
 
 	// Stats
-	successCount := 0
-	failCount := 0
-	for _, r := range m.results {
-		if r.Success {
-			successCount++
-		} else {
-			failCount++
-		}
-	}
-	stats := fmt.Sprintf("%s %d successful  %s %d failed",
-		m.theme.SuccessStyle.Render("✓"), successCount,
-		m.theme.ErrorStyle.Render("✗"), failCount,
-	)
+	stats := m.renderStats()
 	b.WriteString(m.centerText(m.theme.MutedTextStyle.Render(stats)))
 
 	// Show results detail if complete
+	visible := m.displayResults()
 	if !m.processing && len(m.results) > 0 {
-		b.WriteString("\n\n")
-		b.WriteString(m.centerBlock(m.renderResults()))
+		if len(visible) > 0 {
+			b.WriteString("\n\n")
+			b.WriteString(m.centerBlock(m.renderResults()))
+		}
 
-		helpKeys := []string{"enter", "view commits"}
+		var helpKeys []string
+		if len(visible) > 0 {
+			helpKeys = append(helpKeys, "enter", "view commits")
+		}
 		if m.autoOp != OpNone {
 			helpKeys = append(helpKeys, "q", "quit")
 		} else {
@@ -79,19 +73,36 @@ func (m *Model) viewProgress() string {
 	return b.String()
 }
 
+// displayResults returns the results to show in the list. For updates, only
+// plugins that actually changed or failed are shown; already up-to-date
+// plugins are excluded. For other operations, all results are returned.
+func (m *Model) displayResults() []ResultItem {
+	if m.operation != OpUpdate {
+		return m.results
+	}
+	var filtered []ResultItem
+	for _, r := range m.results {
+		if !r.Success || len(r.Commits) > 0 {
+			filtered = append(filtered, r)
+		}
+	}
+	return filtered
+}
+
 // renderResults renders the completed results list with cursor, commit counts, and scrolling.
 func (m *Model) renderResults() string {
+	visible := m.displayResults()
 	viewHeight := m.resultMaxVisible()
 	if viewHeight <= 0 {
-		viewHeight = len(m.results)
+		viewHeight = len(visible)
 	}
-	start, end := calculateVisibleRange(m.resultScroll.scrollOffset, viewHeight, len(m.results))
-	topIndicator, bottomIndicator, dataStart, dataEnd := m.theme.renderScrollIndicators(start, end, len(m.results))
+	start, end := calculateVisibleRange(m.resultScroll.scrollOffset, viewHeight, len(visible))
+	topIndicator, bottomIndicator, dataStart, dataEnd := m.theme.renderScrollIndicators(start, end, len(visible))
 
 	var rb strings.Builder
 	rb.WriteString(topIndicator)
 	for i := dataStart; i < dataEnd; i++ {
-		r := m.results[i]
+		r := visible[i]
 		cursor := "  "
 		if i == m.resultScroll.cursor {
 			cursor = "> "
@@ -105,6 +116,48 @@ func (m *Model) renderResults() string {
 	}
 	rb.WriteString(bottomIndicator)
 	return strings.TrimRight(rb.String(), "\n")
+}
+
+// renderStats returns the summary stats string for the progress screen.
+func (m *Model) renderStats() string {
+	if m.operation == OpUpdate {
+		return m.renderUpdateStats()
+	}
+	successCount := 0
+	failCount := 0
+	for _, r := range m.results {
+		if r.Success {
+			successCount++
+		} else {
+			failCount++
+		}
+	}
+	return fmt.Sprintf("%s %d successful  %s %d failed",
+		m.theme.SuccessStyle.Render("✓"), successCount,
+		m.theme.ErrorStyle.Render("✗"), failCount,
+	)
+}
+
+// renderUpdateStats returns the categorized summary for update operations.
+func (m *Model) renderUpdateStats() string {
+	upToDate := 0
+	updated := 0
+	failed := 0
+	for _, r := range m.results {
+		switch {
+		case !r.Success:
+			failed++
+		case len(r.Commits) > 0:
+			updated++
+		default:
+			upToDate++
+		}
+	}
+	return fmt.Sprintf("%d already up-to-date, %s %d updated, %s %d failed",
+		upToDate,
+		m.theme.SuccessStyle.Render("✓"), updated,
+		m.theme.ErrorStyle.Render("✗"), failed,
+	)
 }
 
 // renderSuccessResult renders a single successful result line with commit count and indicator.

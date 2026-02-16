@@ -433,11 +433,29 @@ func TestViewProgress_HelpShowsViewCommits(t *testing.T) {
 	m.processing = false
 	m.width = 100
 	m.results = []ResultItem{
-		{Name: "test", Success: true},
+		{Name: "test", Success: true, Commits: []git.Commit{{Hash: "abc", Message: "fix"}}},
 	}
 
 	view := m.View()
 	if !strings.Contains(view, "view commits") {
-		t.Error("expected help to contain 'view commits'")
+		t.Error("expected help to contain 'view commits' when updated plugins exist")
+	}
+}
+
+func TestViewProgress_HelpHidesViewCommitsWhenAllUpToDate(t *testing.T) {
+	m := newTestModel(t, nil)
+	m.screen = ScreenProgress
+	m.operation = OpUpdate
+	m.totalItems = 1
+	m.completedItems = 1
+	m.processing = false
+	m.width = 100
+	m.results = []ResultItem{
+		{Name: "test", Success: true},
+	}
+
+	view := m.View()
+	if strings.Contains(view, "view commits") {
+		t.Error("expected help to not contain 'view commits' when all plugins are up-to-date")
 	}
 }
