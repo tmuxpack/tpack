@@ -30,14 +30,53 @@ tpack adds features that TPM does not have:
 
 ## How to switch
 
-1. Install tpack using any method from the [Installation](installation.md) page. tpack installs to `~/.tmux/plugins/tpm` — the same path TPM uses — so it replaces TPM automatically.
-2. Reload your tmux config:
+=== "Change the git remote"
+
+    If you installed TPM with `git clone`, you can switch in place — no config
+    changes needed:
+
+    ```bash
+    cd ~/.tmux/plugins/tpm
+    git remote set-url origin https://github.com/tmuxpack/tpack
+    git pull
+    ```
+
+    The `run '~/.tmux/plugins/tpm/tpm'` line in your `tmux.conf` stays the same.
+
+    Reload tmux to pick up the new binary:
 
     ```bash
     tmux source ~/.tmux.conf
     ```
 
-That's it. No config changes needed.
+=== "Install via package manager"
+
+    If you prefer installing through a package manager (Homebrew, AUR, DEB/RPM)
+    or `go install`:
+
+    1. Install tpack using any method from the [Installation](installation.md)
+       page.
+    2. Replace the `run` line at the bottom of your `tmux.conf`:
+
+        ```bash
+        # Remove or comment out the old line:
+        # run '~/.tmux/plugins/tpm/tpm'
+
+        # Add:
+        run 'tpack init'
+        ```
+
+    3. Optionally remove the old TPM directory:
+
+        ```bash
+        rm -rf ~/.tmux/plugins/tpm
+        ```
+
+    4. Reload tmux:
+
+        ```bash
+        tmux source ~/.tmux.conf
+        ```
 
 !!! note
     Your existing plugins stay in place. tpack will manage them going forward exactly as TPM did, plus you get the new features listed above.

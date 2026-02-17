@@ -8,13 +8,13 @@
 [![Go Version](https://img.shields.io/github/go-mod/go-version/tmuxpack/tpack)](https://go.dev/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE.md)
 
+> **[Full Documentation](https://tmuxpack.github.io/tpack/)**
+
 A modern tmux plugin manager written in Go. **Drop-in replacement for
 [TPM](https://github.com/tmux-plugins/tpm)** — fully backward compatible with
 existing TPM configurations, plugins, and key bindings.
 
 Works on Linux, macOS, and FreeBSD.
-
-See list of plugins [here](https://github.com/tmux-plugins/list).
 
 ## Installation
 
@@ -61,7 +61,7 @@ make build
 # Binary is at dist/tpack
 ```
 
-### Configuration
+## Quick start
 
 Add to `~/.tmux.conf` (or `$XDG_CONFIG_HOME/tmux/tmux.conf`):
 
@@ -70,151 +70,48 @@ Add to `~/.tmux.conf` (or `$XDG_CONFIG_HOME/tmux/tmux.conf`):
 set -g @plugin 'tmuxpack/tpack'
 set -g @plugin 'tmux-plugins/tmux-sensible'
 
-# Other examples:
-# set -g @plugin 'github_username/plugin_name'
-# set -g @plugin 'github_username/plugin_name#branch'
-# set -g @plugin 'git@github.com:user/plugin'
-# set -g @plugin 'git@bitbucket.com:user/plugin'
-# set -g @plugin 'user/plugin alias=custom_name'
-
 # Initialize tpack (keep this line at the very bottom of tmux.conf)
 run '~/.tmux/plugins/tpm/tpm'
 ```
 
-Reload tmux so tpack is sourced:
+Reload tmux and press `prefix` + <kbd>I</kbd> to install plugins:
 
 ```bash
 tmux source ~/.tmux.conf
 ```
 
-## TPM compatibility
+See the [Getting Started](https://tmuxpack.github.io/tpack/getting-started/) guide for full setup instructions.
 
-tpack is a **drop-in replacement** for TPM. You can switch without changing your
-`tmux.conf` — all existing TPM settings, plugin declarations, environment
-variables, and key bindings continue to work:
+## Features
 
-- `set -g @tpm_plugins '...'` (legacy list syntax) and `set -g @plugin '...'`
-  are both supported
-- `@tpm-install`, `@tpm-update`, `@tpm-clean` options still work alongside the
-  `@tpack-*` equivalents
-- `TMUX_PLUGIN_MANAGER_PATH` is honored (as well as `TPACK_PLUGIN_PATH`)
-- Installs to `~/.tmux/plugins/tpm` — the same path TPM uses
+- **Drop-in TPM replacement** — no config changes needed when switching from TPM
+- **Interactive TUI** — browse, install, update, and uninstall plugins visually (`prefix` + <kbd>T</kbd>)
+- **CLI** — `tpack install`, `tpack update`, `tpack clean`, and more
+- **Automatic updates** — optional background update checking for plugins and tpack itself
+- **Customizable** — key bindings, colors, plugin directory, and update behavior
 
-## Installing plugins
+See the [full documentation](https://tmuxpack.github.io/tpack/) for details on configuration, usage, and the CLI reference.
 
-1. Add new plugin to `~/.tmux.conf` with `set -g @plugin '...'`
-2. Press `prefix` + <kbd>I</kbd> (capital i, as in **I**nstall) to fetch the plugin.
+## Migrating from TPM
 
-The plugin is cloned to `~/.tmux/plugins/` and sourced automatically.
+tpack is a drop-in replacement for TPM. Two ways to switch:
 
-## Uninstalling plugins
+- **Git remote** — if you `git clone`d TPM, just point the remote at tpack and
+  pull. No `tmux.conf` changes needed:
 
-1. Remove (or comment out) plugin from the list.
-2. Press `prefix` + <kbd>alt</kbd> + <kbd>u</kbd> (lowercase u as in **u**ninstall) to remove the plugin.
+  ```bash
+  cd ~/.tmux/plugins/tpm
+  git remote set-url origin https://github.com/tmuxpack/tpack
+  git pull
+  ```
 
-All plugins are installed to `~/.tmux/plugins/` so alternatively you can
-find the plugin directory there and remove it.
+- **Package manager** — install tpack via Homebrew, AUR, DEB/RPM, or
+  `go install`, then replace the `run` line in your `tmux.conf` with
+  `run 'tpack init'`.
 
-## Interactive TUI
-
-tpack includes a built-in terminal UI for managing plugins interactively.
-
-Press `prefix` + <kbd>T</kbd> to open the TUI (launches in a tmux popup on
-tmux 3.2+, falls back to inline on older versions).
-
-From the TUI you can browse installed plugins, install, update, uninstall, or
-clean with multi-select, watch progress in real time, and inspect commit
-history for recent updates.
-
-The install, update, and clean key bindings (`prefix` + <kbd>I</kbd>,
-`prefix` + <kbd>U</kbd>, `prefix` + <kbd>alt</kbd> + <kbd>u</kbd>) also open
-the TUI with the corresponding operation pre-selected.
-
-## CLI
-
-The `tpack` binary can be used directly from the command line:
-
-```bash
-tpack install          # Install all plugins from tmux.conf
-tpack update [name]    # Update a specific plugin (or all)
-tpack clean            # Remove plugins not in tmux.conf
-tpack source           # Source plugins without installing
-tpack tui              # Open the interactive TUI
-tpack version          # Print version
-```
-
-## Key bindings
-
-`prefix` + <kbd>I</kbd>
-- Installs new plugins from GitHub or any other git repository
-- Refreshes tmux environment
-
-`prefix` + <kbd>U</kbd>
-- Updates plugin(s)
-
-`prefix` + <kbd>alt</kbd> + <kbd>u</kbd>
-- Remove/uninstall plugins not on the plugin list
-
-`prefix` + <kbd>T</kbd>
-- Opens the interactive TUI
-
-All key bindings can be customized via tmux options:
-
-```bash
-set -g @tpack-install 'I'   # default: I
-set -g @tpack-update  'U'   # default: U
-set -g @tpack-clean   'M-u' # default: M-u
-set -g @tpack-tui     'T'   # default: T
-```
-
-## Automatic updates
-
-tpack can periodically check for plugin updates in the background. To enable,
-add to `tmux.conf`:
-
-```bash
-set -g @tpack-update-mode 'prompt'       # "prompt", "auto", or "off" (default: off)
-set -g @tpack-update-interval '24h'      # how often to check (Go duration)
-```
-
-- **prompt** — display a message when updates are available; you update manually.
-- **auto** — automatically update outdated plugins in the background.
-- **off** — disable update checking (default).
-
-### Self-update
-
-When tpack is installed via auto-download or git clone, the binary can update
-itself from GitHub releases. It checks once every 24 hours. To pin a specific
-version and disable self-update:
-
-```bash
-set -g @tpack-version '1.2.3'
-```
-
-## Color customization
-
-Override the TUI color palette with tmux options:
-
-```bash
-set -g @tpack-color-primary   '#89b4fa'
-set -g @tpack-color-secondary '#a6e3a1'
-set -g @tpack-color-accent    '#f9e2af'
-set -g @tpack-color-error     '#f38ba8'
-set -g @tpack-color-muted     '#6c7086'
-set -g @tpack-color-text      '#cdd6f4'
-```
-
-## Documentation
-
-Full documentation is available at [tmuxpack.github.io/tpack](https://tmuxpack.github.io/tpack/).
-
-## Tests
-
-Run tests with:
-
-```bash
-make test
-```
+See the
+[full migration guide](https://tmuxpack.github.io/tpack/getting-started/migrating-from-tpm/)
+for details.
 
 ## Acknowledgments
 
