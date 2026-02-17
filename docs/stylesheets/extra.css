@@ -1,9 +1,9 @@
 :root {
-  --md-primary-fg-color: #89b4fa;
-  --md-accent-fg-color: #a6e3a1;
+  --md-primary-fg-color: #1e66f5;
+  --md-accent-fg-color: #40a02b;
 }
 
 [data-md-color-scheme="slate"] {
-  --md-primary-fg-color: #89b4fa;
+  --md-primary-fg-color: #1e66f5;
   --md-accent-fg-color: #a6e3a1;
 }
