@@ -2,7 +2,7 @@ VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev
 LDFLAGS := -ldflags "-X main.version=$(VERSION)"
 BINARY := tpack
 
-.PHONY: build test test-unit test-integration test-e2e vet lint lint-fix coverage clean-build setup-hooks
+.PHONY: build test test-unit test-integration test-e2e vet lint lint-fix coverage clean-build setup-hooks docs-serve
 
 build:
 	go build $(LDFLAGS) -o dist/$(BINARY) ./cmd/tpack
@@ -49,3 +49,6 @@ clean-build:
 
 setup-hooks:
 	git config core.hooksPath .githooks
+
+docs-serve:
+	mkdocs serve

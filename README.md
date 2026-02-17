@@ -143,9 +143,6 @@ tpack tui              # Open the interactive TUI
 tpack version          # Print version
 ```
 
-See also [Managing plugins via the command line](docs/managing_plugins_via_cmd_line.md)
-for the shell wrapper scripts.
-
 ## Key bindings
 
 `prefix` + <kbd>I</kbd>
@@ -207,17 +204,9 @@ set -g @tpack-color-muted     '#6c7086'
 set -g @tpack-color-text      '#cdd6f4'
 ```
 
-## Docs
+## Documentation
 
-- [Help, tpack not working](docs/tpack_not_working.md) - problem solutions
-
-More advanced features and instructions, regular users probably do not need
-this:
-
-- [How to create a plugin](docs/how_to_create_plugin.md). It's easy.
-- [Managing plugins via the command line](docs/managing_plugins_via_cmd_line.md)
-- [Changing plugins install dir](docs/changing_plugins_install_dir.md)
-- [Automatic tpack installation on a new machine](docs/automatic_tpack_installation.md)
+Full documentation is available at [tmuxpack.github.io/tpack](https://tmuxpack.github.io/tpack/).
 
 ## Tests
 
