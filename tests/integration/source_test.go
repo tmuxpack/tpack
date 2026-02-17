@@ -1,6 +1,7 @@
 package integration_test
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -41,7 +42,7 @@ func TestSourceExecutesTmuxFiles(t *testing.T) {
 	plugins := []plug.Plugin{
 		{Raw: "test-plugin", Name: "test-plugin", Spec: "test-plugin"},
 	}
-	mgr.Source(plugins)
+	mgr.Source(context.Background(), plugins)
 
 	if _, err := os.Stat(markerFile); err != nil {
 		t.Errorf("expected marker file to exist after Source(), got: %v", err)
@@ -63,7 +64,7 @@ func TestSourceSkipsNonExistentPluginDir(t *testing.T) {
 	}
 
 	// Should not panic or error.
-	mgr.Source(plugins)
+	mgr.Source(context.Background(), plugins)
 
 	if output.HasFailed() {
 		t.Errorf("expected no errors for non-existent plugin dir, got: %v", output.ErrMsgs)

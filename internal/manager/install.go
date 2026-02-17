@@ -10,7 +10,7 @@ import (
 
 func (m *Manager) verifyPathPermissions() {
 	// Probe actual write access by attempting to create a temp file.
-	f, err := os.CreateTemp(m.pluginPath, ".tpm-probe-*")
+	f, err := os.CreateTemp(m.pluginPath, ".tpack-probe-*")
 	if err != nil {
 		m.output.Err(m.pluginPath + " is not writable!")
 		return

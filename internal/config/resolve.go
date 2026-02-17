@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"time"
@@ -78,6 +79,10 @@ func Resolve(runner tmux.Runner, opts ...Option) (*Config, error) {
 		opt(o)
 	}
 
+	if o.home == "" {
+		return nil, errors.New("could not determine home directory")
+	}
+
 	cfg := &Config{
 		InstallKey: DefaultInstallKey,
 		UpdateKey:  DefaultUpdateKey,
@@ -150,23 +155,20 @@ func resolvePluginPath(runner tmux.Runner, o *resolveOpts) string {
 // resolveColors reads per-color tmux options into a ColorConfig.
 func resolveColors(runner tmux.Runner) ColorConfig {
 	var c ColorConfig
-	if v, err := runner.ShowOption(ColorPrimaryOption); err == nil && v != "" {
-		c.Primary = v
-	}
-	if v, err := runner.ShowOption(ColorSecondaryOption); err == nil && v != "" {
-		c.Secondary = v
-	}
-	if v, err := runner.ShowOption(ColorAccentOption); err == nil && v != "" {
-		c.Accent = v
-	}
-	if v, err := runner.ShowOption(ColorErrorOption); err == nil && v != "" {
-		c.Error = v
-	}
-	if v, err := runner.ShowOption(ColorMutedOption); err == nil && v != "" {
-		c.Muted = v
-	}
-	if v, err := runner.ShowOption(ColorTextOption); err == nil && v != "" {
-		c.Text = v
+	for _, entry := range []struct {
+		option string
+		field  *string
+	}{
+		{ColorPrimaryOption, &c.Primary},
+		{ColorSecondaryOption, &c.Secondary},
+		{ColorAccentOption, &c.Accent},
+		{ColorErrorOption, &c.Error},
+		{ColorMutedOption, &c.Muted},
+		{ColorTextOption, &c.Text},
+	} {
+		if v, err := runner.ShowOption(entry.option); err == nil && v != "" {
+			*entry.field = v
+		}
 	}
 	return c
 }

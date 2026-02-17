@@ -146,7 +146,7 @@ func TestCleanRemovesUnlistedPlugins(t *testing.T) {
 	// Clean with empty plugin list (should remove the plugin).
 	cleanOutput := ui.NewMockOutput()
 	mgr2 := manager.New(pluginDir, cloner, puller, validator, cleanOutput)
-	mgr2.Clean(nil)
+	mgr2.Clean(context.Background(), nil)
 
 	dir := filepath.Join(pluginDir, "tmux-example-plugin")
 	if _, err := os.Stat(dir); !os.IsNotExist(err) {

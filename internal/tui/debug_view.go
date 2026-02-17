@@ -5,6 +5,8 @@ import (
 	"strings"
 )
 
+const unknownPlaceholder = "unknown"
+
 // viewDebug renders the debug information screen.
 func (m *Model) viewDebug() string {
 	var b strings.Builder
@@ -14,11 +16,11 @@ func (m *Model) viewDebug() string {
 
 	ver := m.version
 	if ver == "" {
-		ver = "unknown"
+		ver = unknownPlaceholder
 	}
 	bin := m.binaryPath
 	if bin == "" {
-		bin = "unknown"
+		bin = unknownPlaceholder
 	}
 
 	b.WriteString(fmt.Sprintf("  %s  %s\n", m.theme.HelpKeyStyle.Render("Version:"), ver))

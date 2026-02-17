@@ -1,6 +1,7 @@
 package manager_test
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -28,7 +29,7 @@ func TestCleanRemovesUnlisted(t *testing.T) {
 		{Name: "tmux-sensible"},
 	}
 
-	mgr.Clean(plugins)
+	mgr.Clean(context.Background(), plugins)
 
 	// tmux-old should be removed.
 	if _, err := os.Stat(filepath.Join(pluginDir, "tmux-old")); !os.IsNotExist(err) {
@@ -75,7 +76,7 @@ func TestCleanNeverRemovesTpm(t *testing.T) {
 		{Name: "tmux-sensible"},
 	}
 
-	mgr.Clean(plugins)
+	mgr.Clean(context.Background(), plugins)
 
 	// tpm should still exist.
 	if _, err := os.Stat(filepath.Join(pluginDir, "tpm")); err != nil {
@@ -98,7 +99,7 @@ func TestCleanNoPluginsToRemove(t *testing.T) {
 		{Name: "tmux-sensible"},
 	}
 
-	mgr.Clean(plugins)
+	mgr.Clean(context.Background(), plugins)
 
 	// No remove messages.
 	for _, msg := range output.OkMsgs {

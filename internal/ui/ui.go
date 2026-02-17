@@ -1,4 +1,4 @@
-// Package ui provides output abstractions for TPM.
+// Package ui provides output abstractions for tpack.
 package ui
 
 // Output abstracts message display for different output modes.

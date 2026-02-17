@@ -2,6 +2,7 @@
 package state
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"time"
@@ -20,13 +21,15 @@ type State struct {
 // Load reads state from statePath/state.yml.
 // Returns zero-value State on any error.
 func Load(statePath string) State {
-	data, err := os.ReadFile(filepath.Join(statePath, stateFile))
+	p := filepath.Join(statePath, stateFile)
+	data, err := os.ReadFile(p)
 	if err != nil {
 		return State{}
 	}
 
 	var s State
 	if err := yaml.Unmarshal(data, &s); err != nil {
+		fmt.Fprintf(os.Stderr, "tpack: warning: corrupt state file %s: %v\n", p, err)
 		return State{}
 	}
 	return s

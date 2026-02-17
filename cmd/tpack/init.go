@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -51,7 +52,7 @@ func runInit() int {
 
 	plugins := config.GatherPlugins(runner, config.RealFS{}, cfg.TmuxConf, cfg.Home)
 
-	mgr.Source(plugins)
+	mgr.Source(context.Background(), plugins)
 
 	// Spawn background update check if configured.
 	if shouldSpawnUpdateCheck(cfg) {

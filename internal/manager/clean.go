@@ -13,11 +13,7 @@ func (m *Manager) cleanPlugins(plugins []plug.Plugin) {
 		if err := os.RemoveAll(o.Path); err != nil {
 			m.output.Err("  \"" + o.Name + "\" clean fail")
 		} else {
-			if _, statErr := os.Stat(o.Path); statErr == nil {
-				m.output.Err("  \"" + o.Name + "\" clean fail")
-			} else {
-				m.output.Ok("  \"" + o.Name + "\" clean success")
-			}
+			m.output.Ok("  \"" + o.Name + "\" clean success")
 		}
 	}
 }

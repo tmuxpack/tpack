@@ -1,4 +1,4 @@
-// Package git provides interfaces for git operations used by TPM.
+// Package git provides interfaces for git operations used by tpack.
 package git
 
 import "context"

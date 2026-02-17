@@ -26,6 +26,7 @@ const (
 	selfUpdateTimeout  = 30 * time.Second
 	githubAPIURL       = "https://api.github.com/repos/tmuxpack/tpack/releases/latest"
 	githubDownloadURL  = "https://github.com/tmuxpack/tpack/releases/download"
+	maxBinarySize      = 50 * 1024 * 1024 // 50 MiB safety limit for extracted binary
 )
 
 // selfUpdateResult represents the outcome of a self-update check.
@@ -203,7 +204,10 @@ func downloadAndExtract(url string) (string, func(), error) {
 
 	cleanup := func() { _ = os.RemoveAll(tmpDir) }
 
-	binaryPath, err := extractBinaryFromArchive(resp.Body, tmpDir)
+	// Cap download to maxBinarySize + overhead for archive compression and headers.
+	limitedBody := io.LimitReader(resp.Body, maxBinarySize+1024*1024)
+
+	binaryPath, err := extractBinaryFromArchive(limitedBody, tmpDir)
 	if err != nil {
 		cleanup()
 		return "", nil, err
@@ -235,6 +239,10 @@ func extractBinaryFromArchive(r io.Reader, destDir string) (string, error) {
 		// Only extract regular files named tpack (skip symlinks, dirs, etc.).
 		if hdr.Typeflag != tar.TypeReg || filepath.Base(hdr.Name) != binaryName {
 			continue
+		}
+
+		if hdr.Size > maxBinarySize {
+			return "", fmt.Errorf("binary too large: %d bytes (max %d)", hdr.Size, maxBinarySize)
 		}
 
 		dest := filepath.Join(destDir, binaryName)

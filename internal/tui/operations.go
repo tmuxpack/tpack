@@ -136,9 +136,6 @@ func removeDirCmd(op pendingOp, msgFactory func(name string, success bool, messa
 		if err := os.RemoveAll(op.Path); err != nil {
 			return msgFactory(op.Name, false, err.Error())
 		}
-		if _, statErr := os.Stat(op.Path); statErr == nil {
-			return msgFactory(op.Name, false, "directory still exists after removal")
-		}
 		return msgFactory(op.Name, true, "removed successfully")
 	}
 }

@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -611,6 +612,37 @@ func TestDownloadAndExtractInvalidArchive(t *testing.T) {
 	_, _, err := downloadAndExtract(server.URL)
 	if err == nil {
 		t.Error("expected error for invalid archive")
+	}
+}
+
+func TestExtractBinaryRejectsOversized(t *testing.T) {
+	// Create a tar.gz archive with a header claiming a size larger than maxBinarySize.
+	var buf bytes.Buffer
+	gw := gzip.NewWriter(&buf)
+	tw := tar.NewWriter(gw)
+
+	hdr := &tar.Header{
+		Name: "tpack",
+		Mode: 0o755,
+		Size: maxBinarySize + 1,
+	}
+	if err := tw.WriteHeader(hdr); err != nil {
+		t.Fatalf("failed to write tar header: %v", err)
+	}
+	// Write just a small amount of actual data — the size check is on hdr.Size.
+	if _, err := tw.Write([]byte("x")); err != nil {
+		t.Fatalf("failed to write tar content: %v", err)
+	}
+	tw.Close()
+	gw.Close()
+
+	tmpDir := t.TempDir()
+	_, err := extractBinaryFromArchive(&buf, tmpDir)
+	if err == nil {
+		t.Fatal("expected error for oversized binary, got nil")
+	}
+	if !strings.Contains(err.Error(), "binary too large") {
+		t.Errorf("error = %q, want it to contain 'binary too large'", err.Error())
 	}
 }
 

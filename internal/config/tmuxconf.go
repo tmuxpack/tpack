@@ -37,31 +37,31 @@ func GatherPlugins(runner tmux.Runner, fs FS, tmuxConf, home string) []plug.Plug
 
 // configContent reads /etc/tmux.conf + user tmux.conf + one level of sourced files.
 func configContent(fs FS, tmuxConf, home string) string {
-	var parts []string
+	var b strings.Builder
 
 	// /etc/tmux.conf (system config)
 	if data, err := fs.ReadFile("/etc/tmux.conf"); err == nil {
-		parts = append(parts, string(data))
+		b.Write(data)
 	}
 
 	// User tmux.conf
 	if data, err := fs.ReadFile(tmuxConf); err == nil {
-		parts = append(parts, string(data))
+		if b.Len() > 0 {
+			b.WriteByte('\n')
+		}
+		b.Write(data)
 	}
 
-	base := strings.Join(parts, "\n")
+	base := b.String()
 
 	// Sourced files (one level deep, not recursive).
-	var sourced []string
 	for _, file := range plug.ExtractSourcedFiles(base) {
 		expanded := plug.ManualExpansion(file, home)
 		if data, err := fs.ReadFile(expanded); err == nil {
-			sourced = append(sourced, string(data))
+			b.WriteByte('\n')
+			b.Write(data)
 		}
 	}
 
-	if len(sourced) > 0 {
-		return base + "\n" + strings.Join(sourced, "\n")
-	}
-	return base
+	return b.String()
 }

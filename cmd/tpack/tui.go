@@ -10,6 +10,7 @@ import (
 	"github.com/tmuxpack/tpack/internal/config"
 	"github.com/tmuxpack/tpack/internal/git"
 	"github.com/tmuxpack/tpack/internal/plug"
+	"github.com/tmuxpack/tpack/internal/shell"
 	"github.com/tmuxpack/tpack/internal/tmux"
 	"github.com/tmuxpack/tpack/internal/tui"
 )
@@ -94,7 +95,7 @@ func launchPopup(
 	}
 
 	// Build the subprocess command.
-	subcmd := shellEscapeSingleQuoted(binary) + " tui"
+	subcmd := shell.Quote(binary) + " tui"
 	if autoOp != tui.OpNone {
 		subcmd += " --" + strings.ToLower(autoOp.String())
 	}
@@ -126,13 +127,4 @@ const popupMinVersion = 302
 // display-popup (introduced in tmux 3.2).
 func popupSupported(versionStr string) bool {
 	return tmux.ParseVersionDigits(versionStr) >= popupMinVersion
-}
-
-// shellEscapeSingleQuoted wraps s in single quotes for safe use as a POSIX
-// shell argument. In single-quoted strings, only the single quote itself needs
-// escaping (using the '\” break-and-rejoin technique). Null bytes are stripped
-// as they can truncate shell arguments.
-func shellEscapeSingleQuoted(s string) string {
-	s = strings.ReplaceAll(s, "\x00", "")
-	return "'" + strings.ReplaceAll(s, "'", "'\\''") + "'"
 }

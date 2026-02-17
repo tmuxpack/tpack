@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 
@@ -28,7 +29,7 @@ func runClean(args []string) int {
 
 	plugins := config.GatherPlugins(runner, config.RealFS{}, cfg.TmuxConf, cfg.Home)
 
-	mgr.Clean(plugins)
+	mgr.Clean(context.Background(), plugins)
 
 	if tmuxEcho {
 		_ = runner.SourceFile(cfg.TmuxConf)

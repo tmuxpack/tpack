@@ -1,6 +1,7 @@
 package manager_test
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -32,7 +33,7 @@ func TestSourceExecutesTmuxFiles(t *testing.T) {
 		{Name: "tmux-test"},
 	}
 
-	mgr.Source(plugins)
+	mgr.Source(context.Background(), plugins)
 
 	if _, err := os.Stat(marker); err != nil {
 		t.Error("expected *.tmux file to be executed")
@@ -54,5 +55,5 @@ func TestSourceSkipsNonExistentDir(t *testing.T) {
 	}
 
 	// Should not panic.
-	mgr.Source(plugins)
+	mgr.Source(context.Background(), plugins)
 }

@@ -77,8 +77,7 @@ func NewCLIValidator() *CLIValidator {
 }
 
 func (c *CLIValidator) IsGitRepo(dir string) bool {
-	cmd := exec.Command("git", "remote") //nolint:noctx // fast local check, no cancellation needed
-	cmd.Dir = dir
+	cmd := exec.Command("git", "-C", dir, "rev-parse", "--git-dir") //nolint:noctx // fast local check, no cancellation needed
 	return cmd.Run() == nil
 }
 

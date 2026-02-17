@@ -11,6 +11,7 @@ import (
 
 	"github.com/tmuxpack/tpack/internal/config"
 	"github.com/tmuxpack/tpack/internal/git"
+	"github.com/tmuxpack/tpack/internal/parallel"
 	"github.com/tmuxpack/tpack/internal/plug"
 	"github.com/tmuxpack/tpack/internal/state"
 	"github.com/tmuxpack/tpack/internal/tmux"
@@ -64,41 +65,38 @@ func findOutdatedPlugins(plugins []plug.Plugin, pluginPath string) []string {
 	validator := git.NewCLIValidator()
 	fetcher := git.NewCLIFetcher()
 
+	type target struct {
+		name string
+		dir  string
+	}
+
+	var targets []target
+	for _, p := range plugins {
+		dir := plug.PluginPath(p.Name, pluginPath)
+		if validator.IsGitRepo(dir) {
+			targets = append(targets, target{name: p.Name, dir: dir})
+		}
+	}
+
 	var (
 		mu       sync.Mutex
 		outdated []string
-		wg       sync.WaitGroup
 	)
 
-	sem := make(chan struct{}, maxConcurrentChecks)
+	parallel.Do(targets, maxConcurrentChecks, func(t target) {
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
 
-	for _, p := range plugins {
-		dir := plug.PluginPath(p.Name, pluginPath)
-		if !validator.IsGitRepo(dir) {
-			continue
+		isOutdated, err := fetcher.IsOutdated(ctx, t.dir)
+		if err != nil || !isOutdated {
+			return
 		}
 
-		wg.Add(1)
-		go func(name, dir string) {
-			defer wg.Done()
-			sem <- struct{}{}
-			defer func() { <-sem }()
+		mu.Lock()
+		outdated = append(outdated, t.name)
+		mu.Unlock()
+	})
 
-			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-			defer cancel()
-
-			isOutdated, err := fetcher.IsOutdated(ctx, dir)
-			if err != nil || !isOutdated {
-				return
-			}
-
-			mu.Lock()
-			outdated = append(outdated, name)
-			mu.Unlock()
-		}(p.Name, dir)
-	}
-
-	wg.Wait()
 	return outdated
 }
 

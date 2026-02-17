@@ -67,6 +67,21 @@ func runUpdatePrompt(runner *tmux.RealRunner, cfg *config.Config) {
 	// Reload environment.
 	_ = runner.SourceFile(cfg.TmuxConf)
 
+	listInstalledPlugins(runner, cfg, output)
+
+	output.Ok("")
+	output.Ok("Type plugin name to update it.")
+	output.Ok("")
+	output.Ok("- \"all\" - updates all plugins")
+	output.Ok("- ENTER - cancels")
+
+	binary := findBinary()
+	_ = runner.CommandPrompt("plugin update:",
+		"send-keys C-c; run-shell '"+binary+" update --tmux-echo %1'")
+}
+
+// listInstalledPlugins displays the list of installed plugins via output.
+func listInstalledPlugins(runner *tmux.RealRunner, cfg *config.Config, output ui.Output) {
 	plugins := config.GatherPlugins(runner, config.RealFS{}, cfg.TmuxConf, cfg.Home)
 
 	output.Ok("Installed plugins:")
@@ -79,14 +94,4 @@ func runUpdatePrompt(runner *tmux.RealRunner, cfg *config.Config) {
 			output.Ok("  " + p.Name)
 		}
 	}
-
-	output.Ok("")
-	output.Ok("Type plugin name to update it.")
-	output.Ok("")
-	output.Ok("- \"all\" - updates all plugins")
-	output.Ok("- ENTER - cancels")
-
-	binary := findBinary()
-	_ = runner.CommandPrompt("plugin update:",
-		"send-keys C-c; run-shell '"+binary+" update --tmux-echo %1'")
 }

@@ -1,4 +1,4 @@
-// Package manager orchestrates TPM plugin operations.
+// Package manager orchestrates tpack plugin operations.
 package manager
 
 import (
@@ -71,7 +71,7 @@ func (m *Manager) Update(ctx context.Context, plugins []plug.Plugin, names []str
 }
 
 // Clean removes plugin directories not in the list.
-func (m *Manager) Clean(plugins []plug.Plugin) {
+func (m *Manager) Clean(_ context.Context, plugins []plug.Plugin) {
 	if err := m.EnsurePathExists(); err != nil {
 		m.output.Err("Failed to create plugin directory: " + err.Error())
 		return

@@ -1,4 +1,4 @@
-# tpack - Tmux Plugin Manager
+# tpack - A Tmux Plugin Manager
 
 [![CI](https://github.com/tmuxpack/tpack/actions/workflows/ci.yml/badge.svg)](https://github.com/tmuxpack/tpack/actions/workflows/ci.yml)
 [![Release](https://github.com/tmuxpack/tpack/actions/workflows/release.yml/badge.svg)](https://github.com/tmuxpack/tpack/actions/workflows/release.yml)
@@ -80,17 +80,21 @@ Reload tmux and press `prefix` + <kbd>I</kbd> to install plugins:
 tmux source ~/.tmux.conf
 ```
 
-See the [Getting Started](https://tmuxpack.github.io/tpack/getting-started/) guide for full setup instructions.
+See the [Getting Started](https://tmuxpack.github.io/tpack/getting-started/)
+guide for full setup instructions.
 
 ## Features
 
 - **Drop-in TPM replacement** — no config changes needed when switching from TPM
-- **Interactive TUI** — browse, install, update, and uninstall plugins visually (`prefix` + <kbd>T</kbd>)
+- **Interactive TUI** — browse, install, update, and uninstall plugins visually
+  (`prefix` + <kbd>T</kbd>)
 - **CLI** — `tpack install`, `tpack update`, `tpack clean`, and more
-- **Automatic updates** — optional background update checking for plugins and tpack itself
+- **Automatic updates** — optional background update checking for plugins and
+  tpack itself
 - **Customizable** — key bindings, colors, plugin directory, and update behavior
 
-See the [full documentation](https://tmuxpack.github.io/tpack/) for details on configuration, usage, and the CLI reference.
+See the [full documentation](https://tmuxpack.github.io/tpack/) for details on
+configuration, usage, and the CLI reference.
 
 ## Migrating from TPM
 

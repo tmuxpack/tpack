@@ -10,7 +10,7 @@ func (m *Model) viewList() string {
 	var b strings.Builder
 
 	// Title
-	b.WriteString(m.centerText(m.theme.TitleStyle.Render("  TPM Plugin Manager  ")))
+	b.WriteString(m.centerText(m.theme.TitleStyle.Render("  tpack  ")))
 	b.WriteString("\n")
 
 	subtitle := m.statusSummary()

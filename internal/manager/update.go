@@ -3,9 +3,9 @@ package manager
 import (
 	"context"
 	"strings"
-	"sync"
 
 	"github.com/tmuxpack/tpack/internal/git"
+	"github.com/tmuxpack/tpack/internal/parallel"
 	"github.com/tmuxpack/tpack/internal/plug"
 )
 
@@ -15,21 +15,16 @@ func (m *Manager) updateAll(ctx context.Context, plugins []plug.Plugin) {
 	m.output.Ok("Updating all plugins!")
 	m.output.Ok("")
 
-	var wg sync.WaitGroup
-	sem := make(chan struct{}, maxConcurrentUpdates)
+	var installed []plug.Plugin
 	for _, p := range plugins {
-		if !m.IsPluginInstalled(p.Name) {
-			continue
+		if m.IsPluginInstalled(p.Name) {
+			installed = append(installed, p)
 		}
-		wg.Add(1)
-		go func(p plug.Plugin) {
-			defer wg.Done()
-			sem <- struct{}{}
-			defer func() { <-sem }()
-			m.updatePlugin(ctx, p)
-		}(p)
 	}
-	wg.Wait()
+
+	parallel.Do(installed, maxConcurrentUpdates, func(p plug.Plugin) {
+		m.updatePlugin(ctx, p)
+	})
 }
 
 func (m *Manager) updateSpecific(ctx context.Context, plugins []plug.Plugin, names []string) {
@@ -39,8 +34,7 @@ func (m *Manager) updateSpecific(ctx context.Context, plugins []plug.Plugin, nam
 		pluginMap[p.Name] = p
 	}
 
-	var wg sync.WaitGroup
-	sem := make(chan struct{}, maxConcurrentUpdates)
+	var targets []plug.Plugin
 	for _, name := range names {
 		pName := plug.PluginName(name)
 		if !m.IsPluginInstalled(pName) {
@@ -51,15 +45,12 @@ func (m *Manager) updateSpecific(ctx context.Context, plugins []plug.Plugin, nam
 		if p.Name == "" {
 			p = plug.Plugin{Name: pName} // Fallback if not found in config.
 		}
-		wg.Add(1)
-		go func(p plug.Plugin) {
-			defer wg.Done()
-			sem <- struct{}{}
-			defer func() { <-sem }()
-			m.updatePlugin(ctx, p)
-		}(p)
+		targets = append(targets, p)
 	}
-	wg.Wait()
+
+	parallel.Do(targets, maxConcurrentUpdates, func(p plug.Plugin) {
+		m.updatePlugin(ctx, p)
+	})
 }
 
 func (m *Manager) updatePlugin(ctx context.Context, p plug.Plugin) {

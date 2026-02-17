@@ -1,6 +1,8 @@
 package plug
 
 import (
+	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 )
@@ -14,6 +16,12 @@ import (
 func PluginName(raw string) string {
 	base := filepath.Base(raw)
 	return strings.TrimSuffix(base, ".git")
+}
+
+// warnExtraTokens logs a warning when a plugin spec contains unexpected extra tokens.
+func warnExtraTokens(raw string, extra []string) {
+	fmt.Fprintf(os.Stderr, "tpack: warning: plugin spec %q has unexpected extra tokens: %s\n",
+		raw, strings.Join(extra, " "))
 }
 
 // PluginPath returns the directory path for a plugin.
@@ -60,6 +68,9 @@ func ParseSpec(raw string) Plugin {
 	spec := ""
 	if len(specTokens) > 0 {
 		spec = specTokens[0]
+	}
+	if len(specTokens) > 1 {
+		warnExtraTokens(raw, specTokens[1:])
 	}
 
 	// Extract branch from spec if present.

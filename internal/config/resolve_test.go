@@ -17,6 +17,18 @@ func testOpts(fs config.FS) []config.Option {
 	}
 }
 
+func TestResolveEmptyHomeReturnsError(t *testing.T) {
+	m := tmux.NewMockRunner()
+	fs := config.NewMockFS()
+
+	t.Setenv("HOME", "")
+
+	_, err := config.Resolve(m, config.WithFS(fs), config.WithHome(""))
+	if err == nil {
+		t.Fatal("expected error for empty home, got nil")
+	}
+}
+
 func TestResolveDefaults(t *testing.T) {
 	m := tmux.NewMockRunner()
 	fs := config.NewMockFS()

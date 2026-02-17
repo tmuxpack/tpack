@@ -5,6 +5,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/tmuxpack/tpack/internal/shell"
 	"github.com/tmuxpack/tpack/internal/tmux"
 )
 
@@ -23,14 +24,14 @@ func NewTmuxOutput(runner tmux.Runner) *TmuxOutput {
 func (t *TmuxOutput) Ok(msg string) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	_ = t.runner.RunShell("echo '" + shellEscapeSingleQuoted(msg) + "'")
+	_ = t.runner.RunShell("echo '" + shell.EscapeInSingleQuotes(msg) + "'")
 }
 
 func (t *TmuxOutput) Err(msg string) {
 	t.failed.Store(true)
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	_ = t.runner.RunShell("echo '" + shellEscapeSingleQuoted(msg) + "'")
+	_ = t.runner.RunShell("echo '" + shell.EscapeInSingleQuotes(msg) + "'")
 }
 
 func (t *TmuxOutput) EndMessage() {
@@ -49,13 +50,4 @@ func (t *TmuxOutput) EndMessage() {
 
 func (t *TmuxOutput) HasFailed() bool {
 	return t.failed.Load()
-}
-
-// shellEscapeSingleQuoted escapes s for safe use inside single quotes in a
-// POSIX shell command. In single-quoted strings, only the single quote itself
-// needs escaping (using the '\” break-and-rejoin technique).
-// Null bytes are stripped as they can truncate shell arguments.
-func shellEscapeSingleQuoted(s string) string {
-	s = strings.ReplaceAll(s, "\x00", "")
-	return strings.ReplaceAll(s, "'", "'\\''")
 }

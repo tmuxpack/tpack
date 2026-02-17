@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 
@@ -22,6 +23,6 @@ func runSource() int {
 
 	plugins := config.GatherPlugins(runner, config.RealFS{}, cfg.TmuxConf, cfg.Home)
 
-	mgr.Source(plugins)
+	mgr.Source(context.Background(), plugins)
 	return 0
 }
