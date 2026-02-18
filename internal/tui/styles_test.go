@@ -131,3 +131,50 @@ func TestRenderHelp(t *testing.T) {
 		t.Errorf("expected at most 2 lines (content + possible margin), got %d", len(lines))
 	}
 }
+
+func TestRenderHelpInlineHint(t *testing.T) {
+	th := DefaultTheme()
+	styledQ := th.HelpKeyStyle.Render("q")
+
+	t.Run("single char key highlights inline in description", func(t *testing.T) {
+		out := th.renderHelp(80, "i", "install")
+		styledI := th.HelpKeyStyle.Render("i")
+		// Should contain the highlighted "i" followed by "nstall" (inline),
+		// not "i install" (separate key + desc).
+		if !strings.Contains(out, styledI+"nstall") {
+			t.Errorf("expected inline highlight %q+\"nstall\" in %q", styledI, out)
+		}
+	})
+
+	t.Run("case insensitive match highlights key case", func(t *testing.T) {
+		out := th.renderHelp(80, "d", "Delete")
+		styledD := th.HelpKeyStyle.Render("d")
+		// "d" should match "D" in "Delete", but render as lowercase "d".
+		if !strings.Contains(out, styledD+"elete") {
+			t.Errorf("expected inline highlight %q+\"elete\" in %q", styledD, out)
+		}
+	})
+
+	t.Run("multi char key renders separately", func(t *testing.T) {
+		out := th.renderHelp(80, "esc", "back")
+		styledEsc := th.HelpKeyStyle.Render("esc")
+		if !strings.Contains(out, styledEsc+" back") {
+			t.Errorf("expected separate %q+\" back\" in %q", styledEsc, out)
+		}
+	})
+
+	t.Run("single char not in desc renders separately", func(t *testing.T) {
+		out := th.renderHelp(80, "x", "close")
+		styledX := th.HelpKeyStyle.Render("x")
+		if !strings.Contains(out, styledX+" close") {
+			t.Errorf("expected separate %q+\" close\" in %q", styledX, out)
+		}
+	})
+
+	t.Run("q quit still highlights inline", func(t *testing.T) {
+		out := th.renderHelp(80, "q", "quit")
+		if !strings.Contains(out, styledQ+"uit") {
+			t.Errorf("expected inline highlight %q+\"uit\" in %q", styledQ, out)
+		}
+	})
+}

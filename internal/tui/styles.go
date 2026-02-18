@@ -148,9 +148,7 @@ func DefaultTheme() Theme {
 }
 
 func (th *Theme) renderHelp(width int, keys ...string) string {
-	if width < 20 {
-		width = 20
-	}
+	width = max(width, 20)
 
 	var lines []string
 	var lineTexts []string
@@ -165,8 +163,36 @@ func (th *Theme) renderHelp(width int, keys ...string) string {
 			desc = keys[i+1]
 		}
 
-		itemText := th.HelpKeyStyle.Render(key) + " " + desc
-		itemLen := len(key) + 1 + len(desc)
+		var itemText string
+		var itemLen int
+
+		// Single-character keys: highlight the matching character inline
+		// in the description (e.g., "i"+"install" → "install" with styled "i").
+		if len(key) == 1 {
+			keyRune := rune(key[0])
+			descRunes := []rune(desc)
+			found := false
+
+			for j, r := range descRunes {
+				if r == keyRune || r == keyRune-32 || r == keyRune+32 {
+					before := string(descRunes[:j])
+					highlighted := th.HelpKeyStyle.Render(key)
+					after := string(descRunes[j+1:])
+					itemText = before + highlighted + after
+					itemLen = len(desc)
+					found = true
+					break
+				}
+			}
+
+			if !found {
+				itemText = th.HelpKeyStyle.Render(key) + " " + desc
+				itemLen = len(key) + 1 + len(desc)
+			}
+		} else {
+			itemText = th.HelpKeyStyle.Render(key) + " " + desc
+			itemLen = len(key) + 1 + len(desc)
+		}
 
 		willExceed := len(lineTexts) > 0 && currentVisibleLen+separatorLen+itemLen > width-4
 
@@ -240,10 +266,7 @@ func padToBottom(body, footer string, height int) string {
 	contentHeight := height - BaseStyleVerticalPadding
 	bodyHeight := lipgloss.Height(body)
 	footerHeight := lipgloss.Height(footer)
-	padding := contentHeight - bodyHeight - footerHeight
-	if padding < 1 {
-		padding = 1
-	}
+	padding := max(contentHeight-bodyHeight-footerHeight, 1)
 	return body + strings.Repeat("\n", padding) + footer
 }
 
