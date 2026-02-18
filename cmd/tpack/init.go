@@ -126,7 +126,7 @@ func findBinary() string {
 	// Fallback: try to find alongside the tpm script.
 	if dir := os.Getenv("CURRENT_DIR"); dir != "" {
 		candidate := filepath.Join(dir, binaryName)
-		if _, err := os.Stat(candidate); err == nil {
+		if _, err := os.Stat(candidate); err == nil { //nolint:gosec // candidate is built from filepath.Join with a constant binary name
 			return candidate
 		}
 	}

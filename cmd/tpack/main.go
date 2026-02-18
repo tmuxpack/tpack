@@ -39,7 +39,7 @@ func main() {
 	case "version":
 		fmt.Println("tpack " + version)
 	default:
-		fmt.Fprintf(os.Stderr, "tpack: unknown command %q\n", os.Args[1])
+		fmt.Fprintf(os.Stderr, "tpack: unknown command %q\n", os.Args[1]) //nolint:gosec // CLI output, not web context
 		fmt.Fprintln(os.Stderr, "usage: tpack [init|install|update|clean|source|tui|commits|check-updates|self-update|version]")
 		os.Exit(1)
 	}

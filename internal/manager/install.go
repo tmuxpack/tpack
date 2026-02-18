@@ -16,7 +16,7 @@ func (m *Manager) verifyPathPermissions() {
 		return
 	}
 	_ = f.Close()
-	_ = os.Remove(f.Name())
+	_ = os.Remove(f.Name()) //nolint:gosec // path from os.CreateTemp is safe
 }
 
 func (m *Manager) installPlugin(ctx context.Context, p plug.Plugin) {

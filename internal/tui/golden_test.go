@@ -50,11 +50,8 @@ func diffLines(want, got string) string {
 	wantLines := strings.Split(want, "\n")
 	gotLines := strings.Split(got, "\n")
 	var b strings.Builder
-	total := len(wantLines)
-	if len(gotLines) > total {
-		total = len(gotLines)
-	}
-	for i := 0; i < total; i++ {
+	total := max(len(wantLines), len(gotLines))
+	for i := range total {
 		wl, gl := "", ""
 		if i < len(wantLines) {
 			wl = wantLines[i]
@@ -63,7 +60,7 @@ func diffLines(want, got string) string {
 			gl = gotLines[i]
 		}
 		if wl != gl {
-			b.WriteString(fmt.Sprintf("line %d:\n  want: %q\n  got:  %q\n", i+1, wl, gl))
+			fmt.Fprintf(&b, "line %d:\n  want: %q\n  got:  %q\n", i+1, wl, gl)
 		}
 	}
 	return b.String()

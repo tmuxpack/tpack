@@ -23,8 +23,8 @@ func (m *Model) viewDebug() string {
 		bin = unknownPlaceholder
 	}
 
-	b.WriteString(fmt.Sprintf("  %s  %s\n", m.theme.HelpKeyStyle.Render("Version:"), ver))
-	b.WriteString(fmt.Sprintf("  %s  %s\n", m.theme.HelpKeyStyle.Render("Binary:"), bin))
+	fmt.Fprintf(&b, "  %s  %s\n", m.theme.HelpKeyStyle.Render("Version:"), ver)
+	fmt.Fprintf(&b, "  %s  %s\n", m.theme.HelpKeyStyle.Render("Binary:"), bin)
 
 	help := m.centerText(m.theme.renderHelp(m.width, "esc", "back", "q", "quit"))
 

@@ -157,7 +157,7 @@ func fetchLatestVersion(apiURL string) (string, error) {
 
 	req.Header.Set("Accept", "application/vnd.github+json")
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := http.DefaultClient.Do(req) //nolint:gosec // URL is a hardcoded GitHub API endpoint
 	if err != nil {
 		return "", fmt.Errorf("fetching release: %w", err)
 	}
@@ -187,7 +187,7 @@ func downloadAndExtract(url string) (string, func(), error) {
 		return "", nil, fmt.Errorf("creating request: %w", err)
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := http.DefaultClient.Do(req) //nolint:gosec // URL is constructed from a known GitHub release asset
 	if err != nil {
 		return "", nil, fmt.Errorf("downloading archive: %w", err)
 	}

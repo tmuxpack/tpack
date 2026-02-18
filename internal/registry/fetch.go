@@ -67,7 +67,7 @@ func fetchRemote(ctx context.Context, url string) ([]byte, error) {
 		return nil, err
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := http.DefaultClient.Do(req) //nolint:gosec // URL is from user-configured registry
 	if err != nil {
 		return nil, err
 	}
