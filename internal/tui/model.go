@@ -230,17 +230,17 @@ func (m Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 	switch m.screen {
 	case ScreenCommits:
-		return m.updateCommitView(msg)
+		return m.handleKeyMsgCommit(msg)
 	case ScreenProgress:
-		return m.updateProgress(msg)
+		return m.handleKeyMsgProgress(msg)
 	case ScreenDebug:
-		return m.updateDebug(msg)
+		return m.handleKeyMsgDebug(msg)
 	case ScreenSearch:
-		return m.updateSearch(msg)
+		return m.handleKeyMsgSearch(msg)
 	case ScreenList:
-		return m.updateList(msg)
+		return m.handleKeyMsgList(msg)
 	}
-	return m.updateList(msg)
+	return m.handleKeyMsgList(msg)
 }
 
 // View implements tea.Model.
@@ -261,8 +261,8 @@ func (m Model) View() string {
 	return m.theme.BaseStyle.Render(content)
 }
 
-// updateList handles key events on the list screen.
-func (m Model) updateList(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+// handleKeyMsgList handles key events on the list screen.
+func (m Model) handleKeyMsgList(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch {
 	case key.Matches(msg, SharedKeys.Quit):
 		return m, tea.Quit
@@ -290,8 +290,8 @@ func (m Model) updateList(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// updateProgress handles key events on the progress screen.
-func (m Model) updateProgress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+// handleKeyMsgProgress handles key events on the progress screen.
+func (m Model) handleKeyMsgProgress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if m.processing {
 		return m, nil
 	}
@@ -365,8 +365,8 @@ func (m *Model) returnToProgress() {
 	m.commitScroll.reset()
 }
 
-// updateCommitView handles key events on the commit viewer screen.
-func (m Model) updateCommitView(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+// handleKeyMsgCommit handles key events on the commit viewer screen.
+func (m Model) handleKeyMsgCommit(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch {
 	case key.Matches(msg, SharedKeys.Quit), msg.String() == escKeyName:
 		m.returnToProgress()
@@ -378,8 +378,8 @@ func (m Model) updateCommitView(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// updateDebug handles key events on the debug screen.
-func (m Model) updateDebug(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+// handleKeyMsgDebug handles key events on the debug screen.
+func (m Model) handleKeyMsgDebug(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch {
 	case key.Matches(msg, SharedKeys.Quit):
 		return m, tea.Quit

@@ -36,6 +36,48 @@ var SharedKeys = sharedKeys{
 	),
 }
 
+type searchKeys struct {
+	Apply    key.Binding
+	Cancel   key.Binding
+	Filter   key.Binding
+	Category key.Binding
+}
+
+type progressKeys struct {
+	ViewCommits key.Binding
+	BackToList  key.Binding
+}
+
+var SearchKeys = searchKeys{
+	Apply: key.NewBinding(
+		key.WithKeys("enter"),
+		key.WithHelp("enter", "apply"),
+	),
+	Cancel: key.NewBinding(
+		key.WithKeys("esc"),
+		key.WithHelp("esc", "cancel"),
+	),
+	Filter: key.NewBinding(
+		key.WithKeys("/"),
+		key.WithHelp("/", "filter"),
+	),
+	Category: key.NewBinding(
+		key.WithKeys("tab"),
+		key.WithHelp("tab", "category"),
+	),
+}
+
+var ProgressKeys = progressKeys{
+	ViewCommits: key.NewBinding(
+		key.WithKeys("enter"),
+		key.WithHelp("enter", "view commits"),
+	),
+	BackToList: key.NewBinding(
+		key.WithKeys("esc"),
+		key.WithHelp("esc", "back to list"),
+	),
+}
+
 var ListKeys = listKeys{
 	Up: key.NewBinding(
 		key.WithKeys("up", "k"),

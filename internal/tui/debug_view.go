@@ -26,7 +26,7 @@ func (m *Model) viewDebug() string {
 	fmt.Fprintf(&b, "  %s  %s\n", m.theme.HelpKeyStyle.Render("Version:"), ver)
 	fmt.Fprintf(&b, "  %s  %s\n", m.theme.HelpKeyStyle.Render("Binary:"), bin)
 
-	help := m.centerText(m.theme.renderHelp(m.width, "esc", "back", "q", "quit"))
+	help := m.centerText(m.theme.renderHelp(m.width, SharedKeys.Back, SharedKeys.Quit))
 
 	return padToBottom(b.String(), help, m.height)
 }

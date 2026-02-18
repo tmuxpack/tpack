@@ -83,7 +83,7 @@ func TestSearchUpdate_EscReturnsToList(t *testing.T) {
 
 func TestUpdate_SearchKeyOpensSearch(t *testing.T) {
 	m := newTestModel(t, nil)
-	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}}
+	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'b'}}
 	result, cmd := m.Update(msg)
 	m = result.(Model)
 
@@ -98,8 +98,8 @@ func TestUpdate_SearchKeyOpensSearch(t *testing.T) {
 func TestSearchRoundTrip(t *testing.T) {
 	m := newTestModel(t, nil)
 
-	slash := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}}
-	result, _ := m.Update(slash)
+	browse := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'b'}}
+	result, _ := m.Update(browse)
 	m = result.(Model)
 	if m.screen != ScreenSearch {
 		t.Fatalf("expected ScreenSearch, got %d", m.screen)

@@ -3,6 +3,8 @@ package tui
 import (
 	"fmt"
 	"strings"
+
+	"github.com/charmbracelet/bubbles/key"
 )
 
 func (m *Model) viewSearch() string {
@@ -31,15 +33,15 @@ func (m *Model) viewSearch() string {
 		b.WriteString(m.renderSearchResults())
 	}
 
-	var helpPairs []string
+	var bindings []key.Binding
 
 	if m.searching {
-		helpPairs = []string{"enter", "apply", "esc", "cancel"}
+		bindings = []key.Binding{SearchKeys.Apply, SearchKeys.Cancel}
 	} else {
-		helpPairs = []string{"/", "filter", "tab", "category", "i", "install", "esc", "back"}
+		bindings = []key.Binding{SearchKeys.Filter, SearchKeys.Category, ListKeys.Install, SharedKeys.Back}
 	}
 
-	help := m.centerText(m.theme.renderHelp(m.width, helpPairs...))
+	help := m.centerText(m.theme.renderHelp(m.width, bindings...))
 	return padToBottom(b.String(), help, m.height)
 }
 

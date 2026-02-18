@@ -355,7 +355,7 @@ func TestUpdateProgress_AutoOp_QuitOnQ(t *testing.T) {
 	m.processing = false
 
 	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}}
-	_, cmd := m.updateProgress(msg)
+	_, cmd := m.handleKeyMsgProgress(msg)
 	if cmd == nil {
 		t.Fatal("expected quit command on q in auto-op mode")
 	}
@@ -368,7 +368,7 @@ func TestUpdateProgress_AutoOp_QuitOnEsc(t *testing.T) {
 	m.processing = false
 
 	msg := tea.KeyMsg{Type: tea.KeyEscape}
-	_, cmd := m.updateProgress(msg)
+	_, cmd := m.handleKeyMsgProgress(msg)
 	if cmd == nil {
 		t.Fatal("expected quit command on Esc in auto-op mode")
 	}
@@ -381,7 +381,7 @@ func TestUpdateProgress_AutoOp_IgnoresKeysWhileProcessing(t *testing.T) {
 	m.processing = true
 
 	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}}
-	_, cmd := m.updateProgress(msg)
+	_, cmd := m.handleKeyMsgProgress(msg)
 	if cmd != nil {
 		t.Error("expected nil command when still processing")
 	}

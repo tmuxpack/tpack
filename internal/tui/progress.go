@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/progress"
 )
 
@@ -57,16 +58,16 @@ func (m *Model) viewProgress() string {
 			b.WriteString(m.centerBlock(m.renderResults()))
 		}
 
-		var helpKeys []string
+		var bindings []key.Binding
 		if len(visible) > 0 {
-			helpKeys = append(helpKeys, "enter", "view commits")
+			bindings = append(bindings, ProgressKeys.ViewCommits)
 		}
 		if m.autoOp != OpNone {
-			helpKeys = append(helpKeys, "q", "quit")
+			bindings = append(bindings, SharedKeys.Quit)
 		} else {
-			helpKeys = append(helpKeys, "q", "quit", "esc", "back to list")
+			bindings = append(bindings, SharedKeys.Quit, ProgressKeys.BackToList)
 		}
-		help := m.centerText(m.theme.renderHelp(m.width, helpKeys...))
+		help := m.centerText(m.theme.renderHelp(m.width, bindings...))
 		return padToBottom(b.String(), help, m.height)
 	}
 

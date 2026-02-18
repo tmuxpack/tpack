@@ -31,7 +31,7 @@ func (m Model) enterBrowse() (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmd, m.checkSpinner.Tick)
 }
 
-func (m Model) updateSearch(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m Model) handleKeyMsgSearch(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if m.searchLoading {
 		return m, nil
 	}

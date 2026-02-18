@@ -3,6 +3,7 @@ package tui
 import (
 	"strings"
 
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -147,7 +148,7 @@ func DefaultTheme() Theme {
 	)
 }
 
-func (th *Theme) renderHelp(width int, keys ...string) string {
+func (th *Theme) renderHelp(width int, bindings ...key.Binding) string {
 	width = max(width, 20)
 
 	var lines []string
@@ -156,27 +157,25 @@ func (th *Theme) renderHelp(width int, keys ...string) string {
 	separator := "  "
 	separatorLen := len(separator)
 
-	for i := 0; i < len(keys); i += 2 {
-		key := keys[i]
-		desc := ""
-		if i+1 < len(keys) {
-			desc = keys[i+1]
-		}
+	for _, b := range bindings {
+		h := b.Help()
+		k := h.Key
+		desc := h.Desc
 
 		var itemText string
 		var itemLen int
 
 		// Single-character keys: highlight the matching character inline
 		// in the description (e.g., "i"+"install" → "install" with styled "i").
-		if len(key) == 1 {
-			keyRune := rune(key[0])
+		if len(k) == 1 {
+			keyRune := rune(k[0])
 			descRunes := []rune(desc)
 			found := false
 
 			for j, r := range descRunes {
 				if r == keyRune || r == keyRune-32 || r == keyRune+32 {
 					before := string(descRunes[:j])
-					highlighted := th.HelpKeyStyle.Render(key)
+					highlighted := th.HelpKeyStyle.Render(k)
 					after := string(descRunes[j+1:])
 					itemText = before + highlighted + after
 					itemLen = len(desc)
@@ -186,12 +185,12 @@ func (th *Theme) renderHelp(width int, keys ...string) string {
 			}
 
 			if !found {
-				itemText = th.HelpKeyStyle.Render(key) + " " + desc
-				itemLen = len(key) + 1 + len(desc)
+				itemText = th.HelpKeyStyle.Render(k) + " " + desc
+				itemLen = len(k) + 1 + len(desc)
 			}
 		} else {
-			itemText = th.HelpKeyStyle.Render(key) + " " + desc
-			itemLen = len(key) + 1 + len(desc)
+			itemText = th.HelpKeyStyle.Render(k) + " " + desc
+			itemLen = len(k) + 1 + len(desc)
 		}
 
 		willExceed := len(lineTexts) > 0 && currentVisibleLen+separatorLen+itemLen > width-4

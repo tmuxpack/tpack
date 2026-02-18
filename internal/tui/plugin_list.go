@@ -3,6 +3,8 @@ package tui
 import (
 	"fmt"
 	"strings"
+
+	"github.com/charmbracelet/bubbles/key"
 )
 
 // viewList renders the list screen.
@@ -88,20 +90,20 @@ func (m *Model) viewList() string {
 	}
 
 	// Help bar — context-aware actions, pinned to bottom.
-	var helpPairs []string
+	var bindings []key.Binding
 	hasNotInstalled, hasInstalled := m.targetHasStatus()
 	if hasNotInstalled {
-		helpPairs = append(helpPairs, "i", "install")
+		bindings = append(bindings, ListKeys.Install)
 	}
 	if hasInstalled {
-		helpPairs = append(helpPairs, "u", "update", "x", "uninstall")
+		bindings = append(bindings, ListKeys.Update, ListKeys.Uninstall)
 	}
 	if len(m.orphans) > 0 {
-		helpPairs = append(helpPairs, "c", "clean")
+		bindings = append(bindings, ListKeys.Clean)
 	}
-	helpPairs = append(helpPairs, "b", "browse")
-	helpPairs = append(helpPairs, "q", "quit")
-	help := m.centerText(m.theme.renderHelp(m.width, helpPairs...))
+	bindings = append(bindings, ListKeys.Browse)
+	bindings = append(bindings, SharedKeys.Quit)
+	help := m.centerText(m.theme.renderHelp(m.width, bindings...))
 
 	return padToBottom(b.String(), help, m.height)
 }

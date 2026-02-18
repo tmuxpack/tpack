@@ -87,7 +87,7 @@ func (m CommitViewer) View() string {
 	renderCommitList(&b, m.commits, m.scroll, m.maxVisible(), m.theme)
 
 	// Help — pinned to bottom.
-	help := m.centerText(m.theme.renderHelp(m.width, "q", "quit"))
+	help := m.centerText(m.theme.renderHelp(m.width, SharedKeys.Quit))
 
 	return m.theme.BaseStyle.Render(padToBottom(b.String(), help, m.height))
 }
@@ -161,7 +161,7 @@ func (m *Model) viewCommits() string {
 	renderCommitList(&b, m.commitViewCommits, m.commitScroll, m.commitMaxVisible(), m.theme)
 
 	// Help — pinned to bottom.
-	help := m.centerText(m.theme.renderHelp(m.width, "esc", "back", "q", "quit"))
+	help := m.centerText(m.theme.renderHelp(m.width, SharedKeys.Back, SharedKeys.Quit))
 
 	return padToBottom(b.String(), help, m.height)
 }

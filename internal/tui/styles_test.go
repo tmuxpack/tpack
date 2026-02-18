@@ -3,6 +3,8 @@ package tui
 import (
 	"strings"
 	"testing"
+
+	"github.com/charmbracelet/bubbles/key"
 )
 
 func TestRenderCursor(t *testing.T) {
@@ -111,10 +113,14 @@ func TestCalculateVisibleRange(t *testing.T) {
 	}
 }
 
+func testBinding(k, desc string) key.Binding {
+	return key.NewBinding(key.WithKeys(k), key.WithHelp(k, desc))
+}
+
 func TestRenderHelp(t *testing.T) {
 	th := DefaultTheme()
-	// Single pair produces non-empty output.
-	out := th.renderHelp(80, "q", "quit")
+	// Single binding produces non-empty output.
+	out := th.renderHelp(80, testBinding("q", "quit"))
 	if out == "" {
 		t.Error("expected non-empty help output")
 	}
@@ -123,7 +129,7 @@ func TestRenderHelp(t *testing.T) {
 	}
 
 	// Large width keeps everything on one line (no wrapping).
-	out = th.renderHelp(200, "q", "quit", "i", "install")
+	out = th.renderHelp(200, testBinding("q", "quit"), testBinding("i", "install"))
 	lines := strings.Split(out, "\n")
 	// The help is rendered with lipgloss which may add margin, but the core
 	// content should stay on a single logical line when width is very large.
@@ -137,7 +143,7 @@ func TestRenderHelpInlineHint(t *testing.T) {
 	styledQ := th.HelpKeyStyle.Render("q")
 
 	t.Run("single char key highlights inline in description", func(t *testing.T) {
-		out := th.renderHelp(80, "i", "install")
+		out := th.renderHelp(80, testBinding("i", "install"))
 		styledI := th.HelpKeyStyle.Render("i")
 		// Should contain the highlighted "i" followed by "nstall" (inline),
 		// not "i install" (separate key + desc).
@@ -147,7 +153,7 @@ func TestRenderHelpInlineHint(t *testing.T) {
 	})
 
 	t.Run("case insensitive match highlights key case", func(t *testing.T) {
-		out := th.renderHelp(80, "d", "Delete")
+		out := th.renderHelp(80, testBinding("d", "Delete"))
 		styledD := th.HelpKeyStyle.Render("d")
 		// "d" should match "D" in "Delete", but render as lowercase "d".
 		if !strings.Contains(out, styledD+"elete") {
@@ -156,7 +162,7 @@ func TestRenderHelpInlineHint(t *testing.T) {
 	})
 
 	t.Run("multi char key renders separately", func(t *testing.T) {
-		out := th.renderHelp(80, "esc", "back")
+		out := th.renderHelp(80, testBinding("esc", "back"))
 		styledEsc := th.HelpKeyStyle.Render("esc")
 		if !strings.Contains(out, styledEsc+" back") {
 			t.Errorf("expected separate %q+\" back\" in %q", styledEsc, out)
@@ -164,7 +170,7 @@ func TestRenderHelpInlineHint(t *testing.T) {
 	})
 
 	t.Run("single char not in desc renders separately", func(t *testing.T) {
-		out := th.renderHelp(80, "x", "close")
+		out := th.renderHelp(80, testBinding("x", "close"))
 		styledX := th.HelpKeyStyle.Render("x")
 		if !strings.Contains(out, styledX+" close") {
 			t.Errorf("expected separate %q+\" close\" in %q", styledX, out)
@@ -172,7 +178,7 @@ func TestRenderHelpInlineHint(t *testing.T) {
 	})
 
 	t.Run("q quit still highlights inline", func(t *testing.T) {
-		out := th.renderHelp(80, "q", "quit")
+		out := th.renderHelp(80, testBinding("q", "quit"))
 		if !strings.Contains(out, styledQ+"uit") {
 			t.Errorf("expected inline highlight %q+\"uit\" in %q", styledQ, out)
 		}
