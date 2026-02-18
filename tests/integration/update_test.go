@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tmuxpack/tpack/internal/git"
+	gitcli "github.com/tmuxpack/tpack/internal/git/cli"
 	"github.com/tmuxpack/tpack/internal/manager"
 	"github.com/tmuxpack/tpack/internal/plug"
 	"github.com/tmuxpack/tpack/internal/ui"
@@ -21,9 +21,9 @@ func TestUpdateInstalledPlugin(t *testing.T) {
 
 	pluginDir, _ := setupIntegrationDir(t)
 
-	cloner := git.NewCLICloner()
-	puller := git.NewCLIPuller()
-	validator := git.NewCLIValidator()
+	cloner := gitcli.NewCloner()
+	puller := gitcli.NewPuller()
+	validator := gitcli.NewValidator()
 
 	// First install.
 	installOutput := ui.NewMockOutput()
@@ -69,9 +69,9 @@ func TestUpdateSpecificPlugin(t *testing.T) {
 
 	pluginDir, _ := setupIntegrationDir(t)
 
-	cloner := git.NewCLICloner()
-	puller := git.NewCLIPuller()
-	validator := git.NewCLIValidator()
+	cloner := gitcli.NewCloner()
+	puller := gitcli.NewPuller()
+	validator := gitcli.NewValidator()
 	installOutput := ui.NewMockOutput()
 
 	mgr := manager.New(pluginDir, cloner, puller, validator, installOutput)
@@ -96,9 +96,9 @@ func TestUpdateSpecificPlugin(t *testing.T) {
 func TestUpdateNotInstalledPlugin(t *testing.T) {
 	pluginDir, _ := setupIntegrationDir(t)
 
-	cloner := git.NewCLICloner()
-	puller := git.NewCLIPuller()
-	validator := git.NewCLIValidator()
+	cloner := gitcli.NewCloner()
+	puller := gitcli.NewPuller()
+	validator := gitcli.NewValidator()
 	output := ui.NewMockOutput()
 
 	mgr := manager.New(pluginDir, cloner, puller, validator, output)
@@ -124,9 +124,9 @@ func TestCleanRemovesUnlistedPlugins(t *testing.T) {
 
 	pluginDir, _ := setupIntegrationDir(t)
 
-	cloner := git.NewCLICloner()
-	puller := git.NewCLIPuller()
-	validator := git.NewCLIValidator()
+	cloner := gitcli.NewCloner()
+	puller := gitcli.NewPuller()
+	validator := gitcli.NewValidator()
 
 	// Install a plugin, then clean with empty list.
 	installOutput := ui.NewMockOutput()

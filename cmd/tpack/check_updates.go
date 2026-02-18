@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/tmuxpack/tpack/internal/config"
-	"github.com/tmuxpack/tpack/internal/git"
+	gitcli "github.com/tmuxpack/tpack/internal/git/cli"
 	"github.com/tmuxpack/tpack/internal/parallel"
 	"github.com/tmuxpack/tpack/internal/plug"
 	"github.com/tmuxpack/tpack/internal/state"
@@ -62,8 +62,8 @@ const maxConcurrentChecks = 5
 
 // findOutdatedPlugins checks each installed plugin for available updates in parallel.
 func findOutdatedPlugins(plugins []plug.Plugin, pluginPath string) []string {
-	validator := git.NewCLIValidator()
-	fetcher := git.NewCLIFetcher()
+	validator := gitcli.NewValidator()
+	fetcher := gitcli.NewFetcher()
 
 	type target struct {
 		name string

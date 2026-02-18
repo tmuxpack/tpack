@@ -20,18 +20,6 @@ func TestMockValidatorImplementsValidator(t *testing.T) {
 	var _ git.Validator = (*git.MockValidator)(nil)
 }
 
-func TestCLIClonerImplementsCloner(t *testing.T) {
-	var _ git.Cloner = (*git.CLICloner)(nil)
-}
-
-func TestCLIPullerImplementsPuller(t *testing.T) {
-	var _ git.Puller = (*git.CLIPuller)(nil)
-}
-
-func TestCLIValidatorImplementsValidator(t *testing.T) {
-	var _ git.Validator = (*git.CLIValidator)(nil)
-}
-
 func TestCloneWithFallbackPrimarySucceeds(t *testing.T) {
 	cloner := git.NewMockCloner()
 	normalize := func(url string) string { return url + "-normalized" }
@@ -104,14 +92,6 @@ func TestMockValidator(t *testing.T) {
 	}
 }
 
-func TestCLIRevParserImplementsRevParser(t *testing.T) {
-	var _ git.RevParser = (*git.CLIRevParser)(nil)
-}
-
-func TestCLILoggerImplementsLogger(t *testing.T) {
-	var _ git.Logger = (*git.CLILogger)(nil)
-}
-
 func TestMockRevParserImplementsRevParser(t *testing.T) {
 	var _ git.RevParser = (*git.MockRevParser)(nil)
 }
@@ -151,13 +131,5 @@ func TestMockLogger(t *testing.T) {
 	}
 	if commits[0].Hash != "abc" || commits[0].Message != "test commit" {
 		t.Errorf("unexpected commit: %+v", commits[0])
-	}
-}
-
-func TestCLIValidatorRealDir(t *testing.T) {
-	v := git.NewCLIValidator()
-	// /tmp is not a git repo
-	if v.IsGitRepo("/tmp") {
-		t.Error("/tmp should not be a git repo")
 	}
 }

@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/tmuxpack/tpack/internal/git"
+	gitcli "github.com/tmuxpack/tpack/internal/git/cli"
 	"github.com/tmuxpack/tpack/internal/manager"
 	"github.com/tmuxpack/tpack/internal/plug"
 	"github.com/tmuxpack/tpack/internal/ui"
@@ -32,9 +32,9 @@ func TestSourceExecutesTmuxFiles(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cloner := git.NewCLICloner()
-	puller := git.NewCLIPuller()
-	validator := git.NewCLIValidator()
+	cloner := gitcli.NewCloner()
+	puller := gitcli.NewPuller()
+	validator := gitcli.NewValidator()
 	output := ui.NewMockOutput()
 
 	mgr := manager.New(pluginDir, cloner, puller, validator, output)
@@ -52,9 +52,9 @@ func TestSourceExecutesTmuxFiles(t *testing.T) {
 func TestSourceSkipsNonExistentPluginDir(t *testing.T) {
 	pluginDir, _ := setupIntegrationDir(t)
 
-	cloner := git.NewCLICloner()
-	puller := git.NewCLIPuller()
-	validator := git.NewCLIValidator()
+	cloner := gitcli.NewCloner()
+	puller := gitcli.NewPuller()
+	validator := gitcli.NewValidator()
 	output := ui.NewMockOutput()
 
 	mgr := manager.New(pluginDir, cloner, puller, validator, output)

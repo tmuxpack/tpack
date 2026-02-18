@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/tmuxpack/tpack/internal/config"
-	"github.com/tmuxpack/tpack/internal/git"
+	gitcli "github.com/tmuxpack/tpack/internal/git/cli"
 	"github.com/tmuxpack/tpack/internal/plug"
 	"github.com/tmuxpack/tpack/internal/shell"
 	"github.com/tmuxpack/tpack/internal/tmux"
@@ -49,12 +49,12 @@ func runTui(args []string) int {
 	plugins := config.GatherPlugins(runner, config.RealFS{}, cfg.TmuxConf, cfg.Home)
 
 	deps := tui.Deps{
-		Cloner:    git.NewCLICloner(),
-		Puller:    git.NewCLIPuller(),
-		Validator: git.NewCLIValidator(),
-		Fetcher:   git.NewCLIFetcher(),
-		RevParser: git.NewCLIRevParser(),
-		Logger:    git.NewCLILogger(),
+		Cloner:    gitcli.NewCloner(),
+		Puller:    gitcli.NewPuller(),
+		Validator: gitcli.NewValidator(),
+		Fetcher:   gitcli.NewFetcher(),
+		RevParser: gitcli.NewRevParser(),
+		Logger:    gitcli.NewLogger(),
 	}
 	if autoOp == tui.OpInstall || autoOp == tui.OpUpdate {
 		deps.Runner = runner

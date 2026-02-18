@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/tmuxpack/tpack/internal/config"
-	"github.com/tmuxpack/tpack/internal/git"
+	gitcli "github.com/tmuxpack/tpack/internal/git/cli"
 	"github.com/tmuxpack/tpack/internal/manager"
 	"github.com/tmuxpack/tpack/internal/tmux"
 	"github.com/tmuxpack/tpack/internal/ui"
@@ -72,9 +72,9 @@ func exitCode(output ui.Output) int {
 
 func newManagerDeps(pluginPath string, output ui.Output) *manager.Manager {
 	return manager.New(pluginPath,
-		git.NewCLICloner(),
-		git.NewCLIPuller(),
-		git.NewCLIValidator(),
+		gitcli.NewCloner(),
+		gitcli.NewPuller(),
+		gitcli.NewValidator(),
 		output,
 	)
 }

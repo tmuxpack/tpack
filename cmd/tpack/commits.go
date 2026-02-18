@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tmuxpack/tpack/internal/git"
+	gitcli "github.com/tmuxpack/tpack/internal/git/cli"
 	"github.com/tmuxpack/tpack/internal/tui"
 )
 
@@ -26,7 +26,7 @@ func runCommits(args []string) int {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	logger := git.NewCLILogger()
+	logger := gitcli.NewLogger()
 	commits, err := logger.Log(ctx, dir, from, to)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "tpack commits: git log failed:", err)

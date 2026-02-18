@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/tmuxpack/tpack/internal/config"
-	"github.com/tmuxpack/tpack/internal/git"
+	gitcli "github.com/tmuxpack/tpack/internal/git/cli"
 	"github.com/tmuxpack/tpack/internal/manager"
 	"github.com/tmuxpack/tpack/internal/plug"
 	"github.com/tmuxpack/tpack/internal/ui"
@@ -22,9 +22,9 @@ func TestInstallRealPlugin(t *testing.T) {
 
 	pluginDir, _ := setupIntegrationDir(t)
 
-	cloner := git.NewCLICloner()
-	puller := git.NewCLIPuller()
-	validator := git.NewCLIValidator()
+	cloner := gitcli.NewCloner()
+	puller := gitcli.NewPuller()
+	validator := gitcli.NewValidator()
 	output := ui.NewMockOutput()
 
 	mgr := manager.New(pluginDir, cloner, puller, validator, output)
@@ -71,9 +71,9 @@ func TestInstallMultiplePlugins(t *testing.T) {
 
 	pluginDir, _ := setupIntegrationDir(t)
 
-	cloner := git.NewCLICloner()
-	puller := git.NewCLIPuller()
-	validator := git.NewCLIValidator()
+	cloner := gitcli.NewCloner()
+	puller := gitcli.NewPuller()
+	validator := gitcli.NewValidator()
 	output := ui.NewMockOutput()
 
 	mgr := manager.New(pluginDir, cloner, puller, validator, output)
@@ -103,9 +103,9 @@ func TestInstallNonexistentPlugin(t *testing.T) {
 
 	pluginDir, _ := setupIntegrationDir(t)
 
-	cloner := git.NewCLICloner()
-	puller := git.NewCLIPuller()
-	validator := git.NewCLIValidator()
+	cloner := gitcli.NewCloner()
+	puller := gitcli.NewPuller()
+	validator := gitcli.NewValidator()
 	output := ui.NewMockOutput()
 
 	mgr := manager.New(pluginDir, cloner, puller, validator, output)
