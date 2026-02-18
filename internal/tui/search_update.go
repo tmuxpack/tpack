@@ -15,16 +15,17 @@ type registryFetchResultMsg struct {
 	Err      error
 }
 
-func (m Model) enterSearch() (tea.Model, tea.Cmd) {
+func (m Model) enterBrowse() (tea.Model, tea.Cmd) {
 	m.screen = ScreenSearch
 	m.searchLoading = true
 	m.searchCategory = -1
 	m.searchResults = nil
 	m.searchErr = nil
 	m.searchQuery = ""
+	m.searchQuerySnapshot = ""
 	m.searchScroll.reset()
 	m.searchInput.Reset()
-	m.searchInput.Focus()
+	m.searching = false
 
 	cmd := m.fetchRegistryCmd()
 	return m, tea.Batch(cmd, m.checkSpinner.Tick)
@@ -35,10 +36,35 @@ func (m Model) updateSearch(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
+	if m.searchInput.Focused() {
+		switch {
+		case key.Matches(msg, SharedKeys.Back): // Esc → revert query, blur
+			m.searchInput.SetValue(m.searchQuerySnapshot)
+			m.searchQuery = m.searchQuerySnapshot
+			m.searchInput.Blur()
+			m.applySearchFilter()
+			m.searching = false
+			return m, nil
+		case msg.Type == tea.KeyEnter: // Enter → accept query, blur
+			m.searchInput.Blur()
+			m.searching = false
+			return m, nil
+		default: // All other keys → text input
+			var cmd tea.Cmd
+			m.searchInput, cmd = m.searchInput.Update(msg)
+			if m.searchQuery != m.searchInput.Value() {
+				m.searchQuery = m.searchInput.Value()
+				m.applySearchFilter()
+			}
+			return m, cmd
+		}
+	}
 	switch {
-	case key.Matches(msg, SharedKeys.Quit), msg.String() == escKeyName:
+	case key.Matches(msg, SharedKeys.Back):
 		m.screen = ScreenList
 		return m, nil
+	case key.Matches(msg, SharedKeys.Quit):
+		return m, tea.Quit
 	case msg.Type == tea.KeyTab:
 		m.cycleCategory()
 		m.applySearchFilter()
@@ -49,16 +75,15 @@ func (m Model) updateSearch(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case key.Matches(msg, ListKeys.Down):
 		m.searchScroll.moveDown(len(m.searchResults), m.searchViewHeight())
 		return m, nil
-	case msg.Type == tea.KeyEnter:
+	case key.Matches(msg, ListKeys.Install):
 		return m.installFromSearch()
+	case key.Matches(msg, ListKeys.Search):
+		m.searchQuerySnapshot = m.searchQuery
+		m.searchInput.Focus()
+		m.searching = true
+		return m, nil
 	default:
-		var cmd tea.Cmd
-		m.searchInput, cmd = m.searchInput.Update(msg)
-		if m.searchQuery != m.searchInput.Value() {
-			m.searchQuery = m.searchInput.Value()
-			m.applySearchFilter()
-		}
-		return m, cmd
+		return m, nil
 	}
 }
 

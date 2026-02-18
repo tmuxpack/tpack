@@ -5,6 +5,7 @@ import "github.com/charmbracelet/bubbles/key"
 type sharedKeys struct {
 	Quit      key.Binding
 	ForceQuit key.Binding
+	Back      key.Binding
 }
 
 type listKeys struct {
@@ -16,6 +17,7 @@ type listKeys struct {
 	Clean     key.Binding
 	Uninstall key.Binding
 	Debug     key.Binding
+	Browse    key.Binding
 	Search    key.Binding
 }
 
@@ -28,16 +30,18 @@ var SharedKeys = sharedKeys{
 		key.WithKeys("ctrl+c"),
 		key.WithHelp("ctrl+c", "force quit"),
 	),
+	Back: key.NewBinding(
+		key.WithKeys("esc"),
+		key.WithHelp("esc", "back"),
+	),
 }
 
 var ListKeys = listKeys{
 	Up: key.NewBinding(
 		key.WithKeys("up", "k"),
-		key.WithHelp("↑/k", "up"),
 	),
 	Down: key.NewBinding(
 		key.WithKeys("down", "j"),
-		key.WithHelp("↓/j", "down"),
 	),
 	Toggle: key.NewBinding(
 		key.WithKeys("tab", " "),
@@ -61,6 +65,10 @@ var ListKeys = listKeys{
 	),
 	Debug: key.NewBinding(
 		key.WithKeys("@"),
+	),
+	Browse: key.NewBinding(
+		key.WithKeys("b"),
+		key.WithHelp("b", "browse"),
 	),
 	Search: key.NewBinding(
 		key.WithKeys("/"),

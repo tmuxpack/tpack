@@ -91,14 +91,16 @@ type Model struct {
 	commitScroll      scrollState
 
 	// Search screen state.
-	searchRegistry *registry.Registry
-	searchResults  []registry.RegistryItem
-	searchQuery    string
-	searchInput    textinput.Model
-	searchCategory int // index into registry.Categories, -1 = all
-	searchScroll   scrollState
-	searchLoading  bool
-	searchErr      error
+	searchRegistry      *registry.Registry
+	searchResults       []registry.RegistryItem
+	searchQuery         string
+	searchQuerySnapshot string
+	searchInput         textinput.Model
+	searchCategory      int // index into registry.Categories, -1 = all
+	searchScroll        scrollState
+	searchLoading       bool
+	searchErr           error
+	searching           bool
 
 	version    string
 	binaryPath string
@@ -280,8 +282,8 @@ func (m Model) updateList(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.startOperation(OpClean)
 	case key.Matches(msg, ListKeys.Uninstall):
 		return m.startOperation(OpUninstall)
-	case key.Matches(msg, ListKeys.Search):
-		return m.enterSearch()
+	case key.Matches(msg, ListKeys.Browse):
+		return m.enterBrowse()
 	case key.Matches(msg, ListKeys.Debug):
 		m.screen = ScreenDebug
 	}

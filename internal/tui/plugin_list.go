@@ -99,7 +99,7 @@ func (m *Model) viewList() string {
 	if len(m.orphans) > 0 {
 		helpPairs = append(helpPairs, "c", "clean")
 	}
-	helpPairs = append(helpPairs, "/", "search")
+	helpPairs = append(helpPairs, "b", "browse")
 	helpPairs = append(helpPairs, "q", "quit")
 	help := m.centerText(m.theme.renderHelp(m.width, helpPairs...))
 

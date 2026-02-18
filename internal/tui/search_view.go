@@ -8,7 +8,7 @@ import (
 func (m *Model) viewSearch() string {
 	var b strings.Builder
 
-	b.WriteString(m.centerText(m.theme.TitleStyle.Render("  Search Plugins  ")))
+	b.WriteString(m.centerText(m.theme.TitleStyle.Render("  Browse Plugins  ")))
 	b.WriteString("\n")
 
 	b.WriteString(m.centerText(m.renderCategoryBar()))
@@ -31,7 +31,14 @@ func (m *Model) viewSearch() string {
 		b.WriteString(m.renderSearchResults())
 	}
 
-	helpPairs := []string{"/", "filter", "tab", "category", "enter", "install", "esc", "back"}
+	var helpPairs []string
+
+	if m.searching {
+		helpPairs = []string{"enter", "apply", "esc", "cancel"}
+	} else {
+		helpPairs = []string{"/", "filter", "tab", "category", "i", "install", "esc", "back"}
+	}
+
 	help := m.centerText(m.theme.renderHelp(m.width, helpPairs...))
 	return padToBottom(b.String(), help, m.height)
 }
