@@ -60,7 +60,10 @@ func (m *Model) viewProgress() string {
 
 		var bindings []key.Binding
 		if len(visible) > 0 {
-			bindings = append(bindings, ProgressKeys.ViewCommits)
+			r := visible[m.resultScroll.cursor]
+			if r.Success && len(r.Commits) > 0 {
+				bindings = append(bindings, ProgressKeys.ViewCommits)
+			}
 		}
 		if m.autoOp != OpNone {
 			bindings = append(bindings, SharedKeys.Quit)
