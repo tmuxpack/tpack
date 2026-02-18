@@ -90,16 +90,16 @@ type Model struct {
 	commitViewCommits []git.Commit
 	commitScroll      scrollState
 
-	// Search screen state.
-	searchRegistry      *registry.Registry
-	searchResults       []registry.RegistryItem
-	searchQuery         string
-	searchQuerySnapshot string
-	searchInput         textinput.Model
-	searchCategory      int // index into registry.Categories, -1 = all
-	searchScroll        scrollState
-	searchLoading       bool
-	searchErr           error
+	// Browse screen state.
+	browseRegistry      *registry.Registry
+	browseResults       []registry.RegistryItem
+	browseQuery         string
+	browseQuerySnapshot string
+	browseInput         textinput.Model
+	browseCategory      int // index into registry.Categories, -1 = all
+	browseScroll        scrollState
+	browseLoading       bool
+	browseErr           error
 	searching           bool
 
 	version    string
@@ -134,10 +134,10 @@ func NewModel(cfg *config.Config, plugins []plug.Plugin, deps Deps, opts ...Mode
 		m.viewHeight = MinViewHeight
 	}
 	ti := textinput.New()
-	ti.Placeholder = "Search plugins..."
+	ti.Placeholder = "Filter plugins..."
 	ti.CharLimit = 100
-	m.searchInput = ti
-	m.searchCategory = -1
+	m.browseInput = ti
+	m.browseCategory = -1
 	m.progressBar.Width = FixedWidth - ProgressBarPadding
 	if m.progressBar.Width > ProgressBarMaxWidth {
 		m.progressBar.Width = ProgressBarMaxWidth
@@ -235,8 +235,8 @@ func (m Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleKeyMsgProgress(msg)
 	case ScreenDebug:
 		return m.handleKeyMsgDebug(msg)
-	case ScreenSearch:
-		return m.handleKeyMsgSearch(msg)
+	case ScreenBrowse:
+		return m.handleKeyMsgBrowse(msg)
 	case ScreenList:
 		return m.handleKeyMsgList(msg)
 	}
@@ -255,8 +255,8 @@ func (m Model) View() string {
 		content = m.viewCommits()
 	case ScreenDebug:
 		content = m.viewDebug()
-	case ScreenSearch:
-		content = m.viewSearch()
+	case ScreenBrowse:
+		content = m.viewBrowse()
 	}
 	return m.theme.BaseStyle.Render(content)
 }

@@ -10,11 +10,11 @@ import (
 	"github.com/tmuxpack/tpack/internal/registry"
 )
 
-func newSearchModel(t *testing.T) Model {
+func newBrowseModel(t *testing.T) Model {
 	t.Helper()
 	m := newTestModel(t, nil)
-	m.screen = ScreenSearch
-	m.searchRegistry = &registry.Registry{
+	m.screen = ScreenBrowse
+	m.browseRegistry = &registry.Registry{
 		Categories: []string{"theme", "session", "utility"},
 		Plugins: []registry.RegistryItem{
 			{Repo: "catppuccin/tmux", Description: "Pastel theme", Category: "theme", Stars: 1250},
@@ -22,56 +22,56 @@ func newSearchModel(t *testing.T) Model {
 			{Repo: "tmux-plugins/tmux-sensible", Description: "Sensible defaults", Category: "utility", Stars: 5000},
 		},
 	}
-	m.searchResults = m.searchRegistry.Plugins
-	m.searchCategory = -1
+	m.browseResults = m.browseRegistry.Plugins
+	m.browseCategory = -1
 	return m
 }
 
-func TestSearchUpdate_TabCyclesCategory(t *testing.T) {
-	m := newSearchModel(t)
+func TestBrowseUpdate_TabCyclesCategory(t *testing.T) {
+	m := newBrowseModel(t)
 
 	msg := tea.KeyMsg{Type: tea.KeyTab}
 	result, _ := m.Update(msg)
 	m = result.(Model)
-	if m.searchCategory != 0 {
-		t.Errorf("expected category 0, got %d", m.searchCategory)
+	if m.browseCategory != 0 {
+		t.Errorf("expected category 0, got %d", m.browseCategory)
 	}
 
 	result, _ = m.Update(msg)
 	m = result.(Model)
-	if m.searchCategory != 1 {
-		t.Errorf("expected category 1, got %d", m.searchCategory)
+	if m.browseCategory != 1 {
+		t.Errorf("expected category 1, got %d", m.browseCategory)
 	}
 
 	result, _ = m.Update(msg)
 	m = result.(Model)
 	result, _ = m.Update(msg)
 	m = result.(Model)
-	if m.searchCategory != -1 {
-		t.Errorf("expected category -1 (all), got %d", m.searchCategory)
+	if m.browseCategory != -1 {
+		t.Errorf("expected category -1 (all), got %d", m.browseCategory)
 	}
 }
 
-func TestSearchUpdate_CursorNavigation(t *testing.T) {
-	m := newSearchModel(t)
+func TestBrowseUpdate_CursorNavigation(t *testing.T) {
+	m := newBrowseModel(t)
 
 	down := tea.KeyMsg{Type: tea.KeyDown}
 	result, _ := m.Update(down)
 	m = result.(Model)
-	if m.searchScroll.cursor != 1 {
-		t.Errorf("expected cursor 1, got %d", m.searchScroll.cursor)
+	if m.browseScroll.cursor != 1 {
+		t.Errorf("expected cursor 1, got %d", m.browseScroll.cursor)
 	}
 
 	up := tea.KeyMsg{Type: tea.KeyUp}
 	result, _ = m.Update(up)
 	m = result.(Model)
-	if m.searchScroll.cursor != 0 {
-		t.Errorf("expected cursor 0, got %d", m.searchScroll.cursor)
+	if m.browseScroll.cursor != 0 {
+		t.Errorf("expected cursor 0, got %d", m.browseScroll.cursor)
 	}
 }
 
-func TestSearchUpdate_EscReturnsToList(t *testing.T) {
-	m := newSearchModel(t)
+func TestBrowseUpdate_EscReturnsToList(t *testing.T) {
+	m := newBrowseModel(t)
 
 	msg := tea.KeyMsg{Type: tea.KeyEscape}
 	result, _ := m.Update(msg)
@@ -81,28 +81,28 @@ func TestSearchUpdate_EscReturnsToList(t *testing.T) {
 	}
 }
 
-func TestUpdate_SearchKeyOpensSearch(t *testing.T) {
+func TestUpdate_BrowseKeyOpensBrowse(t *testing.T) {
 	m := newTestModel(t, nil)
 	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'b'}}
 	result, cmd := m.Update(msg)
 	m = result.(Model)
 
-	if m.screen != ScreenSearch {
-		t.Errorf("expected ScreenSearch, got %d", m.screen)
+	if m.screen != ScreenBrowse {
+		t.Errorf("expected ScreenBrowse, got %d", m.screen)
 	}
 	if cmd == nil {
 		t.Error("expected non-nil command (registry fetch)")
 	}
 }
 
-func TestSearchRoundTrip(t *testing.T) {
+func TestBrowseRoundTrip(t *testing.T) {
 	m := newTestModel(t, nil)
 
 	browse := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'b'}}
 	result, _ := m.Update(browse)
 	m = result.(Model)
-	if m.screen != ScreenSearch {
-		t.Fatalf("expected ScreenSearch, got %d", m.screen)
+	if m.screen != ScreenBrowse {
+		t.Fatalf("expected ScreenBrowse, got %d", m.screen)
 	}
 
 	result, _ = m.Update(registryFetchResultMsg{
@@ -114,11 +114,11 @@ func TestSearchRoundTrip(t *testing.T) {
 		},
 	})
 	m = result.(Model)
-	if m.searchLoading {
+	if m.browseLoading {
 		t.Error("expected loading to be false after fetch")
 	}
-	if len(m.searchResults) != 1 {
-		t.Errorf("expected 1 result, got %d", len(m.searchResults))
+	if len(m.browseResults) != 1 {
+		t.Errorf("expected 1 result, got %d", len(m.browseResults))
 	}
 
 	esc := tea.KeyMsg{Type: tea.KeyEscape}
@@ -129,14 +129,14 @@ func TestSearchRoundTrip(t *testing.T) {
 	}
 }
 
-func TestInstallFromSearch_AddsToPluginsAndStartsInstall(t *testing.T) {
-	m := newSearchModel(t)
+func TestInstallFromBrowse_AddsToPluginsAndStartsInstall(t *testing.T) {
+	m := newBrowseModel(t)
 	m.cfg.TmuxConf = filepath.Join(t.TempDir(), "tmux.conf")
 	os.WriteFile(m.cfg.TmuxConf, []byte("# tmux config\n"), 0o644)
 
-	m.searchScroll.cursor = 0
+	m.browseScroll.cursor = 0
 
-	result, cmd := m.installFromSearch()
+	result, cmd := m.installFromBrowse()
 	m = result.(Model)
 
 	if m.screen != ScreenProgress {

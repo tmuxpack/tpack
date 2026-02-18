@@ -36,7 +36,7 @@ var SharedKeys = sharedKeys{
 	),
 }
 
-type searchKeys struct {
+type browseKeys struct {
 	Apply    key.Binding
 	Cancel   key.Binding
 	Filter   key.Binding
@@ -48,7 +48,7 @@ type progressKeys struct {
 	BackToList  key.Binding
 }
 
-var SearchKeys = searchKeys{
+var BrowseKeys = browseKeys{
 	Apply: key.NewBinding(
 		key.WithKeys("enter"),
 		key.WithHelp("enter", "apply"),

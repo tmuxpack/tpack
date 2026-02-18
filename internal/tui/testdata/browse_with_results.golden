@@ -3,13 +3,13 @@
                              │   Browse Plugins   │                             
                              ╰────────────────────╯                             
                                                                                 
-                             all  [theme]  session                              
-                              > Search plugins...                               
+                             [all]  theme  session                              
+                              > Filter plugins...                               
                                                                                 
-                          >  1.2k  catppuccin/tmux                              
-                                 Soothing pastel theme                          
-                                                                                
-                                                                                
+                      >  1.2k  catppuccin/tmux                                  
+                             Soothing pastel theme                              
+                        11.4k  tmux-plugins/tmux-resurrect                      
+                             Persists tmux environment                          
                                                                                 
                                                                                 
                                                                                 

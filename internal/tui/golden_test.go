@@ -372,53 +372,53 @@ func TestGolden_ScreenDebug(t *testing.T) {
 	assertGolden(t, "debug_view", m.View())
 }
 
-func TestGolden_ScreenSearch(t *testing.T) {
+func TestGolden_ScreenBrowse(t *testing.T) {
 	tests := []struct {
 		name  string
 		setup func(m *Model)
 	}{
 		{
-			name: "search_loading",
+			name: "browse_loading",
 			setup: func(m *Model) {
-				m.screen = ScreenSearch
-				m.searchLoading = true
+				m.screen = ScreenBrowse
+				m.browseLoading = true
 			},
 		},
 		{
-			name: "search_empty_results",
+			name: "browse_empty_results",
 			setup: func(m *Model) {
-				m.screen = ScreenSearch
-				m.searchRegistry = &registry.Registry{
+				m.screen = ScreenBrowse
+				m.browseRegistry = &registry.Registry{
 					Categories: []string{"theme", "session"},
 				}
-				m.searchCategory = -1
+				m.browseCategory = -1
 			},
 		},
 		{
-			name: "search_with_results",
+			name: "browse_with_results",
 			setup: func(m *Model) {
-				m.screen = ScreenSearch
-				m.searchRegistry = &registry.Registry{
+				m.screen = ScreenBrowse
+				m.browseRegistry = &registry.Registry{
 					Categories: []string{"theme", "session"},
 				}
-				m.searchResults = []registry.RegistryItem{
+				m.browseResults = []registry.RegistryItem{
 					{Repo: "catppuccin/tmux", Description: "Soothing pastel theme", Category: "theme", Stars: 1250},
 					{Repo: "tmux-plugins/tmux-resurrect", Description: "Persists tmux environment", Category: "session", Stars: 11400},
 				}
-				m.searchCategory = -1
+				m.browseCategory = -1
 			},
 		},
 		{
-			name: "search_category_filter",
+			name: "browse_category_filter",
 			setup: func(m *Model) {
-				m.screen = ScreenSearch
-				m.searchRegistry = &registry.Registry{
+				m.screen = ScreenBrowse
+				m.browseRegistry = &registry.Registry{
 					Categories: []string{"theme", "session"},
 				}
-				m.searchResults = []registry.RegistryItem{
+				m.browseResults = []registry.RegistryItem{
 					{Repo: "catppuccin/tmux", Description: "Soothing pastel theme", Category: "theme", Stars: 1250},
 				}
-				m.searchCategory = 0
+				m.browseCategory = 0
 			},
 		},
 	}

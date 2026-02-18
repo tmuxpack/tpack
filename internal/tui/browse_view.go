@@ -7,7 +7,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 )
 
-func (m *Model) viewSearch() string {
+func (m *Model) viewBrowse() string {
 	var b strings.Builder
 
 	b.WriteString(m.centerText(m.theme.TitleStyle.Render("  Browse Plugins  ")))
@@ -16,29 +16,29 @@ func (m *Model) viewSearch() string {
 	b.WriteString(m.centerText(m.renderCategoryBar()))
 	b.WriteString("\n")
 
-	b.WriteString(m.centerText(m.searchInput.View()))
+	b.WriteString(m.centerText(m.browseInput.View()))
 	b.WriteString("\n\n")
 
 	switch {
-	case m.searchLoading:
+	case m.browseLoading:
 		b.WriteString(m.centerText(m.checkSpinner.View() + " Loading registry..."))
 		b.WriteString("\n")
-	case m.searchErr != nil:
-		b.WriteString(m.centerText(m.theme.ErrorStyle.Render("Error: " + m.searchErr.Error())))
+	case m.browseErr != nil:
+		b.WriteString(m.centerText(m.theme.ErrorStyle.Render("Error: " + m.browseErr.Error())))
 		b.WriteString("\n")
-	case len(m.searchResults) == 0:
+	case len(m.browseResults) == 0:
 		b.WriteString(m.centerText(m.theme.MutedTextStyle.Render("  No plugins found")))
 		b.WriteString("\n")
 	default:
-		b.WriteString(m.renderSearchResults())
+		b.WriteString(m.renderBrowseResults())
 	}
 
 	var bindings []key.Binding
 
 	if m.searching {
-		bindings = []key.Binding{SearchKeys.Apply, SearchKeys.Cancel}
+		bindings = []key.Binding{BrowseKeys.Apply, BrowseKeys.Cancel}
 	} else {
-		bindings = []key.Binding{SearchKeys.Filter, SearchKeys.Category, ListKeys.Install, SharedKeys.Back}
+		bindings = []key.Binding{BrowseKeys.Filter, BrowseKeys.Category, ListKeys.Install, SharedKeys.Back}
 	}
 
 	help := m.centerText(m.theme.renderHelp(m.width, bindings...))
@@ -46,20 +46,20 @@ func (m *Model) viewSearch() string {
 }
 
 func (m *Model) renderCategoryBar() string {
-	if m.searchRegistry == nil {
+	if m.browseRegistry == nil {
 		return ""
 	}
 
 	var parts []string
-	if m.searchCategory == -1 {
-		parts = append(parts, m.theme.SearchCategoryStyle.Render("[all]"))
+	if m.browseCategory == -1 {
+		parts = append(parts, m.theme.BrowseCategoryStyle.Render("[all]"))
 	} else {
 		parts = append(parts, m.theme.MutedTextStyle.Render("all"))
 	}
 
-	for i, cat := range m.searchRegistry.Categories {
-		if i == m.searchCategory {
-			parts = append(parts, m.theme.SearchCategoryStyle.Render("["+cat+"]"))
+	for i, cat := range m.browseRegistry.Categories {
+		if i == m.browseCategory {
+			parts = append(parts, m.theme.BrowseCategoryStyle.Render("["+cat+"]"))
 		} else {
 			parts = append(parts, m.theme.MutedTextStyle.Render(cat))
 		}
@@ -67,37 +67,37 @@ func (m *Model) renderCategoryBar() string {
 	return strings.Join(parts, "  ")
 }
 
-func (m *Model) renderSearchResults() string {
+func (m *Model) renderBrowseResults() string {
 	var tb strings.Builder
 
-	viewHeight := m.searchViewHeight()
-	start, end := calculateVisibleRange(m.searchScroll.scrollOffset, viewHeight, len(m.searchResults))
-	topIndicator, bottomIndicator, dataStart, dataEnd := m.theme.renderScrollIndicators(start, end, len(m.searchResults))
+	viewHeight := m.browseViewHeight()
+	start, end := calculateVisibleRange(m.browseScroll.scrollOffset, viewHeight, len(m.browseResults))
+	topIndicator, bottomIndicator, dataStart, dataEnd := m.theme.renderScrollIndicators(start, end, len(m.browseResults))
 	tb.WriteString(topIndicator)
 
 	for i := dataStart; i < dataEnd; i++ {
-		p := m.searchResults[i]
-		cursor := renderCursor(i == m.searchScroll.cursor)
+		p := m.browseResults[i]
+		cursor := renderCursor(i == m.browseScroll.cursor)
 
-		stars := m.theme.SearchStarsStyle.Render(formatStars(p.Stars))
-		repo := m.theme.SearchRepoStyle.Render(p.Repo)
+		stars := m.theme.BrowseStarsStyle.Render(formatStars(p.Stars))
+		repo := m.theme.BrowseRepoStyle.Render(p.Repo)
 
 		installed := ""
 		for _, pl := range m.plugins {
 			if pl.Spec == p.Repo || pl.Name == pluginNameFromRepo(p.Repo) {
-				installed = " " + m.theme.SearchInstalledStyle.Render("(installed)")
+				installed = " " + m.theme.BrowseInstalledStyle.Render("(installed)")
 				break
 			}
 		}
 
 		row := fmt.Sprintf("%s%s  %s%s", cursor, stars, repo, installed)
-		if i == m.searchScroll.cursor {
+		if i == m.browseScroll.cursor {
 			row = m.theme.SelectedRowStyle.Render(row)
 		}
 		tb.WriteString(row)
 		tb.WriteString("\n")
 
-		desc := fmt.Sprintf("       %s", m.theme.SearchDescStyle.Render(p.Description))
+		desc := fmt.Sprintf("       %s", m.theme.BrowseDescStyle.Render(p.Description))
 		tb.WriteString(desc)
 		tb.WriteString("\n")
 	}
@@ -106,7 +106,7 @@ func (m *Model) renderSearchResults() string {
 	return m.centerBlock(strings.TrimRight(tb.String(), "\n"))
 }
 
-func (m *Model) searchViewHeight() int {
+func (m *Model) browseViewHeight() int {
 	reserved := 14
 	available := m.height - reserved
 	items := available / 2

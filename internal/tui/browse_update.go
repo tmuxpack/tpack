@@ -16,45 +16,45 @@ type registryFetchResultMsg struct {
 }
 
 func (m Model) enterBrowse() (tea.Model, tea.Cmd) {
-	m.screen = ScreenSearch
-	m.searchLoading = true
-	m.searchCategory = -1
-	m.searchResults = nil
-	m.searchErr = nil
-	m.searchQuery = ""
-	m.searchQuerySnapshot = ""
-	m.searchScroll.reset()
-	m.searchInput.Reset()
+	m.screen = ScreenBrowse
+	m.browseLoading = true
+	m.browseCategory = -1
+	m.browseResults = nil
+	m.browseErr = nil
+	m.browseQuery = ""
+	m.browseQuerySnapshot = ""
+	m.browseScroll.reset()
+	m.browseInput.Reset()
 	m.searching = false
 
 	cmd := m.fetchRegistryCmd()
 	return m, tea.Batch(cmd, m.checkSpinner.Tick)
 }
 
-func (m Model) handleKeyMsgSearch(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	if m.searchLoading {
+func (m Model) handleKeyMsgBrowse(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	if m.browseLoading {
 		return m, nil
 	}
 
-	if m.searchInput.Focused() {
+	if m.browseInput.Focused() {
 		switch {
 		case key.Matches(msg, SharedKeys.Back): // Esc → revert query, blur
-			m.searchInput.SetValue(m.searchQuerySnapshot)
-			m.searchQuery = m.searchQuerySnapshot
-			m.searchInput.Blur()
-			m.applySearchFilter()
+			m.browseInput.SetValue(m.browseQuerySnapshot)
+			m.browseQuery = m.browseQuerySnapshot
+			m.browseInput.Blur()
+			m.applyBrowseFilter()
 			m.searching = false
 			return m, nil
 		case msg.Type == tea.KeyEnter: // Enter → accept query, blur
-			m.searchInput.Blur()
+			m.browseInput.Blur()
 			m.searching = false
 			return m, nil
 		default: // All other keys → text input
 			var cmd tea.Cmd
-			m.searchInput, cmd = m.searchInput.Update(msg)
-			if m.searchQuery != m.searchInput.Value() {
-				m.searchQuery = m.searchInput.Value()
-				m.applySearchFilter()
+			m.browseInput, cmd = m.browseInput.Update(msg)
+			if m.browseQuery != m.browseInput.Value() {
+				m.browseQuery = m.browseInput.Value()
+				m.applyBrowseFilter()
 			}
 			return m, cmd
 		}
@@ -67,19 +67,19 @@ func (m Model) handleKeyMsgSearch(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 	case msg.Type == tea.KeyTab:
 		m.cycleCategory()
-		m.applySearchFilter()
+		m.applyBrowseFilter()
 		return m, nil
 	case key.Matches(msg, ListKeys.Up):
-		m.searchScroll.moveUp()
+		m.browseScroll.moveUp()
 		return m, nil
 	case key.Matches(msg, ListKeys.Down):
-		m.searchScroll.moveDown(len(m.searchResults), m.searchViewHeight())
+		m.browseScroll.moveDown(len(m.browseResults), m.browseViewHeight())
 		return m, nil
 	case key.Matches(msg, ListKeys.Install):
-		return m.installFromSearch()
+		return m.installFromBrowse()
 	case key.Matches(msg, ListKeys.Search):
-		m.searchQuerySnapshot = m.searchQuery
-		m.searchInput.Focus()
+		m.browseQuerySnapshot = m.browseQuery
+		m.browseInput.Focus()
 		m.searching = true
 		return m, nil
 	default:
@@ -88,42 +88,42 @@ func (m Model) handleKeyMsgSearch(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) handleRegistryFetch(msg registryFetchResultMsg) (tea.Model, tea.Cmd) {
-	m.searchLoading = false
+	m.browseLoading = false
 	if msg.Err != nil {
-		m.searchErr = msg.Err
+		m.browseErr = msg.Err
 		return m, nil
 	}
-	m.searchRegistry = msg.Registry
-	m.applySearchFilter()
+	m.browseRegistry = msg.Registry
+	m.applyBrowseFilter()
 	return m, nil
 }
 
 func (m *Model) cycleCategory() {
-	if m.searchRegistry == nil {
+	if m.browseRegistry == nil {
 		return
 	}
-	m.searchCategory++
-	if m.searchCategory >= len(m.searchRegistry.Categories) {
-		m.searchCategory = -1
+	m.browseCategory++
+	if m.browseCategory >= len(m.browseRegistry.Categories) {
+		m.browseCategory = -1
 	}
-	m.searchScroll.reset()
+	m.browseScroll.reset()
 }
 
-func (m *Model) applySearchFilter() {
-	if m.searchRegistry == nil {
-		m.searchResults = nil
+func (m *Model) applyBrowseFilter() {
+	if m.browseRegistry == nil {
+		m.browseResults = nil
 		return
 	}
 
-	source := m.searchRegistry
-	if m.searchCategory >= 0 && m.searchCategory < len(m.searchRegistry.Categories) {
-		cat := m.searchRegistry.Categories[m.searchCategory]
+	source := m.browseRegistry
+	if m.browseCategory >= 0 && m.browseCategory < len(m.browseRegistry.Categories) {
+		cat := m.browseRegistry.Categories[m.browseCategory]
 		filtered := registry.FilterByCategory(source, cat)
 		source = &registry.Registry{Plugins: filtered, Categories: source.Categories}
 	}
 
-	m.searchResults = registry.Search(source, m.searchQuery)
-	m.searchScroll.reset()
+	m.browseResults = registry.Search(source, m.browseQuery)
+	m.browseScroll.reset()
 }
 
 func (m *Model) fetchRegistryCmd() tea.Cmd {
@@ -140,12 +140,12 @@ func (m *Model) fetchRegistryCmd() tea.Cmd {
 	}
 }
 
-func (m Model) installFromSearch() (tea.Model, tea.Cmd) {
-	if m.searchScroll.cursor < 0 || m.searchScroll.cursor >= len(m.searchResults) {
+func (m Model) installFromBrowse() (tea.Model, tea.Cmd) {
+	if m.browseScroll.cursor < 0 || m.browseScroll.cursor >= len(m.browseResults) {
 		return m, nil
 	}
 
-	selected := m.searchResults[m.searchScroll.cursor]
+	selected := m.browseResults[m.browseScroll.cursor]
 
 	for _, p := range m.plugins {
 		if p.Spec == selected.Repo || p.Name == pluginNameFromRepo(selected.Repo) {

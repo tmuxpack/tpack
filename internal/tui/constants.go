@@ -14,7 +14,7 @@ const (
 	ScreenProgress
 	ScreenCommits
 	ScreenDebug
-	ScreenSearch
+	ScreenBrowse
 )
 
 // Operation represents the current plugin operation.

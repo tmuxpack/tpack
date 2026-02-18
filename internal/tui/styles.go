@@ -33,11 +33,11 @@ type Theme struct {
 	HelpKeyStyle            lipgloss.Style
 	ProgressStyle           lipgloss.Style
 	OrphanStyle             lipgloss.Style
-	SearchStarsStyle        lipgloss.Style
-	SearchRepoStyle         lipgloss.Style
-	SearchDescStyle         lipgloss.Style
-	SearchCategoryStyle     lipgloss.Style
-	SearchInstalledStyle    lipgloss.Style
+	BrowseStarsStyle        lipgloss.Style
+	BrowseRepoStyle         lipgloss.Style
+	BrowseDescStyle         lipgloss.Style
+	BrowseCategoryStyle     lipgloss.Style
+	BrowseInstalledStyle    lipgloss.Style
 }
 
 // NewTheme constructs a Theme from the given color palette.
@@ -116,21 +116,21 @@ func NewTheme(primary, secondary, accent, errC, muted, text lipgloss.Color) Them
 			Foreground(accent).
 			Italic(true),
 
-		SearchStarsStyle: lipgloss.NewStyle().
+		BrowseStarsStyle: lipgloss.NewStyle().
 			Foreground(accent),
 
-		SearchRepoStyle: lipgloss.NewStyle().
+		BrowseRepoStyle: lipgloss.NewStyle().
 			Foreground(text).
 			Bold(true),
 
-		SearchDescStyle: lipgloss.NewStyle().
+		BrowseDescStyle: lipgloss.NewStyle().
 			Foreground(muted),
 
-		SearchCategoryStyle: lipgloss.NewStyle().
+		BrowseCategoryStyle: lipgloss.NewStyle().
 			Foreground(secondary).
 			Bold(true),
 
-		SearchInstalledStyle: lipgloss.NewStyle().
+		BrowseInstalledStyle: lipgloss.NewStyle().
 			Foreground(secondary).
 			Italic(true),
 	}
