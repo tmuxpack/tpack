@@ -1,14 +1,12 @@
                                                                                 
-                                 ╭───────────╮                                  
-                                 │   tpack   │                                  
-                                 ╰───────────╯                                  
-                                                                                
-                          0 installed, 0 not installed                          
-                                                                                
-                        No plugins configured in tmux.conf                      
+                             ╭────────────────────╮                             
+                             │   Search Plugins   │                             
+                             ╰────────────────────╯                             
                                                                                 
                                                                                 
+                              > Search plugins...                               
                                                                                 
+                             ⣾  Loading registry...                             
                                                                                 
                                                                                 
                                                                                 
@@ -20,5 +18,7 @@
                                                                                 
                                                                                 
                                                                                 
-                                / search  q quit                                
+                                                                                
+                                                                                
+                / filter  tab category  enter install  esc back                 
                                                                                 

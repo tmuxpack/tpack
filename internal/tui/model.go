@@ -4,10 +4,12 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/bubbles/spinner"
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/tmuxpack/tpack/internal/config"
 	"github.com/tmuxpack/tpack/internal/git"
 	"github.com/tmuxpack/tpack/internal/plug"
+	"github.com/tmuxpack/tpack/internal/registry"
 	"github.com/tmuxpack/tpack/internal/tmux"
 )
 
@@ -88,6 +90,16 @@ type Model struct {
 	commitViewCommits []git.Commit
 	commitScroll      scrollState
 
+	// Search screen state.
+	searchRegistry *registry.Registry
+	searchResults  []registry.RegistryItem
+	searchQuery    string
+	searchInput    textinput.Model
+	searchCategory int // index into registry.Categories, -1 = all
+	searchScroll   scrollState
+	searchLoading  bool
+	searchErr      error
+
 	version    string
 	binaryPath string
 }
@@ -119,6 +131,11 @@ func NewModel(cfg *config.Config, plugins []plug.Plugin, deps Deps, opts ...Mode
 	if m.viewHeight < MinViewHeight {
 		m.viewHeight = MinViewHeight
 	}
+	ti := textinput.New()
+	ti.Placeholder = "Search plugins..."
+	ti.CharLimit = 100
+	m.searchInput = ti
+	m.searchCategory = -1
 	m.progressBar.Width = FixedWidth - ProgressBarPadding
 	if m.progressBar.Width > ProgressBarMaxWidth {
 		m.progressBar.Width = ProgressBarMaxWidth
@@ -182,6 +199,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleCleanResult(msg)
 	case pluginUninstallResultMsg:
 		return m.handleUninstallResult(msg)
+	case registryFetchResultMsg:
+		return m.handleRegistryFetch(msg)
 	}
 
 	return m, nil
@@ -214,6 +233,8 @@ func (m Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.updateProgress(msg)
 	case ScreenDebug:
 		return m.updateDebug(msg)
+	case ScreenSearch:
+		return m.updateSearch(msg)
 	case ScreenList:
 		return m.updateList(msg)
 	}
@@ -232,6 +253,8 @@ func (m Model) View() string {
 		content = m.viewCommits()
 	case ScreenDebug:
 		content = m.viewDebug()
+	case ScreenSearch:
+		content = m.viewSearch()
 	}
 	return m.theme.BaseStyle.Render(content)
 }
@@ -257,6 +280,8 @@ func (m Model) updateList(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.startOperation(OpClean)
 	case key.Matches(msg, ListKeys.Uninstall):
 		return m.startOperation(OpUninstall)
+	case key.Matches(msg, ListKeys.Search):
+		return m.enterSearch()
 	case key.Matches(msg, ListKeys.Debug):
 		m.screen = ScreenDebug
 	}

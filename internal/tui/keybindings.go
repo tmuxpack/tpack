@@ -16,6 +16,7 @@ type listKeys struct {
 	Clean     key.Binding
 	Uninstall key.Binding
 	Debug     key.Binding
+	Search    key.Binding
 }
 
 var SharedKeys = sharedKeys{
@@ -60,5 +61,9 @@ var ListKeys = listKeys{
 	),
 	Debug: key.NewBinding(
 		key.WithKeys("@"),
+	),
+	Search: key.NewBinding(
+		key.WithKeys("/"),
+		key.WithHelp("/", "search"),
 	),
 }

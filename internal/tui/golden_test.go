@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/tmuxpack/tpack/internal/git"
+	"github.com/tmuxpack/tpack/internal/registry"
 )
 
 var update = flag.Bool("update", false, "update golden files")
@@ -372,4 +373,64 @@ func TestGolden_ScreenDebug(t *testing.T) {
 	m.version = "1.2.3"
 	m.binaryPath = "/usr/local/bin/tpack"
 	assertGolden(t, "debug_view", m.View())
+}
+
+func TestGolden_ScreenSearch(t *testing.T) {
+	tests := []struct {
+		name  string
+		setup func(m *Model)
+	}{
+		{
+			name: "search_loading",
+			setup: func(m *Model) {
+				m.screen = ScreenSearch
+				m.searchLoading = true
+			},
+		},
+		{
+			name: "search_empty_results",
+			setup: func(m *Model) {
+				m.screen = ScreenSearch
+				m.searchRegistry = &registry.Registry{
+					Categories: []string{"theme", "session"},
+				}
+				m.searchCategory = -1
+			},
+		},
+		{
+			name: "search_with_results",
+			setup: func(m *Model) {
+				m.screen = ScreenSearch
+				m.searchRegistry = &registry.Registry{
+					Categories: []string{"theme", "session"},
+				}
+				m.searchResults = []registry.RegistryItem{
+					{Repo: "catppuccin/tmux", Description: "Soothing pastel theme", Category: "theme", Stars: 1250},
+					{Repo: "tmux-plugins/tmux-resurrect", Description: "Persists tmux environment", Category: "session", Stars: 11400},
+				}
+				m.searchCategory = -1
+			},
+		},
+		{
+			name: "search_category_filter",
+			setup: func(m *Model) {
+				m.screen = ScreenSearch
+				m.searchRegistry = &registry.Registry{
+					Categories: []string{"theme", "session"},
+				}
+				m.searchResults = []registry.RegistryItem{
+					{Repo: "catppuccin/tmux", Description: "Soothing pastel theme", Category: "theme", Stars: 1250},
+				}
+				m.searchCategory = 0
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := newTestModel(t, nil)
+			tt.setup(&m)
+			assertGolden(t, tt.name, m.View())
+		})
+	}
 }
