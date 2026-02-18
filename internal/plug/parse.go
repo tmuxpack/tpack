@@ -12,56 +12,49 @@ var (
 	pluginLineRe = regexp.MustCompile(
 		`^[ \t]*set(?:-option)?\s+-g\s+@plugin\s+(?:"([^"]+)"|'([^']+)'|(\S+))`)
 
-	// Matches: source "...", source-file -q "...", source '...'
+	// Matches: source "...", source-file -q "...", source '...', or unquoted path.
+	// Three alternations handle double-quoted, single-quoted, and unquoted values.
 	sourcedFileRe = regexp.MustCompile(
-		`^[ \t]*source(?:-file)?\s+(?:-q\s+)?['"]?([^'"]+)['"]?`)
+		`^[ \t]*source(?:-file)?\s+(?:-q\s+)?(?:"([^"]+)"|'([^']+)'|(\S+))`)
 )
+
+// extractMatches scans content line by line and collects the first
+// non-empty capture group from re for each non-comment line that matches.
+func extractMatches(content string, re *regexp.Regexp) []string {
+	var results []string
+	for line := range strings.SplitSeq(content, "\n") {
+		line = strings.TrimRight(line, "\r")
+		if strings.HasPrefix(strings.TrimSpace(line), "#") {
+			continue
+		}
+		if m := re.FindStringSubmatch(line); m != nil {
+			// m[1] = double-quoted, m[2] = single-quoted, m[3] = unquoted
+			val := m[1]
+			if val == "" {
+				val = m[2]
+			}
+			if val == "" {
+				val = m[3]
+			}
+			val = strings.TrimSpace(val)
+			if val != "" {
+				results = append(results, val)
+			}
+		}
+	}
+	return results
+}
 
 // ExtractPluginsFromConfig parses tmux config content and returns all
 // plugin specifications found in @plugin declarations.
 func ExtractPluginsFromConfig(content string) []string {
-	var plugins []string
-	for _, line := range strings.Split(content, "\n") {
-		line = strings.TrimRight(line, "\r")
-		// Skip comments
-		if strings.HasPrefix(strings.TrimSpace(line), "#") {
-			continue
-		}
-		if m := pluginLineRe.FindStringSubmatch(line); m != nil {
-			// m[1] = double-quoted, m[2] = single-quoted, m[3] = unquoted
-			spec := m[1]
-			if spec == "" {
-				spec = m[2]
-			}
-			if spec == "" {
-				spec = m[3]
-			}
-			spec = strings.TrimSpace(spec)
-			if spec != "" {
-				plugins = append(plugins, spec)
-			}
-		}
-	}
-	return plugins
+	return extractMatches(content, pluginLineRe)
 }
 
 // ExtractSourcedFiles parses tmux config content and returns all
 // file paths referenced by source or source-file commands.
 func ExtractSourcedFiles(content string) []string {
-	var files []string
-	for _, line := range strings.Split(content, "\n") {
-		line = strings.TrimRight(line, "\r")
-		if strings.HasPrefix(strings.TrimSpace(line), "#") {
-			continue
-		}
-		if m := sourcedFileRe.FindStringSubmatch(line); m != nil {
-			path := strings.TrimSpace(m[1])
-			if path != "" {
-				files = append(files, path)
-			}
-		}
-	}
-	return files
+	return extractMatches(content, sourcedFileRe)
 }
 
 // ManualExpansion expands ~ and $HOME in a path, mirroring the bash behavior.

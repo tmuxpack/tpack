@@ -146,6 +146,11 @@ func TestExtractSourcedFiles(t *testing.T) {
 			content: `# source ~/.tmux/theme.conf`,
 			want:    nil,
 		},
+		{
+			name:    "unquoted path with inline comment",
+			content: `source ~/.tmux/theme.conf # my theme`,
+			want:    []string{"~/.tmux/theme.conf"},
+		},
 	}
 
 	for _, tt := range tests {
