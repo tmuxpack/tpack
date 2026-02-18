@@ -8,6 +8,8 @@
 [![Go Version](https://img.shields.io/github/go-mod/go-version/tmuxpack/tpack)](https://go.dev/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE.md)
 
+<img width="722" height="491" alt="image" src="https://github.com/user-attachments/assets/0ac68a1b-15a5-4d09-a6c3-b8bc9e479bb3" />
+
 > **[Full Documentation](https://tmuxpack.github.io/tpack/)**
 
 A modern tmux plugin manager written in Go. **Drop-in replacement for
