@@ -5,6 +5,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/tmuxpack/tpack/internal/config"
 	"github.com/tmuxpack/tpack/internal/plug"
 	"github.com/tmuxpack/tpack/internal/registry"
 )
@@ -125,6 +126,10 @@ func (m Model) installFromSearch() (tea.Model, tea.Cmd) {
 		if p.Spec == selected.Repo || p.Name == pluginNameFromRepo(selected.Repo) {
 			return m, nil
 		}
+	}
+
+	if m.cfg.TmuxConf != "" {
+		_ = config.AppendPlugin(m.cfg.TmuxConf, selected.Repo)
 	}
 
 	name := pluginNameFromRepo(selected.Repo)

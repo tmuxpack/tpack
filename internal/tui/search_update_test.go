@@ -1,6 +1,9 @@
 package tui
 
 import (
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -123,5 +126,31 @@ func TestSearchRoundTrip(t *testing.T) {
 	m = result.(Model)
 	if m.screen != ScreenList {
 		t.Errorf("expected ScreenList, got %d", m.screen)
+	}
+}
+
+func TestInstallFromSearch_AddsToPluginsAndStartsInstall(t *testing.T) {
+	m := newSearchModel(t)
+	m.cfg.TmuxConf = filepath.Join(t.TempDir(), "tmux.conf")
+	os.WriteFile(m.cfg.TmuxConf, []byte("# tmux config\n"), 0o644)
+
+	m.searchScroll.cursor = 0
+
+	result, cmd := m.installFromSearch()
+	m = result.(Model)
+
+	if m.screen != ScreenProgress {
+		t.Errorf("expected ScreenProgress, got %d", m.screen)
+	}
+	if m.totalItems != 1 {
+		t.Errorf("expected 1 pending install, got %d", m.totalItems)
+	}
+	if cmd == nil {
+		t.Error("expected non-nil install command")
+	}
+
+	data, _ := os.ReadFile(m.cfg.TmuxConf)
+	if !strings.Contains(string(data), "catppuccin/tmux") {
+		t.Error("expected plugin line in tmux.conf")
 	}
 }
