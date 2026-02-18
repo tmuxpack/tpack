@@ -19,22 +19,22 @@ type resolveOpts struct {
 	xdgState string // XDG_STATE_HOME override
 }
 
-// WithFS overrides the filesystem for testing.
+// WithFS overrides the filesystem
 func WithFS(fs FS) Option {
 	return func(o *resolveOpts) { o.fs = fs }
 }
 
-// WithHome overrides the home directory for testing.
+// WithHome overrides the home directory
 func WithHome(home string) Option {
 	return func(o *resolveOpts) { o.home = home }
 }
 
-// WithXDG overrides XDG_CONFIG_HOME for testing.
+// WithXDG overrides XDG_CONFIG_HOME
 func WithXDG(xdg string) Option {
 	return func(o *resolveOpts) { o.xdg = xdg }
 }
 
-// WithXDGState overrides XDG_STATE_HOME for testing.
+// WithXDGState overrides XDG_STATE_HOME
 func WithXDGState(xdgState string) Option {
 	return func(o *resolveOpts) { o.xdgState = xdgState }
 }
@@ -66,15 +66,18 @@ func (o *resolveOpts) xdgStateHome() string {
 //  3. Default (~/.tmux/plugins/)
 func Resolve(runner tmux.Runner, opts ...Option) (*Config, error) {
 	home := os.Getenv("HOME")
+
 	if home == "" {
 		if h, err := os.UserHomeDir(); err == nil {
 			home = h
 		}
 	}
+
 	o := &resolveOpts{
 		fs:   RealFS{},
 		home: home,
 	}
+
 	for _, opt := range opts {
 		opt(o)
 	}
@@ -90,19 +93,14 @@ func Resolve(runner tmux.Runner, opts ...Option) (*Config, error) {
 		TuiKey:     DefaultTuiKey,
 	}
 
-	// Resolve keybindings from tmux options (current @tpack-* first, legacy @tpm-* fallback).
-	cfg.InstallKey = resolveOptionWithFallback(runner, InstallKeyOption, LegacyInstallKeyOption, cfg.InstallKey)
-	cfg.UpdateKey = resolveOptionWithFallback(runner, UpdateKeyOption, LegacyUpdateKeyOption, cfg.UpdateKey)
-	cfg.CleanKey = resolveOptionWithFallback(runner, CleanKeyOption, LegacyCleanKeyOption, cfg.CleanKey)
-	cfg.TuiKey = resolveOptionWithFallback(runner, TuiKeyOption, "", cfg.TuiKey)
+	// current @tpack-* first, legacy @tpm-* fallback
+	cfg.InstallKey = resolveOptionWithLegacyAndFallback(runner, InstallKeyOption, LegacyInstallKeyOption, cfg.InstallKey)
+	cfg.UpdateKey = resolveOptionWithLegacyAndFallback(runner, UpdateKeyOption, LegacyUpdateKeyOption, cfg.UpdateKey)
+	cfg.CleanKey = resolveOptionWithLegacyAndFallback(runner, CleanKeyOption, LegacyCleanKeyOption, cfg.CleanKey)
+	cfg.TuiKey = resolveOptionWithFallback(runner, TuiKeyOption, cfg.TuiKey)
 
-	// Resolve tmux.conf location.
 	cfg.TmuxConf = getUserTmuxConf(o)
-
-	// Resolve plugin path.
 	cfg.PluginPath = resolvePluginPath(runner, o)
-
-	// Resolve color and update overrides from tmux options.
 	cfg.Colors = resolveColors(runner)
 	cfg.UpdateCheckInterval, cfg.UpdateMode = resolveUpdateSettings(runner)
 
@@ -111,7 +109,6 @@ func Resolve(runner tmux.Runner, opts ...Option) (*Config, error) {
 	}
 
 	cfg.StatePath = filepath.Join(o.xdgStateHome(), "tpack")
-
 	cfg.Home = o.home
 
 	return cfg, nil
@@ -126,7 +123,7 @@ func getUserTmuxConf(o *resolveOpts) string {
 	return filepath.Join(o.home, ".tmux.conf")
 }
 
-// resolvePluginPath determines the plugin installation directory.
+// Determines the plugin installation directory.
 func resolvePluginPath(runner tmux.Runner, o *resolveOpts) string {
 	// Check current env var first, then legacy.
 	if val, err := runner.ShowEnvironment(PluginPathEnvVar); err == nil && val != "" && val != "/" {
@@ -142,19 +139,18 @@ func resolvePluginPath(runner tmux.Runner, o *resolveOpts) string {
 		return val
 	}
 
-	// Check XDG path.
 	xdgConf := filepath.Join(o.xdgConfigHome(), "tmux", "tmux.conf")
 	if o.fs.FileExists(xdgConf) {
 		return filepath.Join(o.xdgConfigHome(), "tmux", "plugins") + "/"
 	}
 
-	// Default.
 	return filepath.Join(o.home, DefaultPluginPath) + "/"
 }
 
-// resolveColors reads per-color tmux options into a ColorConfig.
+// Reads per-color tmux options into a ColorConfig.
 func resolveColors(runner tmux.Runner) ColorConfig {
 	var c ColorConfig
+
 	for _, entry := range []struct {
 		option string
 		field  *string
@@ -170,10 +166,11 @@ func resolveColors(runner tmux.Runner) ColorConfig {
 			*entry.field = v
 		}
 	}
+
 	return c
 }
 
-// resolveUpdateSettings reads update interval and mode from tmux options.
+// Reads update interval and mode from tmux options.
 func resolveUpdateSettings(runner tmux.Runner) (time.Duration, string) {
 	var interval time.Duration
 	var mode string
@@ -186,7 +183,6 @@ func resolveUpdateSettings(runner tmux.Runner) (time.Duration, string) {
 	return interval, mode
 }
 
-// validUpdateModes is the set of recognized update mode values.
 var validUpdateModes = map[string]bool{
 	"":       true,
 	"off":    true,
@@ -194,7 +190,7 @@ var validUpdateModes = map[string]bool{
 	"auto":   true,
 }
 
-// parseUpdateMode returns the mode if valid, or empty string otherwise.
+// Returns the mode if valid, or empty string otherwise.
 func parseUpdateMode(s string) string {
 	if validUpdateModes[s] {
 		return s
@@ -202,7 +198,7 @@ func parseUpdateMode(s string) string {
 	return ""
 }
 
-// parseCheckInterval parses a duration string, returning 0 on any error.
+// Parses a duration string, returning 0 on any error.
 func parseCheckInterval(s string) time.Duration {
 	if s == "" {
 		return 0
@@ -214,16 +210,26 @@ func parseCheckInterval(s string) time.Duration {
 	return d
 }
 
-// resolveOptionWithFallback reads a tmux option, falling back to a legacy name.
-// Returns the default if neither is set. Pass empty legacy to skip fallback.
-func resolveOptionWithFallback(runner tmux.Runner, current, legacy, def string) string {
+// Reads a tmux option, falling back to a legacy name.
+// Returns the default if neither is set.
+func resolveOptionWithLegacyAndFallback(runner tmux.Runner, current, legacy, def string) string {
 	if v, err := runner.ShowOption(current); err == nil && v != "" {
 		return v
 	}
+
 	if legacy != "" {
 		if v, err := runner.ShowOption(legacy); err == nil && v != "" {
 			return v
 		}
 	}
+
+	return def
+}
+
+func resolveOptionWithFallback(runner tmux.Runner, current, def string) string {
+	if v, err := runner.ShowOption(current); err == nil && v != "" {
+		return v
+	}
+
 	return def
 }

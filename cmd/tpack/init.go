@@ -24,6 +24,7 @@ func runInit() int {
 	}
 	current := tmux.ParseVersionDigits(verStr)
 	if !tmux.IsVersionSupported(current, config.SupportedTmuxVersion) {
+		// TODO: add e2e tests with version 1.9
 		msg := "Error, Tmux version unsupported! Please install Tmux version 1.9 or greater!"
 		_ = runner.DisplayMessage(msg)
 		return 1
@@ -37,29 +38,23 @@ func runInit() int {
 	}
 
 	// Set plugin path in tmux environment (set both for compatibility).
+	// TODO: why ignore errors here?
 	_ = runner.SetEnvironment(config.PluginPathEnvVar, cfg.PluginPath)
 	_ = runner.SetEnvironment(config.LegacyPluginPathEnvVar, cfg.PluginPath)
 
-	// Find binary once and pass to functions that need it.
 	binary := findBinary()
-
-	// Bind keys.
 	bindKeys(runner, cfg, binary)
 
 	// Source plugins.
 	output := ui.NewShellOutput()
 	mgr := newManagerDeps(cfg.PluginPath, output)
-
 	plugins := config.GatherPlugins(runner, config.RealFS{}, cfg.TmuxConf, cfg.Home)
-
 	mgr.Source(context.Background(), plugins)
 
-	// Spawn background update check if configured.
 	if shouldSpawnUpdateCheck(cfg) {
 		spawnUpdateCheck(binary)
 	}
 
-	// Spawn background self-update check for auto-downloaded binaries.
 	if shouldSpawnSelfUpdate(binary, cfg.PluginPath, cfg.PinnedVersion) {
 		spawnSelfUpdate(binary)
 	}
@@ -67,6 +62,7 @@ func runInit() int {
 	return 0
 }
 
+// TODO: don't ignore errors here
 func bindKeys(runner tmux.Runner, cfg *config.Config, binary string) {
 	_ = runner.BindKey(cfg.InstallKey, binary+" tui --popup --install", "[tpack] Install plugins")
 	_ = runner.BindKey(cfg.UpdateKey, binary+" tui --popup --update", "[tpack] Update plugins")
@@ -74,18 +70,18 @@ func bindKeys(runner tmux.Runner, cfg *config.Config, binary string) {
 	_ = runner.BindKey(cfg.TuiKey, binary+" tui --popup", "[tpack] Open TUI")
 }
 
-// isAutoDownloaded reports whether the binary is at the auto-download location.
+// Reports whether the binary is at the auto-download location.
 func isAutoDownloaded(binary, pluginPath string) bool {
 	expected := filepath.Join(pluginPath, "tpm", binaryName)
 	return binary == expected
 }
 
-// shouldSpawnSelfUpdate reports whether the self-update check should run.
+// Reports whether the self-update check should run.
 func shouldSpawnSelfUpdate(binary, pluginPath, pinnedVersion string) bool {
 	return isAutoDownloaded(binary, pluginPath) && pinnedVersion == ""
 }
 
-// spawnSelfUpdate launches `tpack self-update` as a detached background process.
+// Launches `tpack self-update` as a detached background process.
 func spawnSelfUpdate(binary string) {
 	cmd := exec.Command(binary, "self-update") //nolint:noctx // intentionally detached, no cancellation
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
@@ -96,12 +92,12 @@ func spawnSelfUpdate(binary string) {
 	}
 }
 
-// shouldSpawnUpdateCheck returns true if update checks are configured.
+// Returns true if update checks are configured.
 func shouldSpawnUpdateCheck(cfg *config.Config) bool {
 	return cfg.UpdateMode != "" && cfg.UpdateMode != "off" && cfg.UpdateCheckInterval > 0
 }
 
-// spawnUpdateCheck launches `tpack check-updates` as a detached background process.
+// Launches `tpack check-updates` as a detached background process.
 func spawnUpdateCheck(binary string) {
 	cmd := exec.Command(binary, "check-updates") //nolint:noctx // intentionally detached, no cancellation
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
@@ -112,7 +108,7 @@ func spawnUpdateCheck(binary string) {
 	}
 }
 
-// findBinary returns the absolute path to the tpack binary.
+// Returns the absolute path to the tpack binary.
 func findBinary() string {
 	// Try the executable path first.
 	exe, err := os.Executable()

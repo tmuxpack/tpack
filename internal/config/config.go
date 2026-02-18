@@ -1,22 +1,16 @@
-// Package config handles tpack configuration resolution.
 package config
 
 import "time"
 
 const (
-	// DefaultInstallKey is the default keybinding for plugin installation.
+	// Default keybinds
 	DefaultInstallKey = "I"
-	// DefaultUpdateKey is the default keybinding for plugin updates.
-	DefaultUpdateKey = "U"
-	// DefaultCleanKey is the default keybinding for plugin cleanup.
-	DefaultCleanKey = "M-u"
-	// DefaultTuiKey is the default keybinding for the TUI popup.
-	DefaultTuiKey = "T"
-	// DefaultPluginPath is the default plugin installation directory.
-	DefaultPluginPath = ".tmux/plugins/"
-	// PluginPathEnvVar is the current tmux environment variable for the plugin path.
-	PluginPathEnvVar = "TPACK_PLUGIN_PATH"
-	// LegacyPluginPathEnvVar is the legacy tmux environment variable for the plugin path.
+	DefaultUpdateKey  = "U"
+	DefaultCleanKey   = "M-u"
+	DefaultTuiKey     = "T"
+
+	DefaultPluginPath      = ".tmux/plugins/"
+	PluginPathEnvVar       = "TPACK_PLUGIN_PATH"
 	LegacyPluginPathEnvVar = "TMUX_PLUGIN_MANAGER_PATH"
 	// SupportedTmuxVersion is the minimum tmux version encoded as major*100+minor.
 	SupportedTmuxVersion = 109
@@ -55,28 +49,27 @@ const (
 
 // Config holds resolved tpack configuration.
 type Config struct {
-	// PluginPath is the absolute path where plugins are installed.
+	// Absolute path where plugins are installed.
 	PluginPath string
-	// TmuxConf is the path to the user's tmux.conf.
+	// User's tmux.conf.
 	TmuxConf string
-	// InstallKey is the keybinding for plugin installation.
+
+	// Keybinds
 	InstallKey string
-	// UpdateKey is the keybinding for plugin updates.
-	UpdateKey string
-	// CleanKey is the keybinding for plugin cleanup.
-	CleanKey string
-	// TuiKey is the keybinding for the TUI popup.
-	TuiKey string
-	// Colors holds optional color overrides from tmux options.
+	UpdateKey  string
+	CleanKey   string
+	TuiKey     string
+
+	// Color overrides from tmux options.
 	Colors ColorConfig
-	// UpdateCheckInterval is how often to check for plugin updates.
+	// How often to check for plugin updates.
 	UpdateCheckInterval time.Duration
-	// UpdateMode controls update behavior ("auto", "prompt", or "off").
+	// Controls update behavior ("auto", "prompt", or "off").
 	UpdateMode string
 	// PinnedVersion is the pinned tpack version from @tpack-version (empty = auto-update).
 	PinnedVersion string
-	// StatePath is the directory for persistent state (e.g. last update check).
+	// Directory for persistent state (e.g. last update check).
 	StatePath string
-	// Home is the user's home directory, resolved during config resolution.
+	// User's home directory
 	Home string
 }

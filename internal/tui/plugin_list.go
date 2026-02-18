@@ -141,10 +141,7 @@ func (m *Model) tableWidth() int {
 // calculateVisibleRange returns the start and end indices for visible items.
 func calculateVisibleRange(offset, viewHeight, total int) (int, int) {
 	start := offset
-	end := offset + viewHeight
-	if end > total {
-		end = total
-	}
+	end := min(offset+viewHeight, total)
 	return start, end
 }
 

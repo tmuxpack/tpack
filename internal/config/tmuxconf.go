@@ -7,15 +7,15 @@ import (
 	"github.com/tmuxpack/tpack/internal/tmux"
 )
 
-// GatherPlugins collects all plugin definitions from:
+// Collects all plugin definitions from:
 // 1. Legacy @tpm_plugins tmux option
 // 2. New @plugin syntax in tmux.conf + /etc/tmux.conf + sourced files (one level deep)
+// TODO: Move to a separate config structure down the line, mayybe something akin to LazyVim
 func GatherPlugins(runner tmux.Runner, fs FS, tmuxConf, home string) []plug.Plugin {
 	var specs []string
 
-	// Legacy: @tpm_plugins option.
 	if legacy, err := runner.ShowOption("@tpm_plugins"); err == nil && legacy != "" {
-		for _, s := range strings.Fields(legacy) {
+		for s := range strings.FieldsSeq(legacy) {
 			s = strings.TrimSpace(s)
 			if s != "" {
 				specs = append(specs, s)

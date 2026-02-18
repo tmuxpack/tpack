@@ -29,7 +29,7 @@ const (
 	maxBinarySize      = 50 * 1024 * 1024 // 50 MiB safety limit for extracted binary
 )
 
-// selfUpdateResult represents the outcome of a self-update check.
+// Represents the outcome of a self-update check.
 type selfUpdateResult int
 
 const (
@@ -38,7 +38,7 @@ const (
 	selfUpdateFailed
 )
 
-// selfUpdateParams holds parameters for selfUpdateCheck, enabling testability.
+// Holds parameters for selfUpdateCheck, enabling testability.
 type selfUpdateParams struct {
 	statePath   string
 	version     string // current version (from main.version)
@@ -49,12 +49,12 @@ type selfUpdateParams struct {
 	skipGitSync bool   // skip git checkout (for tests)
 }
 
-// githubRelease represents the relevant fields from the GitHub releases API.
+// Represents the relevant fields from the GitHub releases API.
 type githubRelease struct {
 	TagName string `json:"tag_name"`
 }
 
-// runSelfUpdate is the entry point for the `tpack self-update` command.
+// Entry point for the `tpack self-update` command.
 func runSelfUpdate() int {
 	runner := tmux.NewRealRunner()
 
@@ -88,7 +88,7 @@ func runSelfUpdate() int {
 	return 1
 }
 
-// selfUpdateCheck orchestrates the self-update flow.
+// Orchestrates the self-update flow.
 func selfUpdateCheck(p selfUpdateParams, runner tmux.Runner) selfUpdateResult {
 	// 1. Load state, check LastSelfUpdateCheck -- if <24h ago, skip.
 	st := state.Load(p.statePath)
@@ -144,7 +144,7 @@ func selfUpdateCheck(p selfUpdateParams, runner tmux.Runner) selfUpdateResult {
 	return selfUpdateSuccess
 }
 
-// fetchLatestVersion calls the GitHub API and returns the latest version
+// Calls the GitHub API and returns the latest version
 // without the "v" prefix.
 func fetchLatestVersion(apiURL string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), selfUpdateTimeout)
@@ -175,7 +175,7 @@ func fetchLatestVersion(apiURL string) (string, error) {
 	return strings.TrimPrefix(release.TagName, "v"), nil
 }
 
-// downloadAndExtract downloads a tar.gz archive and extracts the Go binary
+// Downloads a tar.gz archive and extracts the Go binary
 // to a temp directory. Returns the path to the extracted binary,
 // a cleanup function, and any error.
 func downloadAndExtract(url string) (string, func(), error) {
@@ -216,7 +216,7 @@ func downloadAndExtract(url string) (string, func(), error) {
 	return binaryPath, cleanup, nil
 }
 
-// extractBinaryFromArchive reads a gzip+tar stream and extracts the Go binary
+// Reads a gzip+tar stream and extracts the Go binary
 // entry to the given directory.
 func extractBinaryFromArchive(r io.Reader, destDir string) (string, error) {
 	gz, err := gzip.NewReader(r)
@@ -268,7 +268,7 @@ func extractBinaryFromArchive(r io.Reader, destDir string) (string, error) {
 	return "", fmt.Errorf("%s not found in archive", binaryName)
 }
 
-// syncGitRepo runs `git checkout <tag>` in the given repository directory.
+// Runs `git checkout <tag>` in the given repository directory.
 func syncGitRepo(repoDir, tag string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), selfUpdateTimeout)
 	defer cancel()

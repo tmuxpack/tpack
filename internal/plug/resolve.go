@@ -57,8 +57,8 @@ func ParseSpec(raw string) Plugin {
 	var alias string
 	var specTokens []string
 	for _, tok := range tokens {
-		if strings.HasPrefix(tok, "alias=") {
-			alias = strings.TrimPrefix(tok, "alias=")
+		if after, ok := strings.CutPrefix(tok, "alias="); ok {
+			alias = after
 		} else {
 			specTokens = append(specTokens, tok)
 		}

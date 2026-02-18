@@ -58,6 +58,7 @@ func ExtractSourcedFiles(content string) []string {
 }
 
 // ManualExpansion expands ~ and $HOME in a path, mirroring the bash behavior.
+// TODO: Should add support for ${HOME}
 func ManualExpansion(path, home string) string {
 	if strings.HasPrefix(path, "~/") {
 		return home + path[1:]

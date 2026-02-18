@@ -6,8 +6,9 @@ import (
 	"strings"
 )
 
-// AppendPlugin adds a `set -g @plugin "repo"` line to the tmux.conf file.
+// Adds a `set -g @plugin "repo"` line to the tmux.conf file.
 // It does nothing if the plugin is already configured.
+// TODO: Should find where other plugins are and inserted near them
 func AppendPlugin(confPath string, repo string) error {
 	data, err := os.ReadFile(confPath)
 	if err != nil {

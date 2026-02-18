@@ -72,7 +72,7 @@ func indentOutput(s string) string {
 		return ""
 	}
 	var lines []string
-	for _, line := range strings.Split(s, "\n") {
+	for line := range strings.SplitSeq(s, "\n") {
 		lines = append(lines, "    | "+line)
 	}
 	return strings.Join(lines, "\n")

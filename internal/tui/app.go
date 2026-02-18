@@ -8,12 +8,12 @@ import (
 	"github.com/tmuxpack/tpack/internal/plug"
 )
 
-// IdealSize returns the fixed popup dimensions.
+// Returns the fixed popup dimensions.
 func IdealSize(_ *config.Config, _ []plug.Plugin, _ Deps, _ ...ModelOption) (width, height int) {
 	return FixedWidth, FixedHeight
 }
 
-// Run launches the TUI with the given configuration and plugins.
+// Launches the TUI with the given configuration and plugins.
 func Run(cfg *config.Config, plugins []plug.Plugin, deps Deps, opts ...ModelOption) error {
 	m := NewModel(cfg, plugins, deps, opts...)
 	p := tea.NewProgram(m, tea.WithAltScreen(), tea.WithMouseCellMotion())

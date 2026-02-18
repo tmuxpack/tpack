@@ -104,14 +104,8 @@ func commitTitle(name string, count int) string {
 
 // renderCommitList writes the scrollable commit list into b.
 func renderCommitList(b *strings.Builder, commits []git.Commit, scroll scrollState, maxVisible int, theme Theme) {
-	visible := maxVisible
-	if len(commits) < visible {
-		visible = len(commits)
-	}
-	end := scroll.scrollOffset + visible
-	if end > len(commits) {
-		end = len(commits)
-	}
+	visible := min(len(commits), maxVisible)
+	end := min(scroll.scrollOffset+visible, len(commits))
 
 	top, bottom, dataStart, dataEnd := theme.renderScrollIndicators(scroll.scrollOffset, end, len(commits))
 	b.WriteString(top)

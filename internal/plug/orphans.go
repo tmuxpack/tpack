@@ -5,13 +5,13 @@ import (
 	"path/filepath"
 )
 
-// Orphan represents a plugin directory not listed in the config.
+// Represents a plugin directory not listed in the config.
 type Orphan struct {
 	Name string
 	Path string
 }
 
-// FindOrphans returns directories in pluginPath that don't match any plugin name.
+// Returns directories in pluginPath that don't match any plugin name.
 func FindOrphans(plugins []Plugin, pluginPath string) []Orphan {
 	nameSet := make(map[string]bool, len(plugins))
 	for _, p := range plugins {

@@ -10,6 +10,8 @@ import (
 	"github.com/tmuxpack/tpack/internal/ui"
 )
 
+// Loading point for plugins
+
 func runSource() int {
 	runner := tmux.NewRealRunner()
 	cfg, err := config.Resolve(runner)

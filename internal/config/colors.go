@@ -1,6 +1,6 @@
 package config
 
-// ColorConfig holds optional color overrides from tmux options.
+// Holds optional color overrides from tmux options.
 // Empty strings mean "keep the existing value".
 type ColorConfig struct {
 	Primary   string
