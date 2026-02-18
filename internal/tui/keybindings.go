@@ -41,6 +41,7 @@ type browseKeys struct {
 	Cancel   key.Binding
 	Filter   key.Binding
 	Category key.Binding
+	Open     key.Binding
 }
 
 type progressKeys struct {
@@ -64,6 +65,10 @@ var BrowseKeys = browseKeys{
 	Category: key.NewBinding(
 		key.WithKeys("tab"),
 		key.WithHelp("tab", "category"),
+	),
+	Open: key.NewBinding(
+		key.WithKeys("enter"),
+		key.WithHelp("enter", "open"),
 	),
 }
 

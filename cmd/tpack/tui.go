@@ -56,9 +56,7 @@ func runTui(args []string) int {
 		RevParser: gitcli.NewRevParser(),
 		Logger:    gitcli.NewLogger(),
 	}
-	if autoOp == tui.OpInstall || autoOp == tui.OpUpdate {
-		deps.Runner = runner
-	}
+	deps.Runner = runner
 
 	var opts []tui.ModelOption
 	opts = append(opts, tui.WithTheme(theme))

@@ -77,6 +77,8 @@ func (m Model) handleKeyMsgBrowse(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case key.Matches(msg, ListKeys.Install):
 		return m.installFromBrowse()
+	case key.Matches(msg, BrowseKeys.Open):
+		return m.openFromBrowse()
 	case key.Matches(msg, ListKeys.Search):
 		m.browseQuerySnapshot = m.browseQuery
 		m.browseInput.Focus()

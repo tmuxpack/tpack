@@ -100,6 +100,7 @@ type Model struct {
 	browseScroll        scrollState
 	browseLoading       bool
 	browseErr           error
+	browseStatus        string
 	searching           bool
 
 	version    string
@@ -129,19 +130,13 @@ func NewModel(cfg *config.Config, plugins []plug.Plugin, deps Deps, opts ...Mode
 		height:       FixedHeight,
 		sizeKnown:    true,
 	}
-	m.viewHeight = FixedHeight - TitleReservedLines
-	if m.viewHeight < MinViewHeight {
-		m.viewHeight = MinViewHeight
-	}
+	m.viewHeight = max(FixedHeight-TitleReservedLines, MinViewHeight)
 	ti := textinput.New()
 	ti.Placeholder = "Filter plugins..."
 	ti.CharLimit = 100
 	m.browseInput = ti
 	m.browseCategory = -1
-	m.progressBar.Width = FixedWidth - ProgressBarPadding
-	if m.progressBar.Width > ProgressBarMaxWidth {
-		m.progressBar.Width = ProgressBarMaxWidth
-	}
+	m.progressBar.Width = min(FixedWidth-ProgressBarPadding, ProgressBarMaxWidth)
 	for _, opt := range opts {
 		opt(&m)
 	}
@@ -203,6 +198,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleUninstallResult(msg)
 	case registryFetchResultMsg:
 		return m.handleRegistryFetch(msg)
+	case clearBrowseStatusMsg:
+		m.browseStatus = ""
+		return m, nil
 	}
 
 	return m, nil
@@ -213,14 +211,8 @@ func (m *Model) handleWindowSize(msg tea.WindowSizeMsg) {
 	m.width = msg.Width
 	m.height = msg.Height
 	m.sizeKnown = true
-	m.viewHeight = msg.Height - TitleReservedLines
-	if m.viewHeight < MinViewHeight {
-		m.viewHeight = MinViewHeight
-	}
-	m.progressBar.Width = msg.Width - ProgressBarPadding
-	if m.progressBar.Width > ProgressBarMaxWidth {
-		m.progressBar.Width = ProgressBarMaxWidth
-	}
+	m.viewHeight = max(msg.Height-TitleReservedLines, MinViewHeight)
+	m.progressBar.Width = min(msg.Width-ProgressBarPadding, ProgressBarMaxWidth)
 }
 
 // handleKeyMsg routes key events to the appropriate screen handler.

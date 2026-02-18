@@ -129,6 +129,37 @@ func TestBrowseRoundTrip(t *testing.T) {
 	}
 }
 
+func TestOpenFromBrowse_ReturnsCmd(t *testing.T) {
+	m := newBrowseModel(t)
+	m.browseScroll.cursor = 0
+
+	_, cmd := m.openFromBrowse()
+	if cmd == nil {
+		t.Error("expected non-nil command for valid cursor")
+	}
+}
+
+func TestOpenFromBrowse_InvalidCursor(t *testing.T) {
+	m := newBrowseModel(t)
+	m.browseScroll.cursor = 99
+
+	_, cmd := m.openFromBrowse()
+	if cmd != nil {
+		t.Error("expected nil command for out-of-bounds cursor")
+	}
+}
+
+func TestOpenFromBrowse_EnterKeyInNavMode(t *testing.T) {
+	m := newBrowseModel(t)
+	m.browseScroll.cursor = 0
+
+	msg := tea.KeyMsg{Type: tea.KeyEnter}
+	_, cmd := m.Update(msg)
+	if cmd == nil {
+		t.Error("expected non-nil command from Enter in navigation mode")
+	}
+}
+
 func TestInstallFromBrowse_AddsToPluginsAndStartsInstall(t *testing.T) {
 	m := newBrowseModel(t)
 	m.cfg.TmuxConf = filepath.Join(t.TempDir(), "tmux.conf")

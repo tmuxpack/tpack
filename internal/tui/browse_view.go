@@ -38,11 +38,15 @@ func (m *Model) viewBrowse() string {
 	if m.searching {
 		bindings = []key.Binding{BrowseKeys.Apply, BrowseKeys.Cancel}
 	} else {
-		bindings = []key.Binding{BrowseKeys.Filter, BrowseKeys.Category, ListKeys.Install, SharedKeys.Back}
+		bindings = []key.Binding{BrowseKeys.Open, BrowseKeys.Filter, BrowseKeys.Category, ListKeys.Install, SharedKeys.Back}
 	}
 
+	status := ""
+	if m.browseStatus != "" {
+		status = m.centerText(m.theme.MutedTextStyle.Render(m.browseStatus))
+	}
 	help := m.centerText(m.theme.renderHelp(m.width, bindings...))
-	return padToBottom(b.String(), help, m.height)
+	return padToBottom(b.String(), status+"\n"+help, m.height)
 }
 
 func (m *Model) renderCategoryBar() string {
