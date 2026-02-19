@@ -7,32 +7,33 @@ run:
 linters:
   enable:
     # Default linters (errcheck, govet, ineffassign, staticcheck, unused are enabled by default)
-    - bodyclose     # Check if HTTP response body is closed
-    - copyloopvar   # Detect loop variable issues in Go 1.22+
-    - dupl          # Detect code cloning
-    - errorlint     # Find code that will cause problems with error wrapping
-    - exhaustive    # Check exhaustiveness of enum switch statements
-    - goconst       # Find repeated strings that could be replaced by constants
-    - gocritic      # Comprehensive diagnostic linter
-    - gocyclo       # Detect cyclomatic complexity
+    - bodyclose # Check if HTTP response body is closed
+    - copyloopvar # Detect loop variable issues in Go 1.22+
+    - dupl # Detect code cloning
+    - errorlint # Find code that will cause problems with error wrapping
+    - exhaustive # Check exhaustiveness of enum switch statements
+    - goconst # Find repeated strings that could be replaced by constants
+    - gocritic # Comprehensive diagnostic linter
+    - gocyclo # Detect cyclomatic complexity
     - goprintffuncname # Check that printf-like functions are named with f at the end
-    - gosec         # Security-focused linter
-    - misspell      # Detect commonly misspelled English words
-    - noctx         # Detect sending http request without context.Context
-    - predeclared   # Find code that shadows predeclared identifiers
-    - revive        # Fast, configurable, extensible, flexible, and beautiful linter for Go
-    - unconvert     # Remove unnecessary type conversions
-    - unparam       # Detect unused function parameters
-    - whitespace    # Detect leading/trailing whitespace
+    - gosec # Security-focused linter
+    - misspell # Detect commonly misspelled English words
+    - noctx # Detect sending http request without context.Context
+    - predeclared # Find code that shadows predeclared identifiers
+    - revive # Fast, configurable, extensible, flexible, and beautiful linter for Go
+    - unconvert # Remove unnecessary type conversions
+    - unparam # Detect unused function parameters
+    - whitespace # Detect leading/trailing whitespace
+    - intrange
 
   disable:
-    - funlen        # Too strict about function length
-    - cyclop        # Redundant with gocyclo
-    - lll           # Line length - let gofmt handle it
-    - exhaustruct   # Too strict for struct literals
+    - funlen # Too strict about function length
+    - cyclop # Redundant with gocyclo
+    - lll # Line length - let gofmt handle it
+    - exhaustruct # Too strict for struct literals
     - gochecknoinits # init functions are sometimes necessary
     - gochecknoglobals # Globals are sometimes necessary
-    - paralleltest  # Not always needed
+    - paralleltest # Not always needed
 
   settings:
     errcheck:
@@ -47,9 +48,7 @@ linters:
     govet:
       enable-all: true
       disable:
-        - shadow          # Too strict for now
-        - fieldalignment  # Struct field reordering hurts readability
-        - unusedwrite     # False positives on struct fields
+        - fieldalignment # Struct field reordering hurts readability
 
     gocyclo:
       min-complexity: 15
@@ -67,16 +66,16 @@ linters:
     revive:
       rules:
         - name: unused-parameter
-          disabled: true  # unparam handles this better
+          disabled: true # unparam handles this better
         - name: var-naming
           disabled: false
         - name: exported
-          disabled: true  # Interface implementations are self-documenting
+          disabled: true # Interface implementations are self-documenting
 
     gosec:
       excludes:
-        - G204  # Subprocess with variable - needed for git/tmux execution
-        - G304  # File path from variable - needed for config/plugin file reads
+        - G204 # Subprocess with variable - needed for git/tmux execution
+        - G304 # File path from variable - needed for config/plugin file reads
 
   exclusions:
     generated: lax

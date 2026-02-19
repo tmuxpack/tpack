@@ -176,7 +176,7 @@ func TestCommitViewer_ScrollIndicators(t *testing.T) {
 	// Scroll to bottom.
 	down := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}}
 	var result tea.Model = m
-	for i := 0; i < len(commits)-1; i++ {
+	for range len(commits) - 1 {
 		result, _ = result.(CommitViewer).Update(down)
 	}
 	m = result.(CommitViewer)

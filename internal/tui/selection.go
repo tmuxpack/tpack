@@ -19,7 +19,7 @@ func (m *Model) clearSelection() {
 // selectedIndices returns the indices of selected items in order.
 func (m *Model) selectedIndices() []int {
 	indices := make([]int, 0, len(m.selected))
-	for i := 0; i < len(m.plugins); i++ {
+	for i := range len(m.plugins) {
 		if m.selected[i] {
 			indices = append(indices, i)
 		}
