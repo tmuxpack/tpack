@@ -51,7 +51,7 @@ func NewTheme(primary, secondary, accent, errC, muted, text lipgloss.Color) Them
 		TextColor:      text,
 
 		BaseStyle: lipgloss.NewStyle().
-			Padding(1, 2),
+			Padding(1, 2, 0, 2),
 
 		TitleStyle: lipgloss.NewStyle().
 			Bold(true).
@@ -103,7 +103,7 @@ func NewTheme(primary, secondary, accent, errC, muted, text lipgloss.Color) Them
 
 		HelpStyle: lipgloss.NewStyle().
 			Foreground(muted).
-			MarginTop(1),
+			MarginTop(0),
 
 		HelpKeyStyle: lipgloss.NewStyle().
 			Foreground(accent).
@@ -265,7 +265,7 @@ func padToBottom(body, footer string, height int) string {
 	contentHeight := height - BaseStyleVerticalPadding
 	bodyHeight := lipgloss.Height(body)
 	footerHeight := lipgloss.Height(footer)
-	padding := max(contentHeight-bodyHeight-footerHeight, 1)
+	padding := max(contentHeight-bodyHeight-footerHeight+1, 1)
 	return body + strings.Repeat("\n", padding) + footer
 }
 

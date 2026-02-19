@@ -14,10 +14,13 @@ func (m *Model) viewBrowse() string {
 	b.WriteString("\n")
 
 	b.WriteString(m.centerText(m.renderCategoryBar()))
-	b.WriteString("\n")
-
-	b.WriteString(m.centerText(m.browseInput.View()))
 	b.WriteString("\n\n")
+
+	if m.searching || m.browseQuery != "" {
+		b.WriteString("  " + m.browseInput.View())
+	}
+
+	b.WriteString("\n")
 
 	switch {
 	case m.browseLoading:
@@ -107,11 +110,12 @@ func (m *Model) renderBrowseResults() string {
 	}
 
 	tb.WriteString(bottomIndicator)
-	return m.centerBlock(strings.TrimRight(tb.String(), "\n"))
+	return strings.TrimRight(tb.String(), "\n")
 }
 
 func (m *Model) browseViewHeight() int {
-	reserved := 14
+	// TODO: make this dynamic based on the actual layout and content above/below the list
+	reserved := 10
 	available := m.height - reserved
 	items := available / 2
 	if items < MinViewHeight {

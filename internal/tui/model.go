@@ -132,8 +132,8 @@ func NewModel(cfg *config.Config, plugins []plug.Plugin, deps Deps, opts ...Mode
 	}
 	m.viewHeight = max(FixedHeight-TitleReservedLines, MinViewHeight)
 	ti := textinput.New()
-	ti.Placeholder = "Filter plugins..."
 	ti.CharLimit = 100
+	ti.Prompt = "/ "
 	m.browseInput = ti
 	m.browseCategory = -1
 	m.progressBar.Width = min(FixedWidth-ProgressBarPadding, ProgressBarMaxWidth)
