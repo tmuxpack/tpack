@@ -3,7 +3,7 @@ site_url: https://tmuxpack.github.io/tpack/
 site_description: A modern tmux plugin manager — drop-in replacement for TPM
 repo_url: https://github.com/tmuxpack/tpack
 repo_name: tmuxpack/tpack
-edit_uri: edit/master/docs/
+edit_uri: edit/main/docs/
 
 theme:
   name: material
