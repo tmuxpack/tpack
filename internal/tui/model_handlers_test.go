@@ -234,7 +234,7 @@ func TestMoveCursorDown_Scrolling(t *testing.T) {
 	m.listScroll.cursor = 0
 
 	// Move cursor down past the scroll threshold (viewHeight - ScrollOffsetMargin = 5-3 = 2).
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		m.listScroll.moveDown(len(m.plugins), m.viewHeight)
 	}
 
@@ -252,7 +252,6 @@ func TestMoveCursorUp_Scrolling(t *testing.T) {
 	for i := range m.plugins {
 		m.plugins[i] = PluginItem{Name: "plugin", Status: StatusInstalled}
 	}
-	m.viewHeight = 5
 	m.listScroll.scrollOffset = 10
 	m.listScroll.cursor = 12
 
@@ -552,10 +551,6 @@ func TestMoveCursorDown_AtEnd(t *testing.T) {
 
 func TestMoveCursorUp_AtBeginning(t *testing.T) {
 	m := newTestModel(t, nil)
-	m.plugins = []PluginItem{
-		{Name: "a", Status: StatusInstalled},
-	}
-	m.viewHeight = 10
 	m.listScroll.cursor = 0
 
 	m.listScroll.moveUp()
@@ -616,7 +611,7 @@ func TestResultCursorDown_Scrolling(t *testing.T) {
 	m.resultScroll.scrollOffset = 0
 
 	// Move cursor past the scroll threshold.
-	for i := 0; i < maxVis; i++ {
+	for range maxVis {
 		m.resultScroll.moveDown(len(m.results), m.resultMaxVisible())
 	}
 
