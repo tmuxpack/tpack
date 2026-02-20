@@ -8,7 +8,9 @@
 [![Go Version](https://img.shields.io/github/go-mod/go-version/tmuxpack/tpack)](https://go.dev/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE.md)
 
-<img width="722" height="491" alt="image" src="https://github.com/user-attachments/assets/0ac68a1b-15a5-4d09-a6c3-b8bc9e479bb3" />
+<img width="718" height="489" alt="image" src="https://github.com/user-attachments/assets/62b32a4d-5320-4198-a6a9-248441e89f94" />
+<img width="719" height="489" alt="image" src="https://github.com/user-attachments/assets/42872613-3348-4979-b463-736895c15911" />
+
 
 > **[Full Documentation](https://tmuxpack.github.io/tpack/)**
 
@@ -94,6 +96,7 @@ guide for full setup instructions.
 - **Automatic updates** — optional background update checking for plugins and
   tpack itself
 - **Customizable** — key bindings, colors, plugin directory, and update behavior
+- **Plugins browser** — search, brose and install plugins from the TUI, the list being maintained on the [plugins-registry](https://github.com/tmuxpack/plugins-registry)
 
 See the [full documentation](https://tmuxpack.github.io/tpack/) for details on
 configuration, usage, and the CLI reference.
