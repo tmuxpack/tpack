@@ -24,6 +24,10 @@ Yes. All plugins from the [tmux-plugins](https://github.com/tmux-plugins/list) e
 
 Use the `#branch` suffix: `set -g @plugin 'user/repo#branch'`
 
+## How do I discover new plugins?
+
+Open the TUI with ++prefix+shift+t++ and press ++b++ to browse a curated plugin registry. You can search by name with ++slash++ and filter by category with ++tab++. Press ++i++ on any plugin to install it — the entry is added to your `tmux.conf` automatically.
+
 ## How do I update tpack itself?
 
 If installed via git clone or auto-download, tpack self-updates automatically (checks once every 24 hours). To update manually: `tpack self-update`. If installed via a package manager, use that package manager instead (e.g., `brew upgrade tpack`).

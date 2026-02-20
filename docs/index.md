@@ -25,6 +25,10 @@ Works on Linux, macOS, and FreeBSD.
 
     Browse, install, update, and clean plugins with a built-in terminal UI. Launches in a tmux popup on 3.2+.
 
+-   **Plugin Registry**
+
+    Discover plugins from a curated registry. Search by name, filter by category, and install with a single key press — no manual config editing required.
+
 -   **Automatic Updates**
 
     Background plugin update checking with three modes: prompt, auto, or off. Self-update support for the tpack binary itself.

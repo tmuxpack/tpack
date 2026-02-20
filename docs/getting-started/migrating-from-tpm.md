@@ -23,6 +23,7 @@ tpack adds features that TPM does not have:
 | Feature | Details |
 |---|---|
 | Interactive TUI | ++prefix+shift+t++ opens a terminal UI for browsing, installing, updating, and removing plugins. |
+| Plugin Registry | Browse a curated plugin registry from the TUI. Search, filter by category, and install with a single key press. |
 | CLI | The `tpack` binary provides command-line management outside of tmux. |
 | Automatic update checking | tpack can check for plugin updates in the background and prompt or auto-update. |
 | Color-customizable TUI | Configure colors for the TUI via tmux options. |
