@@ -185,6 +185,85 @@ func TestHandleUninstallResult_Success(t *testing.T) {
 	}
 }
 
+func TestHandleRemoveResult_Success(t *testing.T) {
+	m := newTestModel(t, nil)
+	m.plugins = []PluginItem{
+		{Name: "alpha", Spec: "user/alpha", Status: StatusInstalled},
+		{Name: "beta", Spec: "user/beta", Status: StatusInstalled},
+	}
+	m.screen = ScreenProgress
+	m.operation = OpRemove
+	m.processing = true
+	m.totalItems = 1
+	m.completedItems = 0
+
+	msg := pluginRemoveResultMsg{Name: "alpha", Success: true, Message: "removed successfully"}
+	result, _ := m.Update(msg)
+	m = result.(Model)
+
+	if len(m.plugins) != 1 {
+		t.Fatalf("expected 1 plugin remaining, got %d", len(m.plugins))
+	}
+	if m.plugins[0].Name != "beta" {
+		t.Errorf("expected remaining plugin 'beta', got %q", m.plugins[0].Name)
+	}
+	if len(m.results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(m.results))
+	}
+	if !m.results[0].Success {
+		t.Error("expected result to be successful")
+	}
+}
+
+func TestHandleRemoveResult_Failure_StillRemovesFromList(t *testing.T) {
+	m := newTestModel(t, nil)
+	m.plugins = []PluginItem{
+		{Name: "alpha", Spec: "user/alpha", Status: StatusInstalled},
+	}
+	m.screen = ScreenProgress
+	m.operation = OpRemove
+	m.processing = true
+	m.totalItems = 1
+	m.completedItems = 0
+
+	msg := pluginRemoveResultMsg{Name: "alpha", Success: false, Message: "permission denied"}
+	result, _ := m.Update(msg)
+	m = result.(Model)
+
+	// Plugin removed from list even on failure since config entry was already removed.
+	if len(m.plugins) != 0 {
+		t.Errorf("expected 0 plugins remaining, got %d", len(m.plugins))
+	}
+	if len(m.results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(m.results))
+	}
+	if m.results[0].Success {
+		t.Error("expected result to be failure")
+	}
+}
+
+func TestUpdateList_RemoveKey(t *testing.T) {
+	m := newTestModel(t, nil)
+	m.plugins = []PluginItem{
+		{Name: "alpha", Spec: "user/alpha", Status: StatusInstalled},
+	}
+	m.viewHeight = 10
+
+	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'r'}}
+	result, cmd := m.Update(msg)
+	m = result.(Model)
+
+	if m.screen != ScreenProgress {
+		t.Errorf("expected ScreenProgress after 'r', got %d", m.screen)
+	}
+	if m.operation != OpRemove {
+		t.Errorf("expected OpRemove, got %d", m.operation)
+	}
+	if cmd == nil {
+		t.Error("expected non-nil command after remove")
+	}
+}
+
 func TestReturnToList_RemovesCleanedOrphans(t *testing.T) {
 	m := newTestModel(t, nil)
 	m.screen = ScreenProgress

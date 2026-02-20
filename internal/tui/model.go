@@ -169,17 +169,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.handleWindowSize(msg)
 		return m, nil
-
 	case tea.KeyMsg:
 		return m.handleKeyMsg(msg)
-
 	case progress.FrameMsg:
-		progressModel, cmd := m.progressBar.Update(msg)
-		if pm, ok := progressModel.(progress.Model); ok {
-			m.progressBar = pm
-		}
-		return m, cmd
-
+		return m, handleFrameMsg(m, msg)
 	case autoStartMsg:
 		return m.startAutoOperation()
 	case sourceCompleteMsg:
@@ -196,6 +189,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleCleanResult(msg)
 	case pluginUninstallResultMsg:
 		return m.handleUninstallResult(msg)
+	case pluginRemoveResultMsg:
+		return m.handleRemoveResult(msg)
 	case registryFetchResultMsg:
 		return m.handleRegistryFetch(msg)
 	case clearBrowseStatusMsg:
@@ -204,6 +199,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	return m, nil
+}
+
+func handleFrameMsg(m Model, msg progress.FrameMsg) tea.Cmd {
+	progressModel, cmd := m.progressBar.Update(msg)
+	if pm, ok := progressModel.(progress.Model); ok {
+		m.progressBar = pm
+	}
+	return cmd
 }
 
 // handleWindowSize updates layout dimensions from the actual terminal/popup size.
@@ -268,6 +271,8 @@ func (m Model) handleKeyMsgList(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 	case key.Matches(msg, ListKeys.Install):
 		return m.startOperation(OpInstall)
+	case key.Matches(msg, ListKeys.Remove):
+		return m.startOperation(OpRemove)
 	case key.Matches(msg, ListKeys.Update):
 		return m.startOperation(OpUpdate)
 	case key.Matches(msg, ListKeys.Clean):
@@ -389,6 +394,17 @@ func (m Model) startOperation(op Operation) (tea.Model, tea.Cmd) {
 		return m, nil
 	case OpInstall:
 		ops = m.buildInstallOps()
+	case OpRemove:
+		ops = m.buildRemoveOps()
+		// Remove config entries synchronously (file edits cannot be concurrent).
+		if m.cfg.TmuxConf != "" {
+			var kept []pendingOp
+			for _, op := range ops {
+				_ = config.RemovePlugin(m.cfg.TmuxConf, op.Spec)
+				kept = append(kept, op)
+			}
+			ops = kept
+		}
 	case OpUpdate:
 		ops = m.buildUpdateOps()
 	case OpClean:
@@ -421,7 +437,7 @@ func (m Model) startOperation(op Operation) (tea.Model, tea.Cmd) {
 func (m Model) startAutoOperation() (tea.Model, tea.Cmd) {
 	var ops []pendingOp
 	switch m.autoOp {
-	case OpNone, OpUninstall:
+	case OpNone, OpRemove, OpUninstall:
 		return m, nil
 	case OpInstall:
 		ops = m.buildAutoInstallOps()
@@ -511,6 +527,20 @@ func (m Model) handleUninstallResult(msg pluginUninstallResultMsg) (tea.Model, t
 			}
 		}
 	})
+	return m, cmd
+}
+
+// handleRemoveResult processes a remove result (directory removal) and dispatches next.
+// The config entry was already removed synchronously before dispatch, so the plugin
+// is removed from the list regardless of whether directory removal succeeded.
+func (m Model) handleRemoveResult(msg pluginRemoveResultMsg) (tea.Model, tea.Cmd) {
+	for i := range m.plugins {
+		if m.plugins[i].Name == msg.Name {
+			m.plugins = append(m.plugins[:i], m.plugins[i+1:]...)
+			break
+		}
+	}
+	cmd := m.handleOpResult(ResultItem{Name: msg.Name, Success: msg.Success, Message: msg.Message}, nil)
 	return m, cmd
 }
 

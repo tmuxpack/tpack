@@ -40,13 +40,19 @@ type pluginUninstallResultMsg struct {
 	Message string
 }
 
+type pluginRemoveResultMsg struct {
+	Name    string
+	Success bool
+	Message string
+}
+
 type pluginCheckResultMsg struct {
 	Name     string
 	Outdated bool
 	Err      error
 }
 
-// checkPluginCmd returns a tea.Cmd that checks if a plugin is outdated.
+// checks if a plugin is outdated
 func checkPluginCmd(fetcher git.Fetcher, name string, dir string) tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), CheckTimeout)
@@ -57,7 +63,7 @@ func checkPluginCmd(fetcher git.Fetcher, name string, dir string) tea.Cmd {
 	}
 }
 
-// installPluginCmd returns a tea.Cmd that clones a plugin.
+// clones a plugin
 func installPluginCmd(cloner git.Cloner, op pendingOp) tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), CloneTimeout)
@@ -84,7 +90,7 @@ func installPluginCmd(cloner git.Cloner, op pendingOp) tea.Cmd {
 	}
 }
 
-// updatePluginCmd returns a tea.Cmd that pulls updates for a plugin.
+// pulls updates
 func updatePluginCmd(puller git.Puller, revParser git.RevParser, logger git.Logger, op pendingOp) tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), UpdateTimeout)
@@ -130,7 +136,6 @@ func updatePluginCmd(puller git.Puller, revParser git.RevParser, logger git.Logg
 	}
 }
 
-// removeDirCmd removes a directory and returns a message via msgFactory.
 func removeDirCmd(op pendingOp, msgFactory func(name string, success bool, message string) tea.Msg) tea.Cmd {
 	return func() tea.Msg {
 		if err := os.RemoveAll(op.Path); err != nil {
@@ -140,21 +145,26 @@ func removeDirCmd(op pendingOp, msgFactory func(name string, success bool, messa
 	}
 }
 
-// cleanPluginCmd returns a tea.Cmd that removes an orphaned directory.
+// removes orphaned directories
 func cleanPluginCmd(op pendingOp) tea.Cmd {
 	return removeDirCmd(op, func(name string, success bool, message string) tea.Msg {
 		return pluginCleanResultMsg{Name: name, Success: success, Message: message}
 	})
 }
 
-// uninstallPluginCmd returns a tea.Cmd that removes an installed plugin directory.
 func uninstallPluginCmd(op pendingOp) tea.Cmd {
 	return removeDirCmd(op, func(name string, success bool, message string) tea.Msg {
 		return pluginUninstallResultMsg{Name: name, Success: success, Message: message}
 	})
 }
 
-// sourceCmd returns a tea.Cmd that sources a tmux configuration file.
+func removePluginDirCmd(op pendingOp) tea.Cmd {
+	return removeDirCmd(op, func(name string, success bool, message string) tea.Msg {
+		return pluginRemoveResultMsg{Name: name, Success: success, Message: message}
+	})
+}
+
+// sources tmux config file
 func sourceCmd(runner tmux.Runner, confPath string) tea.Cmd {
 	return func() tea.Msg {
 		err := runner.SourceFile(confPath)
@@ -162,7 +172,7 @@ func sourceCmd(runner tmux.Runner, confPath string) tea.Cmd {
 	}
 }
 
-// dispatchNext dispatches up to maxConcurrentOps pending operations concurrently.
+// dispatches up to maxConcurrentOps pending operations concurrently.
 // Returns nil if the queue is empty and no operations are in flight.
 func (m *Model) dispatchNext() tea.Cmd {
 	slots := maxConcurrentOps - m.inFlight
@@ -179,10 +189,7 @@ func (m *Model) dispatchNext() tea.Cmd {
 		return nil
 	}
 
-	n := slots
-	if n > len(m.pendingItems) {
-		n = len(m.pendingItems)
-	}
+	n := min(slots, len(m.pendingItems))
 	batch := m.pendingItems[:n]
 	m.pendingItems = m.pendingItems[n:]
 
@@ -196,6 +203,8 @@ func (m *Model) dispatchNext() tea.Cmd {
 			// No-op; should not reach here.
 		case OpInstall:
 			cmds = append(cmds, installPluginCmd(m.deps.Cloner, op))
+		case OpRemove:
+			cmds = append(cmds, removePluginDirCmd(op))
 		case OpUpdate:
 			cmds = append(cmds, updatePluginCmd(m.deps.Puller, m.deps.RevParser, m.deps.Logger, op))
 		case OpClean:
@@ -212,7 +221,8 @@ func (m *Model) dispatchNext() tea.Cmd {
 	return tea.Batch(cmds...)
 }
 
-// buildInstallOps builds the pending operations for install.
+// builds the pending operations for install.
+// TODO: there has to be a filter/map approach to this
 func (m *Model) buildInstallOps() []pendingOp {
 	indices := m.targetIndices()
 	var ops []pendingOp
@@ -230,7 +240,21 @@ func (m *Model) buildInstallOps() []pendingOp {
 	return ops
 }
 
-// buildUpdateOps builds the pending operations for update.
+func (m *Model) buildRemoveOps() []pendingOp {
+	indices := m.targetIndices()
+	var ops []pendingOp
+	for _, i := range indices {
+		p := m.plugins[i]
+		ops = append(ops, pendingOp{
+			Name:   p.Name,
+			Spec:   p.Spec,
+			Branch: p.Branch,
+			Path:   plug.PluginPath(p.Name, m.cfg.PluginPath),
+		})
+	}
+	return ops
+}
+
 func (m *Model) buildUpdateOps() []pendingOp {
 	indices := m.targetIndices()
 	var ops []pendingOp
@@ -261,7 +285,6 @@ func (m *Model) buildUpdateOps() []pendingOp {
 	return ops
 }
 
-// buildCleanOps builds the pending operations for clean.
 func (m *Model) buildCleanOps() []pendingOp {
 	var ops []pendingOp
 	for _, o := range m.orphans {
@@ -273,7 +296,6 @@ func (m *Model) buildCleanOps() []pendingOp {
 	return ops
 }
 
-// buildUninstallOps builds the pending operations for uninstall.
 func (m *Model) buildUninstallOps() []pendingOp {
 	indices := m.targetIndices()
 	var ops []pendingOp
@@ -290,7 +312,6 @@ func (m *Model) buildUninstallOps() []pendingOp {
 	return ops
 }
 
-// buildAutoInstallOps builds pending operations for all non-installed plugins.
 func (m *Model) buildAutoInstallOps() []pendingOp {
 	var ops []pendingOp
 	for _, p := range m.plugins {
@@ -306,7 +327,6 @@ func (m *Model) buildAutoInstallOps() []pendingOp {
 	return ops
 }
 
-// buildAutoUpdateOps builds pending operations for all installed plugins.
 func (m *Model) buildAutoUpdateOps() []pendingOp {
 	var ops []pendingOp
 	for _, p := range m.plugins {
@@ -322,7 +342,7 @@ func (m *Model) buildAutoUpdateOps() []pendingOp {
 	return ops
 }
 
-// targetIndices returns the indices to operate on: selected if any, else cursor.
+// returns the indices to operate on: selected if any, else cursor.
 func (m *Model) targetIndices() []int {
 	if m.multiSelectActive {
 		return m.selectedIndices()

@@ -45,6 +45,22 @@ func extractMatches(content string, re *regexp.Regexp) []string {
 	return results
 }
 
+// MatchesPluginLine reports whether line is a @plugin declaration for the given spec.
+func MatchesPluginLine(line, spec string) bool {
+	m := pluginLineRe.FindStringSubmatch(line)
+	if m == nil {
+		return false
+	}
+	val := m[1]
+	if val == "" {
+		val = m[2]
+	}
+	if val == "" {
+		val = m[3]
+	}
+	return strings.TrimSpace(val) == spec
+}
+
 // ExtractPluginsFromConfig parses tmux config content and returns all
 // plugin specifications found in @plugin declarations.
 func ExtractPluginsFromConfig(content string) []string {

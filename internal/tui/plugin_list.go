@@ -98,6 +98,9 @@ func (m *Model) viewList() string {
 	if hasInstalled {
 		bindings = append(bindings, ListKeys.Update, ListKeys.Uninstall)
 	}
+	if hasNotInstalled || hasInstalled {
+		bindings = append(bindings, ListKeys.Remove)
+	}
 	if len(m.orphans) > 0 {
 		bindings = append(bindings, ListKeys.Clean)
 	}

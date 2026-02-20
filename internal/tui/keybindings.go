@@ -13,6 +13,7 @@ type listKeys struct {
 	Down      key.Binding
 	Toggle    key.Binding
 	Install   key.Binding
+	Remove    key.Binding
 	Update    key.Binding
 	Clean     key.Binding
 	Uninstall key.Binding
@@ -97,6 +98,10 @@ var ListKeys = listKeys{
 	Install: key.NewBinding(
 		key.WithKeys("i"),
 		key.WithHelp("i", "install"),
+	),
+	Remove: key.NewBinding(
+		key.WithKeys("r"),
+		key.WithHelp("r", "remove"),
 	),
 	Update: key.NewBinding(
 		key.WithKeys("u"),

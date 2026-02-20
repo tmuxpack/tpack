@@ -23,6 +23,7 @@ type Operation int
 const (
 	OpNone Operation = iota
 	OpInstall
+	OpRemove
 	OpUpdate
 	OpClean
 	OpUninstall
@@ -34,6 +35,8 @@ func (o Operation) String() string {
 		return ""
 	case OpInstall:
 		return "Install"
+	case OpRemove:
+		return "Remove"
 	case OpUpdate:
 		return "Update"
 	case OpClean:

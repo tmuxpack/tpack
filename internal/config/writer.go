@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	"github.com/tmuxpack/tpack/internal/plug"
 )
 
-// Adds a `set -g @plugin "repo"` line to the tmux.conf file.
-// It does nothing if the plugin is already configured.
+// Adds a `set -g @plugin "repo"` line to the tmux.conf file if not already there.
 // TODO: Should find where other plugins are and inserted near them
 func AppendPlugin(confPath string, repo string) error {
 	data, err := os.ReadFile(confPath)
@@ -34,4 +35,29 @@ func AppendPlugin(confPath string, repo string) error {
 
 	_, err = f.WriteString(line)
 	return err
+}
+
+// removes plugin from tmux.conf if found
+func RemovePlugin(confPath string, spec string) error {
+	data, err := os.ReadFile(confPath)
+	if err != nil {
+		return fmt.Errorf("read tmux.conf: %w", err)
+	}
+
+	lines := strings.Split(string(data), "\n")
+	var kept []string
+	found := false
+	for _, line := range lines {
+		if plug.MatchesPluginLine(line, spec) {
+			found = true
+			continue
+		}
+		kept = append(kept, line)
+	}
+
+	if !found {
+		return nil
+	}
+
+	return os.WriteFile(confPath, []byte(strings.Join(kept, "\n")), 0o600)
 }

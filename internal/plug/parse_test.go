@@ -168,6 +168,85 @@ func TestExtractSourcedFiles(t *testing.T) {
 	}
 }
 
+func TestMatchesPluginLine(t *testing.T) {
+	tests := []struct {
+		name string
+		line string
+		spec string
+		want bool
+	}{
+		{
+			name: "double-quoted match",
+			line: `set -g @plugin "tmux-plugins/tmux-sensible"`,
+			spec: "tmux-plugins/tmux-sensible",
+			want: true,
+		},
+		{
+			name: "single-quoted match",
+			line: `set -g @plugin 'tmux-plugins/tmux-sensible'`,
+			spec: "tmux-plugins/tmux-sensible",
+			want: true,
+		},
+		{
+			name: "unquoted match",
+			line: `set -g @plugin tmux-plugins/tmux-sensible`,
+			spec: "tmux-plugins/tmux-sensible",
+			want: true,
+		},
+		{
+			name: "set-option match",
+			line: `set-option -g @plugin "tmux-plugins/tmux-sensible"`,
+			spec: "tmux-plugins/tmux-sensible",
+			want: true,
+		},
+		{
+			name: "leading whitespace match",
+			line: `    set -g @plugin "tmux-plugins/tmux-sensible"`,
+			spec: "tmux-plugins/tmux-sensible",
+			want: true,
+		},
+		{
+			name: "different spec no match",
+			line: `set -g @plugin "tmux-plugins/tmux-yank"`,
+			spec: "tmux-plugins/tmux-sensible",
+			want: false,
+		},
+		{
+			name: "comment no match",
+			line: `# set -g @plugin "tmux-plugins/tmux-sensible"`,
+			spec: "tmux-plugins/tmux-sensible",
+			want: false,
+		},
+		{
+			name: "non-plugin line no match",
+			line: `set -g status-right ""`,
+			spec: "tmux-plugins/tmux-sensible",
+			want: false,
+		},
+		{
+			name: "empty line no match",
+			line: "",
+			spec: "tmux-plugins/tmux-sensible",
+			want: false,
+		},
+		{
+			name: "partial spec no match",
+			line: `set -g @plugin "tmux-plugins/tmux-sensible-extra"`,
+			spec: "tmux-plugins/tmux-sensible",
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := plug.MatchesPluginLine(tt.line, tt.spec)
+			if got != tt.want {
+				t.Errorf("MatchesPluginLine(%q, %q) = %v, want %v", tt.line, tt.spec, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestManualExpansion(t *testing.T) {
 	home := "/home/user"
 	tests := []struct {

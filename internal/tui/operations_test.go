@@ -252,6 +252,80 @@ func TestUninstallPluginCmd_Success(t *testing.T) {
 	}
 }
 
+func TestRemovePluginDirCmd_Success(t *testing.T) {
+	dir := t.TempDir()
+	op := pendingOp{
+		Name: "test-plugin",
+		Path: dir,
+	}
+
+	cmd := removePluginDirCmd(op)
+	msg := cmd()
+
+	result, ok := msg.(pluginRemoveResultMsg)
+	if !ok {
+		t.Fatalf("expected pluginRemoveResultMsg, got %T", msg)
+	}
+	if !result.Success {
+		t.Errorf("expected success, got failure: %s", result.Message)
+	}
+	if result.Name != "test-plugin" {
+		t.Errorf("expected name test-plugin, got %s", result.Name)
+	}
+}
+
+func TestRemovePluginDirCmd_NonExistentDir(t *testing.T) {
+	op := pendingOp{
+		Name: "ghost-plugin",
+		Path: "/tmp/nonexistent-tpack-remove-test/",
+	}
+
+	cmd := removePluginDirCmd(op)
+	msg := cmd()
+
+	result, ok := msg.(pluginRemoveResultMsg)
+	if !ok {
+		t.Fatalf("expected pluginRemoveResultMsg, got %T", msg)
+	}
+	// RemoveAll on nonexistent path succeeds.
+	if !result.Success {
+		t.Errorf("expected success for nonexistent dir, got failure: %s", result.Message)
+	}
+}
+
+func TestBuildRemoveOps(t *testing.T) {
+	m := newTestModel(t, nil)
+	m.plugins = []PluginItem{
+		{Name: "a", Spec: "user/a", Status: StatusInstalled},
+		{Name: "b", Spec: "user/b", Status: StatusNotInstalled},
+		{Name: "c", Spec: "user/c", Status: StatusInstalled},
+	}
+	m.listScroll.cursor = 1
+
+	ops := m.buildRemoveOps()
+	if len(ops) != 1 {
+		t.Fatalf("expected 1 remove op (cursor), got %d", len(ops))
+	}
+	if ops[0].Name != "b" {
+		t.Errorf("expected op name 'b', got %s", ops[0].Name)
+	}
+}
+
+func TestBuildRemoveOps_IncludesAllStatuses(t *testing.T) {
+	m := newTestModel(t, nil)
+	m.plugins = []PluginItem{
+		{Name: "a", Spec: "user/a", Status: StatusInstalled},
+		{Name: "b", Spec: "user/b", Status: StatusNotInstalled},
+	}
+	m.selected = map[int]bool{0: true, 1: true}
+	m.multiSelectActive = true
+
+	ops := m.buildRemoveOps()
+	if len(ops) != 2 {
+		t.Errorf("expected 2 remove ops (both statuses), got %d", len(ops))
+	}
+}
+
 func TestBuildUninstallOps(t *testing.T) {
 	m := newTestModel(t, nil)
 	m.plugins = []PluginItem{
