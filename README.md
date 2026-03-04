@@ -90,7 +90,7 @@ guide for full setup instructions.
 ## Features
 
 - **Drop-in TPM replacement** — no config changes needed when switching from TPM
-- **Interactive TUI** — browse, install, update, and uninstall plugins visually
+- **Interactive TUI** — browse, install, update, remove, and uninstall plugins visually
   (`prefix` + <kbd>T</kbd>)
 - **CLI** — `tpack install`, `tpack update`, `tpack clean`, and more
 - **Automatic updates** — optional background update checking for plugins and

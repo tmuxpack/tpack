@@ -27,13 +27,24 @@ See [Interactive TUI — Browse Screen](interactive-tui.md#browse-screen) for th
 
 Press ++prefix+shift+u++ to update plugins. The TUI opens and you can select which plugins to update.
 
+## Removing plugins
+
+To completely remove a plugin (delete both the directory and the config entry), select it in the TUI and press ++r++. This is the quickest way to get rid of a plugin you no longer want — no manual config editing required.
+
 ## Uninstalling plugins
 
-1. Remove (or comment out) the plugin line from your tmux config.
+To uninstall a plugin while keeping its entry in your config, select it in the TUI and press ++x++. The plugin directory is deleted but the `@plugin` line stays in your `tmux.conf`, so the plugin appears as "Not Installed" and can be reinstalled later with ++i++.
 
-2. Press ++prefix+alt+u++ (lowercase u, as in **u**ninstall).
+## Cleaning orphaned directories
 
-3. The orphaned plugin directory is removed.
+If you manually remove a plugin line from your config, the plugin directory may still exist on disk. Press ++prefix+alt+u++ or use `tpack clean` to remove these orphaned directories. In the TUI, press ++c++ to run the same cleanup.
+
+!!! note "Remove vs Uninstall vs Clean"
+    | Operation | Deletes directory | Removes from config | Plugin stays in list |
+    |-----------|:-:|:-:|:-:|
+    | **Remove** (++r++) | Yes | Yes | No |
+    | **Uninstall** (++x++) | Yes | No | Yes (as "Not Installed") |
+    | **Clean** (++c++) | Yes | N/A (already not in config) | N/A |
 
 !!! tip
-    All three key bindings can be customized. See [Key Bindings](../configuration/key-bindings.md) for details.
+    All key bindings can be customized. See [Key Bindings](../configuration/key-bindings.md) for details.

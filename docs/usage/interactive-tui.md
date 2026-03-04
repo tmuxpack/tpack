@@ -10,7 +10,7 @@ The default screen shows all declared plugins and their status (Installed, Not I
 
 ## Progress View
 
-Displayed during install, update, or clean operations. Shows real-time per-plugin progress with a progress bar and status indicators. After completion, use ++arrow-up++ / ++arrow-down++ to browse results and ++enter++ to view commits for updated plugins.
+Displayed during install, update, remove, uninstall, or clean operations. Shows real-time per-plugin progress with a progress bar and status indicators. After completion, use ++arrow-up++ / ++arrow-down++ to browse results and ++enter++ to view commits for updated plugins.
 
 ## Commit History
 
@@ -51,8 +51,9 @@ Press ++at++ on the plugin list to open the debug screen. Displays tpack version
 | ++space++ / ++tab++ | Toggle selection |
 | ++i++ | Install selected / not-installed plugins |
 | ++u++ | Update selected / installed plugins |
+| ++r++ | Remove selected plugins (deletes directory and config entry) |
+| ++x++ | Uninstall selected plugins (deletes directory, keeps config entry) |
 | ++c++ | Clean orphaned plugin directories |
-| ++x++ | Uninstall selected plugins |
 | ++b++ | Open browse screen |
 | ++at++ | Open debug view |
 | ++q++ | Quit |
