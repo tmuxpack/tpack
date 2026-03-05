@@ -149,20 +149,25 @@ func (m Model) installFromBrowse() (tea.Model, tea.Cmd) {
 
 	selected := m.browseResults[m.browseScroll.cursor]
 
+	spec := selected.Repo
+	if selected.Host != "" && selected.Host != "github.com" {
+		spec = "https://" + selected.Host + "/" + selected.Repo
+	}
+
 	for _, p := range m.plugins {
-		if p.Spec == selected.Repo || p.Name == pluginNameFromRepo(selected.Repo) {
+		if p.Spec == spec || p.Name == pluginNameFromRepo(selected.Repo) {
 			return m, nil
 		}
 	}
 
 	if m.cfg.TmuxConf != "" {
-		_ = config.AppendPlugin(m.cfg.TmuxConf, selected.Repo)
+		_ = config.AppendPlugin(m.cfg.TmuxConf, spec)
 	}
 
 	name := pluginNameFromRepo(selected.Repo)
 	m.plugins = append(m.plugins, PluginItem{
 		Name:   name,
-		Spec:   selected.Repo,
+		Spec:   spec,
 		Status: StatusNotInstalled,
 	})
 
@@ -170,7 +175,7 @@ func (m Model) installFromBrowse() (tea.Model, tea.Cmd) {
 	m.operation = OpInstall
 	m.pendingItems = []pendingOp{{
 		Name: name,
-		Spec: selected.Repo,
+		Spec: spec,
 		Path: plug.PluginPath(name, m.cfg.PluginPath),
 	}}
 	m.totalItems = 1

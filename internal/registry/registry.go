@@ -20,6 +20,7 @@ type RegistryItem struct {
 	Author      string `yaml:"author"`
 	Category    string `yaml:"category"`
 	Stars       int    `yaml:"stars"`
+	Host        string `yaml:"host,omitempty"`
 }
 
 // Parse deserializes raw YAML bytes into a Registry.

@@ -21,7 +21,11 @@ func (m Model) openFromBrowse() (tea.Model, tea.Cmd) {
 	}
 
 	selected := m.browseResults[m.browseScroll.cursor]
-	url := "https://github.com/" + selected.Repo
+	host := selected.Host
+	if host == "" {
+		host = "github.com"
+	}
+	url := "https://" + host + "/" + selected.Repo
 
 	m.browseStatus = "Copied to clipboard: " + url
 

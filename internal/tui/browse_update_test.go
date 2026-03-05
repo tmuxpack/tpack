@@ -160,6 +160,124 @@ func TestOpenFromBrowse_EnterKeyInNavMode(t *testing.T) {
 	}
 }
 
+func TestOpenFromBrowse_GitHubURL(t *testing.T) {
+	m := newBrowseModel(t)
+	m.browseScroll.cursor = 0
+
+	result, _ := m.openFromBrowse()
+	m = result.(Model)
+
+	if !strings.Contains(m.browseStatus, "https://github.com/catppuccin/tmux") {
+		t.Errorf("expected GitHub URL in status, got %q", m.browseStatus)
+	}
+}
+
+func TestOpenFromBrowse_NonGitHubHost(t *testing.T) {
+	m := newBrowseModel(t)
+	m.browseRegistry.Plugins = append(m.browseRegistry.Plugins, registry.RegistryItem{
+		Repo: "gitlab-user/tmux-theme", Description: "A theme", Category: "theme", Stars: 10, Host: "gitlab.com",
+	})
+	m.browseResults = m.browseRegistry.Plugins
+	m.browseScroll.cursor = len(m.browseResults) - 1
+
+	result, _ := m.openFromBrowse()
+	m = result.(Model)
+
+	if !strings.Contains(m.browseStatus, "https://gitlab.com/gitlab-user/tmux-theme") {
+		t.Errorf("expected GitLab URL in status, got %q", m.browseStatus)
+	}
+}
+
+func TestInstallFromBrowse_NonGitHubHost_UsesFullURL(t *testing.T) {
+	m := newBrowseModel(t)
+	tmpDir := t.TempDir()
+	confPath := filepath.Join(tmpDir, "tmux.conf")
+	os.WriteFile(confPath, []byte("# tmux config\n"), 0o644)
+	m.cfg.TmuxConf = confPath
+
+	m.browseRegistry = &registry.Registry{
+		Categories: []string{"theme"},
+		Plugins: []registry.RegistryItem{
+			{Repo: "gitlab-user/tmux-theme", Description: "A theme", Category: "theme", Stars: 10, Host: "gitlab.com"},
+		},
+	}
+	m.browseResults = m.browseRegistry.Plugins
+	m.browseScroll.cursor = 0
+
+	result, cmd := m.installFromBrowse()
+	m = result.(Model)
+
+	if m.screen != ScreenProgress {
+		t.Fatalf("expected ScreenProgress, got %d", m.screen)
+	}
+	if m.totalItems != 1 {
+		t.Errorf("expected 1 total item, got %d", m.totalItems)
+	}
+	if cmd == nil {
+		t.Error("expected non-nil install command")
+	}
+
+	wantSpec := "https://gitlab.com/gitlab-user/tmux-theme"
+
+	// Check that the plugin was added with the full URL spec.
+	found := false
+	for _, p := range m.plugins {
+		if p.Spec == wantSpec {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected plugin with spec %q in plugins list", wantSpec)
+	}
+
+	data, _ := os.ReadFile(confPath)
+	if !strings.Contains(string(data), wantSpec) {
+		t.Errorf("expected full GitLab URL in tmux.conf, got:\n%s", data)
+	}
+}
+
+func TestInstallFromBrowse_GitHubHost_UsesShorthand(t *testing.T) {
+	m := newBrowseModel(t)
+	tmpDir := t.TempDir()
+	confPath := filepath.Join(tmpDir, "tmux.conf")
+	os.WriteFile(confPath, []byte("# tmux config\n"), 0o644)
+	m.cfg.TmuxConf = confPath
+
+	m.browseScroll.cursor = 0
+
+	result, cmd := m.installFromBrowse()
+	m = result.(Model)
+
+	if m.screen != ScreenProgress {
+		t.Fatalf("expected ScreenProgress, got %d", m.screen)
+	}
+	if cmd == nil {
+		t.Error("expected non-nil install command")
+	}
+
+	// Check plugin was added with shorthand spec (no URL prefix).
+	found := false
+	for _, p := range m.plugins {
+		if p.Spec == "catppuccin/tmux" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("expected plugin with spec catppuccin/tmux in plugins list")
+	}
+
+	data, _ := os.ReadFile(confPath)
+	content := string(data)
+	if !strings.Contains(content, "catppuccin/tmux") {
+		t.Errorf("expected shorthand repo in tmux.conf, got:\n%s", content)
+	}
+	if strings.Contains(content, "https://") {
+		t.Errorf("expected no URL prefix for GitHub repo, got:\n%s", content)
+	}
+}
+
 func TestInstallFromBrowse_AddsToPluginsAndStartsInstall(t *testing.T) {
 	m := newBrowseModel(t)
 	m.cfg.TmuxConf = filepath.Join(t.TempDir(), "tmux.conf")

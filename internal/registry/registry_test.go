@@ -1,7 +1,10 @@
 package registry
 
 import (
+	"strings"
 	"testing"
+
+	"gopkg.in/yaml.v3"
 )
 
 func TestParseRegistry(t *testing.T) {
@@ -117,6 +120,67 @@ func TestFilterByCategory(t *testing.T) {
 	empty := FilterByCategory(reg, "navigation")
 	if len(empty) != 0 {
 		t.Errorf("expected 0 navigation plugins, got %d", len(empty))
+	}
+}
+
+func TestParseRegistry_WithHost(t *testing.T) {
+	raw := []byte(`
+categories:
+  - theme
+
+plugins:
+  - repo: catppuccin/tmux
+    description: Soothing pastel theme for Tmux
+    author: catppuccin
+    category: theme
+    stars: 1250
+  - repo: gitlab-user/tmux-theme
+    description: A GitLab-hosted theme
+    author: gitlab-user
+    category: theme
+    stars: 42
+    host: gitlab.com
+`)
+	reg, err := Parse(raw)
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+	if len(reg.Plugins) != 2 {
+		t.Fatalf("expected 2 plugins, got %d", len(reg.Plugins))
+	}
+	if reg.Plugins[0].Host != "" {
+		t.Errorf("expected empty host for GitHub plugin, got %q", reg.Plugins[0].Host)
+	}
+	if reg.Plugins[1].Host != "gitlab.com" {
+		t.Errorf("expected host gitlab.com, got %q", reg.Plugins[1].Host)
+	}
+}
+
+func TestParseRegistry_HostOmittedInOutput(t *testing.T) {
+	item := RegistryItem{
+		Repo:        "user/repo",
+		Description: "test",
+		Author:      "user",
+		Category:    "theme",
+		Stars:       0,
+	}
+	// Host is empty, should be omitted from YAML output
+	data, err := yaml.Marshal(item)
+	if err != nil {
+		t.Fatalf("Marshal: %v", err)
+	}
+	if strings.Contains(string(data), "host") {
+		t.Errorf("expected host to be omitted from YAML when empty, got:\n%s", data)
+	}
+
+	// Host is set, should appear
+	item.Host = "gitlab.com"
+	data, err = yaml.Marshal(item)
+	if err != nil {
+		t.Fatalf("Marshal: %v", err)
+	}
+	if !strings.Contains(string(data), "host: gitlab.com") {
+		t.Errorf("expected host: gitlab.com in YAML output, got:\n%s", data)
 	}
 }
 
