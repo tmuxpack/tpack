@@ -59,5 +59,5 @@ func RemovePlugin(confPath string, spec string) error {
 		return nil
 	}
 
-	return os.WriteFile(confPath, []byte(strings.Join(kept, "\n")), 0o600)
+	return os.WriteFile(confPath, []byte(strings.Join(kept, "\n")), 0o600) //nolint:gosec // confPath is resolved from user config
 }
