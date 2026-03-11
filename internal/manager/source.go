@@ -2,10 +2,12 @@ package manager
 
 import (
 	"context"
+	"errors"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"syscall"
 
 	"github.com/tmuxpack/tpack/internal/plug"
 )
@@ -36,7 +38,17 @@ func (m *Manager) sourcePlugin(ctx context.Context, dir string) {
 		cmd.Stdout = io.Discard
 		cmd.Stderr = io.Discard
 		if err := cmd.Run(); err != nil {
-			m.output.Err("error sourcing " + filepath.Base(file) + ": " + err.Error())
+			// Retry through sh if the interpreter from the shebang was not
+			// found (e.g. Termux where /usr/bin/env does not exist).
+			if errors.Is(err, syscall.ENOENT) {
+				fallback := exec.CommandContext(ctx, "sh", file) //nolint:gosec // plugin files are user-configured
+				fallback.Stdout = io.Discard
+				fallback.Stderr = io.Discard
+				err = fallback.Run()
+			}
+			if err != nil {
+				m.output.Err("error sourcing " + filepath.Base(file) + ": " + err.Error())
+			}
 		}
 	}
 }
