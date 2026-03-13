@@ -263,7 +263,17 @@ func (m Model) View() tea.View {
 	v := tea.NewView(m.theme.BaseStyle.Render(content))
 	v.AltScreen = true
 	v.MouseMode = tea.MouseModeCellMotion
+	v.ProgressBar = m.terminalProgressBar()
 	return v
+}
+
+// terminalProgressBar returns a terminal-native progress bar for supported terminals.
+func (m *Model) terminalProgressBar() *tea.ProgressBar {
+	if m.screen != ScreenProgress || !m.processing || m.totalItems == 0 {
+		return nil
+	}
+	pct := m.completedItems * 100 / m.totalItems
+	return tea.NewProgressBar(tea.ProgressBarDefault, pct)
 }
 
 // handleKeyMsgList handles key events on the list screen.
