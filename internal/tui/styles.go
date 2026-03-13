@@ -137,8 +137,13 @@ func NewTheme(primary, secondary, accent, errC, muted, text color.Color) Theme {
 	}
 }
 
-// DefaultTheme returns a Theme built from the hardcoded default colors.
+// DefaultTheme returns a Theme built from the hardcoded default colors (dark background).
 func DefaultTheme() Theme {
+	return DefaultDarkTheme()
+}
+
+// DefaultDarkTheme returns a Theme optimized for dark terminal backgrounds.
+func DefaultDarkTheme() Theme {
 	return NewTheme(
 		lipgloss.Color("#7C3AED"),
 		lipgloss.Color("#10B981"),
@@ -146,6 +151,18 @@ func DefaultTheme() Theme {
 		lipgloss.Color("#EF4444"),
 		lipgloss.Color("#6B7280"),
 		lipgloss.Color("#F3F4F6"),
+	)
+}
+
+// DefaultLightTheme returns a Theme optimized for light terminal backgrounds.
+func DefaultLightTheme() Theme {
+	return NewTheme(
+		lipgloss.Color("#6D28D9"),
+		lipgloss.Color("#059669"),
+		lipgloss.Color("#D97706"),
+		lipgloss.Color("#DC2626"),
+		lipgloss.Color("#9CA3AF"),
+		lipgloss.Color("#1F2937"),
 	)
 }
 

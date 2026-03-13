@@ -34,7 +34,7 @@ func WithAutoOp(op Operation) ModelOption {
 
 // WithTheme returns a ModelOption that sets the theme.
 func WithTheme(t Theme) ModelOption {
-	return func(m *Model) { m.theme = t }
+	return func(m *Model) { m.theme = t; m.customTheme = true }
 }
 
 // WithVersion returns a ModelOption that sets the version string.
@@ -103,8 +103,9 @@ type Model struct {
 	browseStatus        string
 	searching           bool
 
-	version    string
-	binaryPath string
+	version     string
+	binaryPath  string
+	customTheme bool // true if theme was set via WithTheme (don't override on BackgroundColorMsg)
 }
 
 // NewModel creates a new Model from the resolved config and gathered plugins.
@@ -146,6 +147,7 @@ func NewModel(cfg *config.Config, plugins []plug.Plugin, deps Deps, opts ...Mode
 // Init implements tea.Model.
 func (m Model) Init() tea.Cmd {
 	var cmds []tea.Cmd
+	cmds = append(cmds, tea.RequestBackgroundColor)
 	for _, p := range m.plugins {
 		if p.Status == StatusChecking {
 			dir := plug.PluginPath(p.Name, m.cfg.PluginPath)
@@ -166,6 +168,9 @@ func (m Model) Init() tea.Cmd {
 // model snapshots; mutations are returned as new values via (tea.Model, tea.Cmd).
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case tea.BackgroundColorMsg:
+		m.handleBackgroundColor(msg)
+		return m, nil
 	case tea.WindowSizeMsg:
 		m.handleWindowSize(msg)
 		return m, nil
@@ -175,8 +180,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, handleFrameMsg(m, msg)
 	case autoStartMsg:
 		return m.startAutoOperation()
-	case sourceCompleteMsg:
-		return m, nil
 	case pluginCheckResultMsg:
 		return m.handleCheckResult(msg)
 	case spinner.TickMsg:
@@ -193,7 +196,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleRemoveResult(msg)
 	case registryFetchResultMsg:
 		return m.handleRegistryFetch(msg)
-	case clearBrowseStatusMsg:
+	case sourceCompleteMsg, clearBrowseStatusMsg:
 		m.browseStatus = ""
 		return m, nil
 	}
@@ -204,6 +207,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func handleFrameMsg(m Model, msg progress.FrameMsg) tea.Cmd {
 	_, cmd := m.progressBar.Update(msg)
 	return cmd
+}
+
+// handleBackgroundColor adjusts the theme when the terminal has a light background.
+func (m *Model) handleBackgroundColor(msg tea.BackgroundColorMsg) {
+	if !m.customTheme && !msg.IsDark() {
+		m.theme = DefaultLightTheme()
+	}
 }
 
 // handleWindowSize updates layout dimensions from the actual terminal/popup size.

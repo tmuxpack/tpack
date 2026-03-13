@@ -249,7 +249,8 @@ func TestInit_WithAutoOp_SendsAutoStartMsg(t *testing.T) {
 }
 
 func TestInit_WithoutAutoOp_NoAutoStartMsg(t *testing.T) {
-	// With no plugins (nothing to check), Init should return nil.
+	// With no plugins (nothing to check), Init should still return a command
+	// (for background color detection) but no autoStartMsg.
 	cfg := &config.Config{PluginPath: t.TempDir() + "/"}
 	deps := Deps{
 		Cloner:    git.NewMockCloner(),
@@ -259,8 +260,8 @@ func TestInit_WithoutAutoOp_NoAutoStartMsg(t *testing.T) {
 	}
 	m := NewModel(cfg, nil, deps)
 	cmd := m.Init()
-	if cmd != nil {
-		t.Error("expected nil command from Init with no autoOp and no plugins")
+	if cmd == nil {
+		t.Error("expected non-nil command from Init (background color request)")
 	}
 }
 
