@@ -2,9 +2,6 @@ package tui
 
 import (
 	"context"
-	"encoding/base64"
-	"fmt"
-	"os"
 	"os/exec"
 	"runtime"
 	"strings"
@@ -30,23 +27,12 @@ func (m Model) openFromBrowse() (tea.Model, tea.Cmd) {
 	m.browseStatus = "Copied to clipboard: " + url
 
 	return m, tea.Batch(
-		setClipboardOSC52(url),
+		tea.SetClipboard(url),
 		openURLCmd(url),
 		tea.Tick(3*time.Second, func(time.Time) tea.Msg {
 			return clearBrowseStatusMsg{}
 		}),
 	)
-}
-
-// TODO: replace with bubbletea v2 built-in clipboard support
-// https://github.com/charmbracelet/bubbletea/commit/6062461b06a97737b42e4700c26e56982a0f8c1f
-func setClipboardOSC52(s string) tea.Cmd {
-	return func() tea.Msg {
-		b64 := base64.StdEncoding.EncodeToString([]byte(s))
-		// OSC 52 ; c (system clipboard) ; <base64> ST
-		fmt.Fprintf(os.Stderr, "\033]52;c;%s\a", b64)
-		return nil
-	}
 }
 
 func openURLCmd(url string) tea.Cmd {
