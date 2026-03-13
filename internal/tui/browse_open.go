@@ -20,7 +20,7 @@ func (m Model) openFromBrowse() (tea.Model, tea.Cmd) {
 	selected := m.browseResults[m.browseScroll.cursor]
 	host := selected.Host
 	if host == "" {
-		host = "github.com"
+		host = defaultGitHubHost
 	}
 	url := "https://" + host + "/" + selected.Repo
 

@@ -124,6 +124,9 @@ type pendingOp struct {
 // escKeyName is the string representation of the Escape key.
 const escKeyName = "esc"
 
+// defaultGitHubHost is the default host for plugin repositories.
+const defaultGitHubHost = "github.com"
+
 // Fixed application dimensions.
 const (
 	// FixedWidth is the fixed width of the application in columns.

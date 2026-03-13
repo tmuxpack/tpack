@@ -87,7 +87,12 @@ func (m *Model) renderBrowseResults() string {
 		cursor := renderCursor(i == m.browseScroll.cursor)
 
 		stars := m.theme.BrowseStarsStyle.Render(formatStars(p.Stars))
-		repo := m.theme.BrowseRepoStyle.Render(p.Repo)
+		host := p.Host
+		if host == "" {
+			host = defaultGitHubHost
+		}
+		repoURL := "https://" + host + "/" + p.Repo
+		repo := m.theme.BrowseRepoStyle.Hyperlink(repoURL).Render(p.Repo)
 
 		installed := ""
 		for _, pl := range m.plugins {

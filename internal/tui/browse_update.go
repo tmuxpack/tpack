@@ -150,7 +150,7 @@ func (m Model) installFromBrowse() (tea.Model, tea.Cmd) {
 	selected := m.browseResults[m.browseScroll.cursor]
 
 	spec := selected.Repo
-	if selected.Host != "" && selected.Host != "github.com" {
+	if selected.Host != "" && selected.Host != defaultGitHubHost {
 		spec = "https://" + selected.Host + "/" + selected.Repo
 	}
 
