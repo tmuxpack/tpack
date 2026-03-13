@@ -1,6 +1,8 @@
 package tui
 
 import (
+	"fmt"
+
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/progress"
 	"charm.land/bubbles/v2/spinner"
@@ -263,8 +265,28 @@ func (m Model) View() tea.View {
 	v := tea.NewView(m.theme.BaseStyle.Render(content))
 	v.AltScreen = true
 	v.MouseMode = tea.MouseModeCellMotion
+	v.WindowTitle = m.windowTitle()
 	v.ProgressBar = m.terminalProgressBar()
 	return v
+}
+
+// windowTitle returns the terminal window title for the current state.
+func (m *Model) windowTitle() string {
+	switch m.screen {
+	case ScreenProgress:
+		if m.processing && m.totalItems > 0 {
+			return fmt.Sprintf("tpack — %s %d/%d",
+				m.operation, m.completedItems, m.totalItems)
+		}
+		return fmt.Sprintf("tpack — %s complete", m.operation)
+	case ScreenBrowse:
+		return "tpack — Browse"
+	case ScreenCommits:
+		return "tpack — Commits"
+	case ScreenList, ScreenDebug:
+		return "tpack"
+	}
+	return "tpack"
 }
 
 // terminalProgressBar returns a terminal-native progress bar for supported terminals.
