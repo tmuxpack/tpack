@@ -1,6 +1,6 @@
 package tui
 
-import "github.com/charmbracelet/bubbles/key"
+import "charm.land/bubbles/v2/key"
 
 type sharedKeys struct {
 	Quit      key.Binding
@@ -92,7 +92,7 @@ var ListKeys = listKeys{
 		key.WithKeys("down", "j"),
 	),
 	Toggle: key.NewBinding(
-		key.WithKeys("tab", " "),
+		key.WithKeys("tab", "space"),
 		key.WithHelp("tab", "toggle"),
 	),
 	Install: key.NewBinding(

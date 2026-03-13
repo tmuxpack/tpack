@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 )
 
 type clearBrowseStatusMsg struct{}
@@ -38,7 +38,7 @@ func (m Model) openFromBrowse() (tea.Model, tea.Cmd) {
 	)
 }
 
-// revisit when bubbletea v2 comes out with built-in support:
+// TODO: replace with bubbletea v2 built-in clipboard support
 // https://github.com/charmbracelet/bubbletea/commit/6062461b06a97737b42e4700c26e56982a0f8c1f
 func setClipboardOSC52(s string) tea.Cmd {
 	return func() tea.Msg {

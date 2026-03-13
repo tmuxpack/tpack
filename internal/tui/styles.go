@@ -1,20 +1,21 @@
 package tui
 
 import (
+	"image/color"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/key"
+	"charm.land/lipgloss/v2"
 )
 
 // Theme holds all TUI styles derived from a color palette.
 type Theme struct {
-	PrimaryColor   lipgloss.Color
-	SecondaryColor lipgloss.Color
-	AccentColor    lipgloss.Color
-	ErrorColor     lipgloss.Color
-	MutedColor     lipgloss.Color
-	TextColor      lipgloss.Color
+	PrimaryColor   color.Color
+	SecondaryColor color.Color
+	AccentColor    color.Color
+	ErrorColor     color.Color
+	MutedColor     color.Color
+	TextColor      color.Color
 
 	BaseStyle               lipgloss.Style
 	TitleStyle              lipgloss.Style
@@ -41,7 +42,7 @@ type Theme struct {
 }
 
 // NewTheme constructs a Theme from the given color palette.
-func NewTheme(primary, secondary, accent, errC, muted, text lipgloss.Color) Theme {
+func NewTheme(primary, secondary, accent, errC, muted, text color.Color) Theme {
 	return Theme{
 		PrimaryColor:   primary,
 		SecondaryColor: secondary,

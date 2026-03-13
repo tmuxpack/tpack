@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	"github.com/tmuxpack/tpack/internal/git"
 )
 
@@ -249,7 +249,7 @@ func TestUpdateList_RemoveKey(t *testing.T) {
 	}
 	m.viewHeight = 10
 
-	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'r'}}
+	msg := tea.KeyPressMsg{Code: 'r', Text: "r"}
 	result, cmd := m.Update(msg)
 	m = result.(Model)
 
@@ -372,7 +372,7 @@ func TestUpdateProgress_IgnoresKeysWhileProcessing(t *testing.T) {
 	m.totalItems = 1
 	m.completedItems = 0
 
-	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}}
+	msg := tea.KeyPressMsg{Code: 'q', Text: "q"}
 	result, cmd := m.Update(msg)
 	updated := result.(Model)
 
@@ -391,7 +391,7 @@ func TestUpdateProgress_EscReturnsToList(t *testing.T) {
 	m.processing = false
 	m.operation = OpInstall
 
-	msg := tea.KeyMsg{Type: tea.KeyEsc}
+	msg := tea.KeyPressMsg{Code: tea.KeyEscape}
 	result, _ := m.Update(msg)
 	updated := result.(Model)
 
@@ -406,7 +406,7 @@ func TestUpdateProgress_QuitWhenNotProcessing(t *testing.T) {
 	m.processing = false
 	m.operation = OpInstall
 
-	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}}
+	msg := tea.KeyPressMsg{Code: 'q', Text: "q"}
 	_, cmd := m.Update(msg)
 
 	if cmd == nil {
@@ -423,7 +423,7 @@ func TestUpdateList_ToggleSelection(t *testing.T) {
 	m.viewHeight = 10
 
 	// Press tab to toggle selection.
-	msg := tea.KeyMsg{Type: tea.KeyTab}
+	msg := tea.KeyPressMsg{Code: tea.KeyTab}
 	result, _ := m.Update(msg)
 	m = result.(Model)
 
@@ -442,7 +442,7 @@ func TestUpdateList_InstallKey(t *testing.T) {
 	}
 	m.viewHeight = 10
 
-	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'i'}}
+	msg := tea.KeyPressMsg{Code: 'i', Text: "i"}
 	result, cmd := m.Update(msg)
 	m = result.(Model)
 
@@ -464,7 +464,7 @@ func TestUpdateList_UpdateKey(t *testing.T) {
 	}
 	m.viewHeight = 10
 
-	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'u'}}
+	msg := tea.KeyPressMsg{Code: 'u', Text: "u"}
 	result, cmd := m.Update(msg)
 	m = result.(Model)
 
@@ -486,7 +486,7 @@ func TestUpdateList_CleanKey(t *testing.T) {
 	}
 	m.viewHeight = 10
 
-	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'c'}}
+	msg := tea.KeyPressMsg{Code: 'c', Text: "c"}
 	result, cmd := m.Update(msg)
 	m = result.(Model)
 
@@ -508,7 +508,7 @@ func TestUpdateList_UninstallKey(t *testing.T) {
 	}
 	m.viewHeight = 10
 
-	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'x'}}
+	msg := tea.KeyPressMsg{Code: 'x', Text: "x"}
 	result, cmd := m.Update(msg)
 	m = result.(Model)
 
@@ -558,7 +558,7 @@ func TestStartOperation_OpNone(t *testing.T) {
 func TestForceQuit_FromList(t *testing.T) {
 	m := newTestModel(t, nil)
 
-	msg := tea.KeyMsg{Type: tea.KeyCtrlC}
+	msg := tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl}
 	_, cmd := m.Update(msg)
 
 	if cmd == nil {
@@ -571,7 +571,7 @@ func TestForceQuit_FromProgress(t *testing.T) {
 	m.screen = ScreenProgress
 	m.processing = true
 
-	msg := tea.KeyMsg{Type: tea.KeyCtrlC}
+	msg := tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl}
 	_, cmd := m.Update(msg)
 
 	if cmd == nil {
@@ -597,8 +597,8 @@ func TestWindowSizeMsg_ProgressBarWidthCapped(t *testing.T) {
 	result, _ := m.Update(msg)
 	m = result.(Model)
 
-	if m.progressBar.Width > ProgressBarMaxWidth {
-		t.Errorf("expected progressBar.Width <= %d, got %d", ProgressBarMaxWidth, m.progressBar.Width)
+	if m.progressBar.Width() > ProgressBarMaxWidth {
+		t.Errorf("expected progressBar.Width <= %d, got %d", ProgressBarMaxWidth, m.progressBar.Width())
 	}
 }
 
@@ -793,7 +793,7 @@ func TestUpdateProgress_NavigationKeys(t *testing.T) {
 	m.resultScroll.cursor = 0
 
 	// Press j to move down.
-	down := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}}
+	down := tea.KeyPressMsg{Code: 'j', Text: "j"}
 	result, _ := m.Update(down)
 	m = result.(Model)
 	if m.resultScroll.cursor != 1 {
@@ -801,7 +801,7 @@ func TestUpdateProgress_NavigationKeys(t *testing.T) {
 	}
 
 	// Press k to move up.
-	up := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}}
+	up := tea.KeyPressMsg{Code: 'k', Text: "k"}
 	result, _ = m.Update(up)
 	m = result.(Model)
 	if m.resultScroll.cursor != 0 {
@@ -809,7 +809,7 @@ func TestUpdateProgress_NavigationKeys(t *testing.T) {
 	}
 
 	// Press enter - should navigate to commits screen for result with commits.
-	enter := tea.KeyMsg{Type: tea.KeyEnter}
+	enter := tea.KeyPressMsg{Code: tea.KeyEnter}
 	result, _ = m.Update(enter)
 	m = result.(Model)
 	if m.screen != ScreenCommits {
@@ -850,7 +850,7 @@ func TestUpdateCommitView_EscReturnsToProgress(t *testing.T) {
 	m.commitViewName = "test"
 	m.commitViewCommits = []git.Commit{{Hash: "abc", Message: "test"}}
 
-	msg := tea.KeyMsg{Type: tea.KeyEscape}
+	msg := tea.KeyPressMsg{Code: tea.KeyEscape}
 	result, _ := m.Update(msg)
 	m = result.(Model)
 
@@ -868,7 +868,7 @@ func TestUpdateCommitView_QReturnsToProgress(t *testing.T) {
 	m.commitViewName = "test"
 	m.commitViewCommits = []git.Commit{{Hash: "abc", Message: "test"}}
 
-	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}}
+	msg := tea.KeyPressMsg{Code: 'q', Text: "q"}
 	result, _ := m.Update(msg)
 	m = result.(Model)
 
@@ -889,7 +889,7 @@ func TestUpdateCommitView_Navigation(t *testing.T) {
 	m.commitScroll.cursor = 0
 
 	// Move down.
-	down := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}}
+	down := tea.KeyPressMsg{Code: 'j', Text: "j"}
 	result, _ := m.Update(down)
 	m = result.(Model)
 	if m.commitScroll.cursor != 1 {
@@ -897,7 +897,7 @@ func TestUpdateCommitView_Navigation(t *testing.T) {
 	}
 
 	// Move up.
-	up := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}}
+	up := tea.KeyPressMsg{Code: 'k', Text: "k"}
 	result, _ = m.Update(up)
 	m = result.(Model)
 	if m.commitScroll.cursor != 0 {
@@ -914,7 +914,7 @@ func TestViewCommits_Rendering(t *testing.T) {
 		{Hash: "def5678", Message: "fix bug Y"},
 	}
 
-	view := m.View()
+	view := m.View().Content
 	if view == "" {
 		t.Fatal("expected non-empty view")
 	}

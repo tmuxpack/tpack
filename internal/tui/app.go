@@ -3,7 +3,7 @@ package tui
 import (
 	"fmt"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	"github.com/tmuxpack/tpack/internal/config"
 	"github.com/tmuxpack/tpack/internal/plug"
 )
@@ -16,7 +16,7 @@ func IdealSize(_ *config.Config, _ []plug.Plugin, _ Deps, _ ...ModelOption) (wid
 // Launches the TUI with the given configuration and plugins.
 func Run(cfg *config.Config, plugins []plug.Plugin, deps Deps, opts ...ModelOption) error {
 	m := NewModel(cfg, plugins, deps, opts...)
-	p := tea.NewProgram(m, tea.WithAltScreen(), tea.WithMouseCellMotion())
+	p := tea.NewProgram(m)
 	if _, err := p.Run(); err != nil {
 		return fmt.Errorf("tui: %w", err)
 	}

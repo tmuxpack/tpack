@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/key"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/key"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/tmuxpack/tpack/internal/git"
 )
 
@@ -60,7 +60,7 @@ func (m CommitViewer) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.sizeKnown = true
 		return m, nil
 
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		switch {
 		case key.Matches(msg, SharedKeys.ForceQuit):
 			return m, tea.Quit
@@ -76,7 +76,7 @@ func (m CommitViewer) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // View implements tea.Model.
-func (m CommitViewer) View() string {
+func (m CommitViewer) View() tea.View {
 	var b strings.Builder
 
 	// Title
@@ -89,7 +89,10 @@ func (m CommitViewer) View() string {
 	// Help — pinned to bottom.
 	help := m.centerText(m.theme.renderHelp(m.width, SharedKeys.Quit))
 
-	return m.theme.BaseStyle.Render(padToBottom(b.String(), help, m.height))
+	v := tea.NewView(m.theme.BaseStyle.Render(padToBottom(b.String(), help, m.height)))
+	v.AltScreen = true
+	v.MouseMode = tea.MouseModeCellMotion
+	return v
 }
 
 // commitTitle builds the title string for the commit viewer.
@@ -142,7 +145,7 @@ func (m *CommitViewer) centerText(text string) string {
 // RunCommitViewer launches the commit viewer TUI.
 func RunCommitViewer(name string, commits []git.Commit, theme Theme) error {
 	m := NewCommitViewer(name, commits, theme)
-	p := tea.NewProgram(m, tea.WithAltScreen(), tea.WithMouseCellMotion())
+	p := tea.NewProgram(m)
 	if _, err := p.Run(); err != nil {
 		return fmt.Errorf("commit viewer: %w", err)
 	}

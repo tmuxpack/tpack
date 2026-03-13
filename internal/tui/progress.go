@@ -4,14 +4,14 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/progress"
+	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/progress"
 )
 
 // newProgress creates a configured progress bar.
 func newProgress() progress.Model {
 	p := progress.New(
-		progress.WithDefaultGradient(),
+		progress.WithDefaultBlend(),
 		progress.WithWidth(40),
 	)
 	return p

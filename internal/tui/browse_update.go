@@ -3,8 +3,8 @@ package tui
 import (
 	"context"
 
-	"github.com/charmbracelet/bubbles/key"
-	tea "github.com/charmbracelet/bubbletea"
+	"charm.land/bubbles/v2/key"
+	tea "charm.land/bubbletea/v2"
 	"github.com/tmuxpack/tpack/internal/config"
 	"github.com/tmuxpack/tpack/internal/plug"
 	"github.com/tmuxpack/tpack/internal/registry"
@@ -31,7 +31,7 @@ func (m Model) enterBrowse() (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmd, m.checkSpinner.Tick)
 }
 
-func (m Model) handleKeyMsgBrowse(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m Model) handleKeyMsgBrowse(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if m.browseLoading {
 		return m, nil
 	}
@@ -45,7 +45,7 @@ func (m Model) handleKeyMsgBrowse(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.applyBrowseFilter()
 			m.searching = false
 			return m, nil
-		case msg.Type == tea.KeyEnter: // Enter → accept query, blur
+		case msg.Code == tea.KeyEnter: // Enter → accept query, blur
 			m.browseInput.Blur()
 			m.searching = false
 			return m, nil
@@ -65,7 +65,7 @@ func (m Model) handleKeyMsgBrowse(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case key.Matches(msg, SharedKeys.Quit):
 		return m, tea.Quit
-	case msg.Type == tea.KeyTab:
+	case msg.Code == tea.KeyTab:
 		m.cycleCategory()
 		m.applyBrowseFilter()
 		return m, nil

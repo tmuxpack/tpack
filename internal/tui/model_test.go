@@ -3,7 +3,7 @@ package tui
 import (
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	"github.com/tmuxpack/tpack/internal/config"
 	"github.com/tmuxpack/tpack/internal/git"
 	"github.com/tmuxpack/tpack/internal/plug"
@@ -63,7 +63,7 @@ func TestNewModel_PluginStatus(t *testing.T) {
 
 func TestUpdate_QuitKey(t *testing.T) {
 	m := newTestModel(t, nil)
-	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}}
+	msg := tea.KeyPressMsg{Code: 'q', Text: "q"}
 	_, cmd := m.Update(msg)
 	if cmd == nil {
 		t.Fatal("expected quit command, got nil")
@@ -80,7 +80,7 @@ func TestUpdate_CursorNavigation(t *testing.T) {
 	m.viewHeight = 10
 
 	// Move down.
-	down := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}}
+	down := tea.KeyPressMsg{Code: 'j', Text: "j"}
 	result, _ := m.Update(down)
 	m = result.(Model)
 	if m.listScroll.cursor != 1 {
@@ -95,7 +95,7 @@ func TestUpdate_CursorNavigation(t *testing.T) {
 	}
 
 	// Move up.
-	up := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}}
+	up := tea.KeyPressMsg{Code: 'k', Text: "k"}
 	result, _ = m.Update(up)
 	m = result.(Model)
 	if m.listScroll.cursor != 1 {
@@ -134,7 +134,7 @@ func TestView_NonEmpty(t *testing.T) {
 	m.width = 80
 	m.viewHeight = 20
 
-	view := m.View()
+	view := m.View().Content
 	if view == "" {
 		t.Error("expected non-empty view")
 	}
@@ -148,7 +148,7 @@ func TestView_ProgressScreen(t *testing.T) {
 	m.completedItems = 1
 	m.width = 80
 
-	view := m.View()
+	view := m.View().Content
 	if view == "" {
 		t.Error("expected non-empty progress view")
 	}
@@ -354,7 +354,7 @@ func TestUpdateProgress_AutoOp_QuitOnQ(t *testing.T) {
 	m.autoOp = OpInstall
 	m.processing = false
 
-	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}}
+	msg := tea.KeyPressMsg{Code: 'q', Text: "q"}
 	_, cmd := m.handleKeyMsgProgress(msg)
 	if cmd == nil {
 		t.Fatal("expected quit command on q in auto-op mode")
@@ -367,7 +367,7 @@ func TestUpdateProgress_AutoOp_QuitOnEsc(t *testing.T) {
 	m.autoOp = OpInstall
 	m.processing = false
 
-	msg := tea.KeyMsg{Type: tea.KeyEscape}
+	msg := tea.KeyPressMsg{Code: tea.KeyEscape}
 	_, cmd := m.handleKeyMsgProgress(msg)
 	if cmd == nil {
 		t.Fatal("expected quit command on Esc in auto-op mode")
@@ -380,7 +380,7 @@ func TestUpdateProgress_AutoOp_IgnoresKeysWhileProcessing(t *testing.T) {
 	m.autoOp = OpInstall
 	m.processing = true
 
-	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}}
+	msg := tea.KeyPressMsg{Code: 'q', Text: "q"}
 	_, cmd := m.handleKeyMsgProgress(msg)
 	if cmd != nil {
 		t.Error("expected nil command when still processing")

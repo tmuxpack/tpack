@@ -193,7 +193,7 @@ func TestGolden_ScreenList(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			m := newTestModel(t, nil)
 			tt.setup(&m)
-			assertGolden(t, tt.name, m.View())
+			assertGolden(t, tt.name, m.View().Content)
 		})
 	}
 }
@@ -304,7 +304,7 @@ func TestGolden_ScreenProgress(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			m := newTestModel(t, nil)
 			tt.setup(&m)
-			assertGolden(t, tt.name, m.View())
+			assertGolden(t, tt.name, m.View().Content)
 		})
 	}
 }
@@ -359,7 +359,7 @@ func TestGolden_ScreenCommits(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			m := newTestModel(t, nil)
 			tt.setup(&m)
-			assertGolden(t, tt.name, m.View())
+			assertGolden(t, tt.name, m.View().Content)
 		})
 	}
 }
@@ -369,7 +369,7 @@ func TestGolden_ScreenDebug(t *testing.T) {
 	m.screen = ScreenDebug
 	m.version = "1.2.3"
 	m.binaryPath = "/usr/local/bin/tpack"
-	assertGolden(t, "debug_view", m.View())
+	assertGolden(t, "debug_view", m.View().Content)
 }
 
 func TestGolden_ScreenBrowse(t *testing.T) {
@@ -427,7 +427,7 @@ func TestGolden_ScreenBrowse(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			m := newTestModel(t, nil)
 			tt.setup(&m)
-			assertGolden(t, tt.name, m.View())
+			assertGolden(t, tt.name, m.View().Content)
 		})
 	}
 }

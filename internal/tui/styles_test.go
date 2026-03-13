@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/charmbracelet/bubbles/key"
+	"charm.land/bubbles/v2/key"
 )
 
 func TestRenderCursor(t *testing.T) {
@@ -124,7 +124,7 @@ func TestRenderHelp(t *testing.T) {
 	if out == "" {
 		t.Error("expected non-empty help output")
 	}
-	if !strings.Contains(out, "quit") {
+	if !strings.Contains(stripANSI(out), "quit") {
 		t.Errorf("expected help to contain 'quit', got %q", out)
 	}
 

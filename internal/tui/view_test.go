@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 	"github.com/tmuxpack/tpack/internal/git"
 	"github.com/tmuxpack/tpack/internal/plug"
 )
@@ -18,7 +18,7 @@ func TestViewList_ContainsPluginNames(t *testing.T) {
 	m.width = 100
 	m.viewHeight = 20
 
-	view := m.View()
+	view := m.View().Content
 	for _, p := range plugins {
 		if !strings.Contains(view, p.Name) {
 			t.Errorf("expected view to contain plugin name %q", p.Name)
@@ -31,7 +31,7 @@ func TestViewList_EmptyPlugins(t *testing.T) {
 	m.width = 80
 	m.viewHeight = 20
 
-	view := m.View()
+	view := m.View().Content
 	if !strings.Contains(view, "No plugins configured") {
 		t.Error("expected 'No plugins configured' message for empty plugin list")
 	}
@@ -46,7 +46,7 @@ func TestViewList_WithOrphans(t *testing.T) {
 		{Name: "stale-plugin", Path: "/tmp/stale-plugin"},
 	}
 
-	view := m.View()
+	view := m.View().Content
 	if !strings.Contains(view, "old-plugin") {
 		t.Error("expected view to contain orphan name 'old-plugin'")
 	}
@@ -67,7 +67,7 @@ func TestViewList_HelpBar(t *testing.T) {
 		{Name: "a", Spec: "user/a", Status: StatusNotInstalled},
 	}
 
-	view := m.View()
+	view := stripANSI(m.View().Content)
 	if !strings.Contains(view, "quit") {
 		t.Error("expected help bar to contain 'quit'")
 	}
@@ -79,7 +79,7 @@ func TestViewList_HelpBar(t *testing.T) {
 	m.plugins = []PluginItem{
 		{Name: "b", Spec: "user/b", Status: StatusInstalled},
 	}
-	view = m.View()
+	view = stripANSI(m.View().Content)
 	if !strings.Contains(view, "quit") {
 		t.Error("expected help bar to contain 'quit'")
 	}
@@ -120,7 +120,7 @@ func TestViewProgress_ShowsOperation(t *testing.T) {
 	m.processing = true
 	m.width = 80
 
-	view := m.View()
+	view := m.View().Content
 	if !strings.Contains(view, "Install") {
 		t.Error("expected progress view to contain 'Install'")
 	}
@@ -135,7 +135,7 @@ func TestViewProgress_ShowsCounter(t *testing.T) {
 	m.processing = true
 	m.width = 80
 
-	view := m.View()
+	view := m.View().Content
 	if !strings.Contains(view, "Processing 3 of 5") {
 		t.Errorf("expected 'Processing 3 of 5' in view, got:\n%s", view)
 	}
@@ -154,7 +154,7 @@ func TestViewProgress_ShowsResultsWhenComplete(t *testing.T) {
 		{Name: "plugin-beta", Success: false, Message: "clone failed"},
 	}
 
-	view := m.View()
+	view := m.View().Content
 	if !strings.Contains(view, "plugin-alpha") {
 		t.Error("expected results to contain 'plugin-alpha'")
 	}
@@ -176,7 +176,7 @@ func TestViewProgress_ShowsCurrentItem(t *testing.T) {
 	m.inFlightNames = []string{"my-plugin"}
 	m.width = 80
 
-	view := m.View()
+	view := m.View().Content
 	if !strings.Contains(view, "my-plugin") {
 		t.Error("expected progress view to contain current item name 'my-plugin'")
 	}
@@ -193,7 +193,7 @@ func TestViewList_RenderStatus_AllStatuses(t *testing.T) {
 		{Name: "p4", Status: StatusCheckFailed},
 	}
 
-	view := m.View()
+	view := m.View().Content
 	if !strings.Contains(view, "Installed") {
 		t.Error("expected view to contain 'Installed' status")
 	}
@@ -216,7 +216,7 @@ func TestViewList_WithMultiSelect(t *testing.T) {
 	m.selected = map[int]bool{0: true}
 	m.multiSelectActive = true
 
-	view := m.View()
+	view := m.View().Content
 	if !strings.Contains(view, "alpha") {
 		t.Error("expected view to contain 'alpha'")
 	}
@@ -303,7 +303,7 @@ func TestViewList_HelpBar_WithOrphans(t *testing.T) {
 		{Name: "orphan", Path: "/tmp/orphan"},
 	}
 
-	view := m.View()
+	view := stripANSI(m.View().Content)
 	if !strings.Contains(view, "clean") {
 		t.Error("expected help bar to contain 'clean' when orphans exist")
 	}
@@ -322,7 +322,7 @@ func TestViewProgress_AutoOp_ShowsQuitOnly(t *testing.T) {
 		{Name: "test-plugin", Success: true, Message: "installed"},
 	}
 
-	view := m.View()
+	view := stripANSI(m.View().Content)
 	if !strings.Contains(view, "quit") {
 		t.Error("expected progress view to contain 'quit'")
 	}
@@ -343,7 +343,7 @@ func TestViewProgress_NoAutoOp_ShowsBackToList(t *testing.T) {
 		{Name: "test-plugin", Success: true, Message: "installed"},
 	}
 
-	view := m.View()
+	view := stripANSI(m.View().Content)
 	if !strings.Contains(view, "back to list") {
 		t.Error("expected progress view to contain 'back to list' when no auto-op")
 	}
@@ -369,7 +369,7 @@ func TestViewProgress_ShowsCommitCount(t *testing.T) {
 		},
 	}
 
-	view := m.View()
+	view := m.View().Content
 	if !strings.Contains(view, "2 new commits") {
 		t.Error("expected view to show '2 new commits'")
 	}
@@ -397,7 +397,7 @@ func TestViewProgress_ShowsSingleCommitCount(t *testing.T) {
 		},
 	}
 
-	view := m.View()
+	view := m.View().Content
 	if !strings.Contains(view, "1 new commit)") {
 		t.Error("expected view to show '1 new commit)' (singular)")
 	}
@@ -415,7 +415,7 @@ func TestViewProgress_NoCommitsNoIndicator(t *testing.T) {
 		{Name: "tmux-yank", Success: true, Message: "updated"},
 	}
 
-	view := m.View()
+	view := m.View().Content
 	if strings.Contains(view, "▸") || strings.Contains(view, "▼") {
 		t.Error("expected no expand/collapse indicator for plugin without commits")
 	}
@@ -436,7 +436,7 @@ func TestViewProgress_HelpShowsViewCommits(t *testing.T) {
 		{Name: "test", Success: true, Commits: []git.Commit{{Hash: "abc", Message: "fix"}}},
 	}
 
-	view := m.View()
+	view := stripANSI(m.View().Content)
 	if !strings.Contains(view, "view commits") {
 		t.Error("expected help to contain 'view commits' when updated plugins exist")
 	}
@@ -454,7 +454,7 @@ func TestViewProgress_HelpHidesViewCommitsWhenAllUpToDate(t *testing.T) {
 		{Name: "test", Success: true},
 	}
 
-	view := m.View()
+	view := stripANSI(m.View().Content)
 	if strings.Contains(view, "view commits") {
 		t.Error("expected help to not contain 'view commits' when all plugins are up-to-date")
 	}

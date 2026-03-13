@@ -1,11 +1,11 @@
 package tui
 
 import (
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/progress"
-	"github.com/charmbracelet/bubbles/spinner"
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
+	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/progress"
+	"charm.land/bubbles/v2/spinner"
+	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
 	"github.com/tmuxpack/tpack/internal/config"
 	"github.com/tmuxpack/tpack/internal/git"
 	"github.com/tmuxpack/tpack/internal/plug"
@@ -136,7 +136,7 @@ func NewModel(cfg *config.Config, plugins []plug.Plugin, deps Deps, opts ...Mode
 	ti.Prompt = "/ "
 	m.browseInput = ti
 	m.browseCategory = -1
-	m.progressBar.Width = min(FixedWidth-ProgressBarPadding, ProgressBarMaxWidth)
+	m.progressBar.SetWidth(min(FixedWidth-ProgressBarPadding, ProgressBarMaxWidth))
 	for _, opt := range opts {
 		opt(&m)
 	}
@@ -169,7 +169,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.handleWindowSize(msg)
 		return m, nil
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		return m.handleKeyMsg(msg)
 	case progress.FrameMsg:
 		return m, handleFrameMsg(m, msg)
@@ -202,10 +202,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func handleFrameMsg(m Model, msg progress.FrameMsg) tea.Cmd {
-	progressModel, cmd := m.progressBar.Update(msg)
-	if pm, ok := progressModel.(progress.Model); ok {
-		m.progressBar = pm
-	}
+	_, cmd := m.progressBar.Update(msg)
 	return cmd
 }
 
@@ -215,11 +212,11 @@ func (m *Model) handleWindowSize(msg tea.WindowSizeMsg) {
 	m.height = msg.Height
 	m.sizeKnown = true
 	m.viewHeight = max(msg.Height-TitleReservedLines, MinViewHeight)
-	m.progressBar.Width = min(msg.Width-ProgressBarPadding, ProgressBarMaxWidth)
+	m.progressBar.SetWidth(min(msg.Width-ProgressBarPadding, ProgressBarMaxWidth))
 }
 
 // handleKeyMsg routes key events to the appropriate screen handler.
-func (m Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m Model) handleKeyMsg(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if key.Matches(msg, SharedKeys.ForceQuit) {
 		return m, tea.Quit
 	}
@@ -239,7 +236,7 @@ func (m Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 // View implements tea.Model.
-func (m Model) View() string {
+func (m Model) View() tea.View {
 	var content string
 	switch m.screen {
 	case ScreenList:
@@ -253,11 +250,14 @@ func (m Model) View() string {
 	case ScreenBrowse:
 		content = m.viewBrowse()
 	}
-	return m.theme.BaseStyle.Render(content)
+	v := tea.NewView(m.theme.BaseStyle.Render(content))
+	v.AltScreen = true
+	v.MouseMode = tea.MouseModeCellMotion
+	return v
 }
 
 // handleKeyMsgList handles key events on the list screen.
-func (m Model) handleKeyMsgList(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m Model) handleKeyMsgList(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch {
 	case key.Matches(msg, SharedKeys.Quit):
 		return m, tea.Quit
@@ -288,7 +288,7 @@ func (m Model) handleKeyMsgList(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 // handleKeyMsgProgress handles key events on the progress screen.
-func (m Model) handleKeyMsgProgress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m Model) handleKeyMsgProgress(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if m.processing {
 		return m, nil
 	}
@@ -363,7 +363,7 @@ func (m *Model) returnToProgress() {
 }
 
 // handleKeyMsgCommit handles key events on the commit viewer screen.
-func (m Model) handleKeyMsgCommit(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m Model) handleKeyMsgCommit(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch {
 	case key.Matches(msg, SharedKeys.Quit), msg.String() == escKeyName:
 		m.returnToProgress()
@@ -376,7 +376,7 @@ func (m Model) handleKeyMsgCommit(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 // handleKeyMsgDebug handles key events on the debug screen.
-func (m Model) handleKeyMsgDebug(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m Model) handleKeyMsgDebug(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch {
 	case key.Matches(msg, SharedKeys.Quit):
 		return m, tea.Quit

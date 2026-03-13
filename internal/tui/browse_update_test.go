@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	"github.com/tmuxpack/tpack/internal/registry"
 )
 
@@ -30,7 +30,7 @@ func newBrowseModel(t *testing.T) Model {
 func TestBrowseUpdate_TabCyclesCategory(t *testing.T) {
 	m := newBrowseModel(t)
 
-	msg := tea.KeyMsg{Type: tea.KeyTab}
+	msg := tea.KeyPressMsg{Code: tea.KeyTab}
 	result, _ := m.Update(msg)
 	m = result.(Model)
 	if m.browseCategory != 0 {
@@ -55,14 +55,14 @@ func TestBrowseUpdate_TabCyclesCategory(t *testing.T) {
 func TestBrowseUpdate_CursorNavigation(t *testing.T) {
 	m := newBrowseModel(t)
 
-	down := tea.KeyMsg{Type: tea.KeyDown}
+	down := tea.KeyPressMsg{Code: tea.KeyDown}
 	result, _ := m.Update(down)
 	m = result.(Model)
 	if m.browseScroll.cursor != 1 {
 		t.Errorf("expected cursor 1, got %d", m.browseScroll.cursor)
 	}
 
-	up := tea.KeyMsg{Type: tea.KeyUp}
+	up := tea.KeyPressMsg{Code: tea.KeyUp}
 	result, _ = m.Update(up)
 	m = result.(Model)
 	if m.browseScroll.cursor != 0 {
@@ -73,7 +73,7 @@ func TestBrowseUpdate_CursorNavigation(t *testing.T) {
 func TestBrowseUpdate_EscReturnsToList(t *testing.T) {
 	m := newBrowseModel(t)
 
-	msg := tea.KeyMsg{Type: tea.KeyEscape}
+	msg := tea.KeyPressMsg{Code: tea.KeyEscape}
 	result, _ := m.Update(msg)
 	m = result.(Model)
 	if m.screen != ScreenList {
@@ -83,7 +83,7 @@ func TestBrowseUpdate_EscReturnsToList(t *testing.T) {
 
 func TestUpdate_BrowseKeyOpensBrowse(t *testing.T) {
 	m := newTestModel(t, nil)
-	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'b'}}
+	msg := tea.KeyPressMsg{Code: 'b', Text: "b"}
 	result, cmd := m.Update(msg)
 	m = result.(Model)
 
@@ -98,7 +98,7 @@ func TestUpdate_BrowseKeyOpensBrowse(t *testing.T) {
 func TestBrowseRoundTrip(t *testing.T) {
 	m := newTestModel(t, nil)
 
-	browse := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'b'}}
+	browse := tea.KeyPressMsg{Code: 'b', Text: "b"}
 	result, _ := m.Update(browse)
 	m = result.(Model)
 	if m.screen != ScreenBrowse {
@@ -121,7 +121,7 @@ func TestBrowseRoundTrip(t *testing.T) {
 		t.Errorf("expected 1 result, got %d", len(m.browseResults))
 	}
 
-	esc := tea.KeyMsg{Type: tea.KeyEscape}
+	esc := tea.KeyPressMsg{Code: tea.KeyEscape}
 	result, _ = m.Update(esc)
 	m = result.(Model)
 	if m.screen != ScreenList {
@@ -153,7 +153,7 @@ func TestOpenFromBrowse_EnterKeyInNavMode(t *testing.T) {
 	m := newBrowseModel(t)
 	m.browseScroll.cursor = 0
 
-	msg := tea.KeyMsg{Type: tea.KeyEnter}
+	msg := tea.KeyPressMsg{Code: tea.KeyEnter}
 	_, cmd := m.Update(msg)
 	if cmd == nil {
 		t.Error("expected non-nil command from Enter in navigation mode")

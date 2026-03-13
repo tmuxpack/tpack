@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	"github.com/tmuxpack/tpack/internal/git"
 )
 
@@ -19,7 +19,7 @@ func testCommits() []git.Commit {
 func TestCommitViewer_View_ShowsTitle(t *testing.T) {
 	m := NewCommitViewer("tmux-sensible", testCommits(), DefaultTheme())
 
-	view := m.View()
+	view := m.View().Content
 	if !strings.Contains(view, "tmux-sensible") {
 		t.Error("expected view to contain plugin name")
 	}
@@ -32,7 +32,7 @@ func TestCommitViewer_View_SingleCommit(t *testing.T) {
 	commits := []git.Commit{{Hash: "abc1234", Message: "single change"}}
 	m := NewCommitViewer("test-plugin", commits, DefaultTheme())
 
-	view := m.View()
+	view := m.View().Content
 	if !strings.Contains(view, "1 new commit") {
 		t.Error("expected view to show '1 new commit' (singular)")
 	}
@@ -44,7 +44,7 @@ func TestCommitViewer_View_SingleCommit(t *testing.T) {
 func TestCommitViewer_View_ShowsCommitHashes(t *testing.T) {
 	m := NewCommitViewer("test", testCommits(), DefaultTheme())
 
-	view := m.View()
+	view := m.View().Content
 	for _, c := range testCommits() {
 		if !strings.Contains(view, c.Hash) {
 			t.Errorf("expected view to contain hash %q", c.Hash)
@@ -58,7 +58,7 @@ func TestCommitViewer_View_ShowsCommitHashes(t *testing.T) {
 func TestCommitViewer_View_ShowsHelp(t *testing.T) {
 	m := NewCommitViewer("test", testCommits(), DefaultTheme())
 
-	view := m.View()
+	view := stripANSI(m.View().Content)
 	if !strings.Contains(view, "quit") {
 		t.Error("expected view to contain 'quit' in help")
 	}
@@ -72,7 +72,7 @@ func TestCommitViewer_Navigation(t *testing.T) {
 	}
 
 	// Move down.
-	down := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}}
+	down := tea.KeyPressMsg{Code: 'j', Text: "j"}
 	result, _ := m.Update(down)
 	m = result.(CommitViewer)
 	if m.scroll.cursor != 1 {
@@ -94,7 +94,7 @@ func TestCommitViewer_Navigation(t *testing.T) {
 	}
 
 	// Move up.
-	up := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}}
+	up := tea.KeyPressMsg{Code: 'k', Text: "k"}
 	result, _ = m.Update(up)
 	m = result.(CommitViewer)
 	if m.scroll.cursor != 1 {
@@ -119,7 +119,7 @@ func TestCommitViewer_Navigation(t *testing.T) {
 func TestCommitViewer_QuitOnQ(t *testing.T) {
 	m := NewCommitViewer("test", testCommits(), DefaultTheme())
 
-	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}}
+	msg := tea.KeyPressMsg{Code: 'q', Text: "q"}
 	_, cmd := m.Update(msg)
 	if cmd == nil {
 		t.Fatal("expected quit command on q")
@@ -129,7 +129,7 @@ func TestCommitViewer_QuitOnQ(t *testing.T) {
 func TestCommitViewer_QuitOnEsc(t *testing.T) {
 	m := NewCommitViewer("test", testCommits(), DefaultTheme())
 
-	msg := tea.KeyMsg{Type: tea.KeyEscape}
+	msg := tea.KeyPressMsg{Code: tea.KeyEscape}
 	_, cmd := m.Update(msg)
 	if cmd == nil {
 		t.Fatal("expected quit command on Esc")
@@ -164,7 +164,7 @@ func TestCommitViewer_ScrollIndicators(t *testing.T) {
 
 	m = NewCommitViewer("test", commits, DefaultTheme())
 
-	view := m.View()
+	view := m.View().Content
 	// Should show "more below" but not "more above" at start.
 	if !strings.Contains(view, "more below") {
 		t.Error("expected 'more below' indicator when commits exceed visible limit")
@@ -174,14 +174,14 @@ func TestCommitViewer_ScrollIndicators(t *testing.T) {
 	}
 
 	// Scroll to bottom.
-	down := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}}
+	down := tea.KeyPressMsg{Code: 'j', Text: "j"}
 	var result tea.Model = m
 	for range len(commits) - 1 {
 		result, _ = result.(CommitViewer).Update(down)
 	}
 	m = result.(CommitViewer)
 
-	view = m.View()
+	view = m.View().Content
 	if !strings.Contains(view, "more above") {
 		t.Error("expected 'more above' indicator after scrolling down")
 	}
