@@ -92,13 +92,16 @@ func launchPopup(
 		return 1
 	}
 
-	// Build the subprocess command.
-	subcmd := shell.Quote(binary) + " tui"
+	// Build the subprocess command. Forward PATH so the popup shell
+	// can find tmux, git, etc. On some platforms (e.g. Termux),
+	// display-popup spawns a shell that does not inherit PATH.
+	subcmd := "PATH=" + shell.Quote(os.Getenv("PATH")) + " " +
+		shell.Quote(binary) + " tui"
 	if autoOp != tui.OpNone {
 		subcmd += " --" + strings.ToLower(autoOp.String())
 	}
 
-	cmd := exec.CommandContext(context.Background(), "tmux", "display-popup",
+	cmd := exec.CommandContext(context.Background(), "tmux", "display-popup", //nolint:gosec // subcmd is built from shell.Quote'd values
 		"-E",
 		"-w", fmt.Sprintf("%d", w),
 		"-h", fmt.Sprintf("%d", h),
@@ -108,7 +111,12 @@ func launchPopup(
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
-		// Popup failed (e.g. terminal too small); fall back to inline TUI.
+		// Popup failed (e.g. terminal too small); fall back to inline TUI
+		// only if a TTY is available (run-shell has no controlling terminal).
+		if !hasTTY() {
+			fmt.Fprintln(os.Stderr, "tpack: popup failed:", err)
+			return 1
+		}
 		if err := tui.Run(cfg, plugins, deps, opts...); err != nil {
 			fmt.Fprintln(os.Stderr, "tpack:", err)
 			return 1
@@ -125,4 +133,14 @@ const popupMinVersion = 302
 // display-popup (introduced in tmux 3.2).
 func popupSupported(versionStr string) bool {
 	return tmux.ParseVersionDigits(versionStr) >= popupMinVersion
+}
+
+// hasTTY reports whether the process has a controlling terminal.
+func hasTTY() bool {
+	f, err := os.Open("/dev/tty")
+	if err != nil {
+		return false
+	}
+	_ = f.Close()
+	return true
 }
