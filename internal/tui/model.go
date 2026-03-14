@@ -428,6 +428,22 @@ func (m Model) handleKeyMsgDebug(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// initProgress resets progress-screen state for the given operation and pending items,
+// then dispatches the first batch. Callers must set ops before calling.
+func (m *Model) initProgress(op Operation, ops []pendingOp) tea.Cmd {
+	m.screen = ScreenProgress
+	m.operation = op
+	m.pendingItems = ops
+	m.totalItems = len(ops)
+	m.completedItems = 0
+	m.results = nil
+	m.processing = true
+	m.inFlight = 0
+	m.inFlightNames = nil
+	m.resultScroll.reset()
+	return m.dispatchNext()
+}
+
 // startOperation transitions to the progress screen and begins an operation.
 func (m Model) startOperation(op Operation) (tea.Model, tea.Cmd) {
 	var ops []pendingOp
@@ -459,18 +475,7 @@ func (m Model) startOperation(op Operation) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	m.screen = ScreenProgress
-	m.operation = op
-	m.pendingItems = ops
-	m.totalItems = len(ops)
-	m.completedItems = 0
-	m.results = nil
-	m.processing = true
-	m.inFlight = 0
-	m.inFlightNames = nil
-	m.resultScroll.reset()
-
-	cmd := m.dispatchNext()
+	cmd := m.initProgress(op, ops)
 	return m, cmd
 }
 
@@ -493,18 +498,7 @@ func (m Model) startAutoOperation() (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 	}
 
-	m.screen = ScreenProgress
-	m.operation = m.autoOp
-	m.pendingItems = ops
-	m.totalItems = len(ops)
-	m.completedItems = 0
-	m.results = nil
-	m.processing = true
-	m.inFlight = 0
-	m.inFlightNames = nil
-	m.resultScroll.reset()
-
-	cmd := m.dispatchNext()
+	cmd := m.initProgress(m.autoOp, ops)
 	return m, cmd
 }
 
@@ -527,15 +521,30 @@ func (m *Model) handleOpResult(result ResultItem, updateStatus func()) tea.Cmd {
 	return m.dispatchNext()
 }
 
+// setPluginStatus updates the status of the plugin with the given name.
+func (m *Model) setPluginStatus(name string, status PluginStatus) {
+	for i := range m.plugins {
+		if m.plugins[i].Name == name {
+			m.plugins[i].Status = status
+			return
+		}
+	}
+}
+
+// removePlugin removes the plugin with the given name from the list.
+func (m *Model) removePlugin(name string) {
+	for i := range m.plugins {
+		if m.plugins[i].Name == name {
+			m.plugins = append(m.plugins[:i], m.plugins[i+1:]...)
+			return
+		}
+	}
+}
+
 // handleInstallResult processes an install result and dispatches next.
 func (m Model) handleInstallResult(msg pluginInstallResultMsg) (tea.Model, tea.Cmd) {
 	cmd := m.handleOpResult(ResultItem{Name: msg.Name, Success: msg.Success, Message: msg.Message}, func() {
-		for i := range m.plugins {
-			if m.plugins[i].Name == msg.Name {
-				m.plugins[i].Status = StatusInstalled
-				break
-			}
-		}
+		m.setPluginStatus(msg.Name, StatusInstalled)
 	})
 	return m, cmd
 }
@@ -543,12 +552,7 @@ func (m Model) handleInstallResult(msg pluginInstallResultMsg) (tea.Model, tea.C
 // handleUpdateResult processes an update result and dispatches next.
 func (m Model) handleUpdateResult(msg pluginUpdateResultMsg) (tea.Model, tea.Cmd) {
 	cmd := m.handleOpResult(ResultItem(msg), func() {
-		for i := range m.plugins {
-			if m.plugins[i].Name == msg.Name {
-				m.plugins[i].Status = StatusInstalled
-				break
-			}
-		}
+		m.setPluginStatus(msg.Name, StatusInstalled)
 	})
 	return m, cmd
 }
@@ -562,12 +566,7 @@ func (m Model) handleCleanResult(msg pluginCleanResultMsg) (tea.Model, tea.Cmd) 
 // handleUninstallResult processes an uninstall result and dispatches next.
 func (m Model) handleUninstallResult(msg pluginUninstallResultMsg) (tea.Model, tea.Cmd) {
 	cmd := m.handleOpResult(ResultItem{Name: msg.Name, Success: msg.Success, Message: msg.Message}, func() {
-		for i := range m.plugins {
-			if m.plugins[i].Name == msg.Name {
-				m.plugins[i].Status = StatusNotInstalled
-				break
-			}
-		}
+		m.setPluginStatus(msg.Name, StatusNotInstalled)
 	})
 	return m, cmd
 }
@@ -576,12 +575,7 @@ func (m Model) handleUninstallResult(msg pluginUninstallResultMsg) (tea.Model, t
 // The config entry was already removed synchronously before dispatch, so the plugin
 // is removed from the list regardless of whether directory removal succeeded.
 func (m Model) handleRemoveResult(msg pluginRemoveResultMsg) (tea.Model, tea.Cmd) {
-	for i := range m.plugins {
-		if m.plugins[i].Name == msg.Name {
-			m.plugins = append(m.plugins[:i], m.plugins[i+1:]...)
-			break
-		}
-	}
+	m.removePlugin(msg.Name)
 	cmd := m.handleOpResult(ResultItem{Name: msg.Name, Success: msg.Success, Message: msg.Message}, nil)
 	return m, cmd
 }

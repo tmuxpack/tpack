@@ -171,21 +171,11 @@ func (m Model) installFromBrowse() (tea.Model, tea.Cmd) {
 		Status: StatusNotInstalled,
 	})
 
-	m.screen = ScreenProgress
-	m.operation = OpInstall
-	m.pendingItems = []pendingOp{{
+	ops := []pendingOp{{
 		Name: name,
 		Spec: spec,
 		Path: plug.PluginPath(name, m.cfg.PluginPath),
 	}}
-	m.totalItems = 1
-	m.completedItems = 0
-	m.results = nil
-	m.processing = true
-	m.inFlight = 0
-	m.inFlightNames = nil
-	m.resultScroll.reset()
-
-	cmd := m.dispatchNext()
+	cmd := m.initProgress(OpInstall, ops)
 	return m, cmd
 }

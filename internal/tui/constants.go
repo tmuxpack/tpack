@@ -156,6 +156,9 @@ const (
 	// progressResultsReservedLines is the overhead for title, counter, progress bar, stats, and help
 	// on the progress screen.
 	progressResultsReservedLines = 15
+	// browseReservedLines is the overhead for title, category bar, search input, and help
+	// on the browse screen.
+	browseReservedLines = 10
 	// maxConcurrentOps is the maximum number of plugin operations dispatched concurrently.
 	maxConcurrentOps = 3
 )

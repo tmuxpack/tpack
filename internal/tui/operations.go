@@ -221,30 +221,16 @@ func (m *Model) dispatchNext() tea.Cmd {
 	return tea.Batch(cmds...)
 }
 
-// builds the pending operations for install.
-// TODO: there has to be a filter/map approach to this
-func (m *Model) buildInstallOps() []pendingOp {
+// buildOpsFromTargeted builds pending operations from the targeted plugins (selected or cursor),
+// filtered by the given predicate. Pass nil to include all targeted plugins.
+func (m *Model) buildOpsFromTargeted(filter func(PluginItem) bool) []pendingOp {
 	indices := m.targetIndices()
 	var ops []pendingOp
 	for _, i := range indices {
 		p := m.plugins[i]
-		if p.Status == StatusNotInstalled {
-			ops = append(ops, pendingOp{
-				Name:   p.Name,
-				Spec:   p.Spec,
-				Branch: p.Branch,
-				Path:   plug.PluginPath(p.Name, m.cfg.PluginPath),
-			})
+		if filter != nil && !filter(p) {
+			continue
 		}
-	}
-	return ops
-}
-
-func (m *Model) buildRemoveOps() []pendingOp {
-	indices := m.targetIndices()
-	var ops []pendingOp
-	for _, i := range indices {
-		p := m.plugins[i]
 		ops = append(ops, pendingOp{
 			Name:   p.Name,
 			Spec:   p.Spec,
@@ -255,32 +241,39 @@ func (m *Model) buildRemoveOps() []pendingOp {
 	return ops
 }
 
-func (m *Model) buildUpdateOps() []pendingOp {
-	indices := m.targetIndices()
+// buildOpsFromAll builds pending operations from all plugins matching the given predicate.
+func (m *Model) buildOpsFromAll(filter func(PluginItem) bool) []pendingOp {
 	var ops []pendingOp
-	for _, i := range indices {
-		p := m.plugins[i]
-		if p.Status.IsInstalled() {
-			ops = append(ops, pendingOp{
-				Name:   p.Name,
-				Spec:   p.Spec,
-				Branch: p.Branch,
-				Path:   plug.PluginPath(p.Name, m.cfg.PluginPath),
-			})
+	for _, p := range m.plugins {
+		if !filter(p) {
+			continue
 		}
+		ops = append(ops, pendingOp{
+			Name:   p.Name,
+			Spec:   p.Spec,
+			Branch: p.Branch,
+			Path:   plug.PluginPath(p.Name, m.cfg.PluginPath),
+		})
 	}
+	return ops
+}
+
+func isNotInstalled(p PluginItem) bool { return p.Status == StatusNotInstalled }
+func isInstalled(p PluginItem) bool    { return p.Status.IsInstalled() }
+
+func (m *Model) buildInstallOps() []pendingOp {
+	return m.buildOpsFromTargeted(isNotInstalled)
+}
+
+func (m *Model) buildRemoveOps() []pendingOp {
+	return m.buildOpsFromTargeted(nil)
+}
+
+func (m *Model) buildUpdateOps() []pendingOp {
+	ops := m.buildOpsFromTargeted(isInstalled)
 	// If nothing selected and no cursor match, update all installed.
 	if len(ops) == 0 && !m.multiSelectActive {
-		for _, p := range m.plugins {
-			if p.Status.IsInstalled() {
-				ops = append(ops, pendingOp{
-					Name:   p.Name,
-					Spec:   p.Spec,
-					Branch: p.Branch,
-					Path:   plug.PluginPath(p.Name, m.cfg.PluginPath),
-				})
-			}
-		}
+		ops = m.buildOpsFromAll(isInstalled)
 	}
 	return ops
 }
@@ -297,49 +290,15 @@ func (m *Model) buildCleanOps() []pendingOp {
 }
 
 func (m *Model) buildUninstallOps() []pendingOp {
-	indices := m.targetIndices()
-	var ops []pendingOp
-	for _, i := range indices {
-		p := m.plugins[i]
-		if p.Status.IsInstalled() {
-			ops = append(ops, pendingOp{
-				Name: p.Name,
-				Spec: p.Spec,
-				Path: plug.PluginPath(p.Name, m.cfg.PluginPath),
-			})
-		}
-	}
-	return ops
+	return m.buildOpsFromTargeted(isInstalled)
 }
 
 func (m *Model) buildAutoInstallOps() []pendingOp {
-	var ops []pendingOp
-	for _, p := range m.plugins {
-		if p.Status == StatusNotInstalled {
-			ops = append(ops, pendingOp{
-				Name:   p.Name,
-				Spec:   p.Spec,
-				Branch: p.Branch,
-				Path:   plug.PluginPath(p.Name, m.cfg.PluginPath),
-			})
-		}
-	}
-	return ops
+	return m.buildOpsFromAll(isNotInstalled)
 }
 
 func (m *Model) buildAutoUpdateOps() []pendingOp {
-	var ops []pendingOp
-	for _, p := range m.plugins {
-		if p.Status.IsInstalled() {
-			ops = append(ops, pendingOp{
-				Name:   p.Name,
-				Spec:   p.Spec,
-				Branch: p.Branch,
-				Path:   plug.PluginPath(p.Name, m.cfg.PluginPath),
-			})
-		}
-	}
-	return ops
+	return m.buildOpsFromAll(isInstalled)
 }
 
 // returns the indices to operate on: selected if any, else cursor.

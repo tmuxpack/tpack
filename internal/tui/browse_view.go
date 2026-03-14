@@ -120,8 +120,7 @@ func (m *Model) renderBrowseResults() string {
 
 func (m *Model) browseViewHeight() int {
 	// TODO: make this dynamic based on the actual layout and content above/below the list
-	reserved := 10
-	available := m.height - reserved
+	available := m.height - browseReservedLines
 	items := available / 2
 	if items < MinViewHeight {
 		return MinViewHeight
