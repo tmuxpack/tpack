@@ -20,7 +20,7 @@ func main() {
 	switch os.Args[1] {
 	case "init":
 		os.Exit(runInit())
-	case "install": // TODO: add --all flag
+	case "install":
 		os.Exit(runInstall(os.Args[2:]))
 	case "update":
 		os.Exit(runUpdate(os.Args[2:]))

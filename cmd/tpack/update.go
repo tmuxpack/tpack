@@ -29,17 +29,13 @@ func runUpdate(args []string) int {
 		return 1
 	}
 
-	// No plugin names: show interactive prompt (tmux-echo) or usage (shell).
+	// No plugin names: show interactive prompt (tmux-echo) or update all (shell).
 	if len(names) == 0 {
 		if tmuxEcho {
 			runUpdatePrompt(runner, cfg)
 			return 0
 		}
-		fmt.Fprintln(os.Stderr, "usage:")
-		fmt.Fprintf(os.Stderr, "  tpack update all                   update all plugins\n")
-		fmt.Fprintf(os.Stderr, "  tpack update tmux-foo              update plugin 'tmux-foo'\n")
-		fmt.Fprintf(os.Stderr, "  tpack update tmux-bar tmux-baz     update multiple plugins\n")
-		return 1
+		names = []string{"all"}
 	}
 
 	output := newOutput(tmuxEcho, runner)
