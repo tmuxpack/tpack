@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"syscall"
 	"time"
 
 	"gopkg.in/yaml.v3"
 )
 
 const stateFile = "state.yml"
+const lockFile = "state.lock"
 
 // State holds persistent tpack state.
 type State struct {
@@ -47,4 +49,30 @@ func Save(statePath string, s State) error {
 	}
 
 	return os.WriteFile(filepath.Join(statePath, stateFile), data, 0o600)
+}
+
+// LoadAndSave atomically loads state, applies fn, and saves. An advisory
+// file lock serializes concurrent access from background processes.
+func LoadAndSave(statePath string, fn func(*State)) error {
+	if err := os.MkdirAll(statePath, 0o755); err != nil {
+		return err
+	}
+
+	lockPath := filepath.Join(statePath, lockFile)
+	lf, err := os.OpenFile(lockPath, os.O_CREATE|os.O_RDWR, 0o600)
+	if err != nil {
+		return fmt.Errorf("open lock file: %w", err)
+	}
+	defer func() {
+		_ = syscall.Flock(int(lf.Fd()), syscall.LOCK_UN) //nolint:gosec // file descriptors fit in int on supported platforms
+		_ = lf.Close()
+	}()
+
+	if err := syscall.Flock(int(lf.Fd()), syscall.LOCK_EX); err != nil { //nolint:gosec // file descriptors fit in int on supported platforms
+		return fmt.Errorf("acquire lock: %w", err)
+	}
+
+	s := Load(statePath)
+	fn(&s)
+	return Save(statePath, s)
 }
