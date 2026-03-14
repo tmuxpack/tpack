@@ -66,7 +66,7 @@ func FilterByCategory(reg *Registry, category string) []RegistryItem {
 }
 
 func sortByStars(items []RegistryItem) {
-	sort.Slice(items, func(i, j int) bool {
+	sort.SliceStable(items, func(i, j int) bool {
 		return items[i].Stars > items[j].Stars
 	})
 }
