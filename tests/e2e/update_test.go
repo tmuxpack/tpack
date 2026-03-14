@@ -27,12 +27,12 @@ func TestUpdateViaCLI(t *testing.T) {
 
 	startTmux(t, home, socket)
 
-	// No args: expect exit code 1 and usage message.
-	output, exitCode := runInTmux(t, home, socket, binary+" update", 10*time.Second)
-	if exitCode != 1 {
-		t.Fatalf("expected exit code 1 for no-args update, got %d\noutput: %s", exitCode, output)
+	// No args: should update all plugins (same as "update all").
+	output, exitCode := runInTmux(t, home, socket, binary+" update", 60*time.Second)
+	if exitCode != 0 {
+		t.Fatalf("expected exit code 0 for no-args update, got %d\noutput: %s", exitCode, output)
 	}
-	assertContains(t, output, "usage")
+	assertContains(t, output, `"tmux-example-plugin" update success`)
 
 	// Update a single plugin by name.
 	output, exitCode = runInTmux(t, home, socket, binary+" update tmux-example-plugin", 60*time.Second)
