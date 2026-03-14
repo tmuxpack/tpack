@@ -101,7 +101,7 @@ func findOutdatedPlugins(plugins []plug.Plugin, pluginPath string) []string {
 }
 
 // handleOutdated acts on the list of outdated plugins based on the configured update mode.
-func handleOutdated(runner *tmux.RealRunner, cfg *config.Config, plugins []plug.Plugin, outdated []string) int {
+func handleOutdated(runner tmux.Runner, cfg *config.Config, plugins []plug.Plugin, outdated []string) int {
 	switch cfg.UpdateMode {
 	case "prompt":
 		msg := "tpack: " + strconv.Itoa(len(outdated)) + " plugin update(s) available. Press prefix+U to update."
@@ -115,7 +115,7 @@ func handleOutdated(runner *tmux.RealRunner, cfg *config.Config, plugins []plug.
 }
 
 // autoUpdatePlugins performs automatic updates for the given outdated plugins.
-func autoUpdatePlugins(runner *tmux.RealRunner, cfg *config.Config, plugins []plug.Plugin, outdated []string) int {
+func autoUpdatePlugins(runner tmux.Runner, cfg *config.Config, plugins []plug.Plugin, outdated []string) int {
 	output := newOutput(false, runner)
 	mgr := newManagerDeps(cfg.PluginPath, output)
 
