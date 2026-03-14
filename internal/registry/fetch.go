@@ -18,6 +18,8 @@ const DefaultRegistryURL = "https://raw.githubusercontent.com/tmuxpack/plugins-r
 // DefaultCacheTTL is the default time-to-live for the local registry cache.
 const DefaultCacheTTL = 6 * time.Hour
 
+const maxRegistrySize = 10 * 1024 * 1024 // 10 MiB safety limit for registry data
+
 // Fetch retrieves the registry from the remote URL and caches it locally.
 // If the cache is fresh (within ttl), it returns the cached version.
 // If the remote fetch fails, it falls back to any existing cache.
@@ -77,5 +79,5 @@ func fetchRemote(ctx context.Context, url string) ([]byte, error) {
 		return nil, fmt.Errorf("registry: HTTP %d", resp.StatusCode)
 	}
 
-	return io.ReadAll(resp.Body)
+	return io.ReadAll(io.LimitReader(resp.Body, maxRegistrySize))
 }
