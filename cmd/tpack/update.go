@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/tmuxpack/tpack/internal/config"
+	"github.com/tmuxpack/tpack/internal/shell"
 	"github.com/tmuxpack/tpack/internal/tmux"
 	"github.com/tmuxpack/tpack/internal/ui"
 )
@@ -73,7 +74,7 @@ func runUpdatePrompt(runner *tmux.RealRunner, cfg *config.Config) {
 
 	binary := findBinary()
 	_ = runner.CommandPrompt("plugin update:",
-		"send-keys C-c; run-shell '"+binary+" update --tmux-echo %1'")
+		"send-keys C-c; run-shell '"+shell.EscapeInSingleQuotes(binary)+" update --tmux-echo %1'")
 }
 
 // listInstalledPlugins displays the list of installed plugins via output.
