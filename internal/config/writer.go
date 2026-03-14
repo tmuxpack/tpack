@@ -17,8 +17,10 @@ func AppendPlugin(confPath string, repo string) error {
 	}
 
 	content := string(data)
-	if strings.Contains(content, repo) {
-		return nil
+	for line := range strings.SplitSeq(content, "\n") {
+		if plug.MatchesPluginLine(line, repo) {
+			return nil
+		}
 	}
 
 	line := fmt.Sprintf("set -g @plugin \"%s\"\n", repo)
