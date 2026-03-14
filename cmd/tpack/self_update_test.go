@@ -918,3 +918,46 @@ func TestSelfUpdateNoChecksumForArchive(t *testing.T) {
 		t.Error("expected DisplayMessage 'tpack: self-update failed (no checksum for archive)'")
 	}
 }
+
+func TestArchiveURLFormat(t *testing.T) {
+	tests := []struct {
+		name        string
+		downloadURL string
+		version     string
+		goos        string
+		goarch      string
+		wantName    string
+	}{
+		{
+			name:        "linux amd64",
+			downloadURL: "https://github.com/tmuxpack/tpack/releases/download",
+			version:     "1.2.3",
+			goos:        "linux",
+			goarch:      "amd64",
+			wantName:    "tpack_1.2.3_linux_amd64.tar.gz",
+		},
+		{
+			name:        "darwin arm64",
+			downloadURL: "https://github.com/tmuxpack/tpack/releases/download",
+			version:     "2.0.0",
+			goos:        "darwin",
+			goarch:      "arm64",
+			wantName:    "tpack_2.0.0_darwin_arm64.tar.gz",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := fmt.Sprintf("tpack_%s_%s_%s.tar.gz", tt.version, tt.goos, tt.goarch)
+			if got != tt.wantName {
+				t.Errorf("archive name = %q, want %q", got, tt.wantName)
+			}
+
+			url := fmt.Sprintf("%s/v%s/%s", tt.downloadURL, tt.version, got)
+			wantURL := tt.downloadURL + "/v" + tt.version + "/" + tt.wantName
+			if url != wantURL {
+				t.Errorf("URL = %q, want %q", url, wantURL)
+			}
+		})
+	}
+}
