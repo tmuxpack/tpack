@@ -54,7 +54,7 @@ func runInit() int {
 	// Source plugins.
 	output := ui.NewShellOutput()
 	mgr := newManagerDeps(cfg.PluginPath, output)
-	plugins := config.GatherPlugins(runner, config.RealFS{}, cfg.TmuxConf, cfg.Home)
+	plugins := config.GatherPlugins(runner, config.RealFS{}, cfg.TmuxConf, cfg.Home, xdgConfigHome(cfg.Home))
 	mgr.Source(context.Background(), plugins)
 
 	if shouldSpawnUpdateCheck(cfg) {

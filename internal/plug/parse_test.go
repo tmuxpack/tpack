@@ -249,23 +249,33 @@ func TestMatchesPluginLine(t *testing.T) {
 
 func TestManualExpansion(t *testing.T) {
 	home := "/home/user"
+	xdg := "/home/user/.config"
 	tests := []struct {
+		name string
 		path string
+		xdg  string
 		want string
 	}{
-		{"~/foo", "/home/user/foo"},
-		{"$HOME/foo", "/home/user/foo"},
-		{"/absolute/path", "/absolute/path"},
-		{"relative/path", "relative/path"},
-		{"~", "/home/user"},
-		{"$HOME", "/home/user"},
+		{"tilde prefix", "~/foo", xdg, "/home/user/foo"},
+		{"$HOME prefix", "$HOME/foo", xdg, "/home/user/foo"},
+		{"${HOME} prefix", "${HOME}/foo", xdg, "/home/user/foo"},
+		{"absolute path", "/absolute/path", xdg, "/absolute/path"},
+		{"relative path", "relative/path", xdg, "relative/path"},
+		{"bare tilde", "~", xdg, "/home/user"},
+		{"bare $HOME", "$HOME", xdg, "/home/user"},
+		{"bare ${HOME}", "${HOME}", xdg, "/home/user"},
+		{"$XDG_CONFIG_HOME prefix", "$XDG_CONFIG_HOME/tmux", xdg, "/home/user/.config/tmux"},
+		{"${XDG_CONFIG_HOME} prefix", "${XDG_CONFIG_HOME}/tmux", xdg, "/home/user/.config/tmux"},
+		{"bare $XDG_CONFIG_HOME", "$XDG_CONFIG_HOME", xdg, "/home/user/.config"},
+		{"bare ${XDG_CONFIG_HOME}", "${XDG_CONFIG_HOME}", xdg, "/home/user/.config"},
+		{"XDG empty falls through", "$XDG_CONFIG_HOME/tmux", "", "$XDG_CONFIG_HOME/tmux"},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.path, func(t *testing.T) {
-			got := plug.ManualExpansion(tt.path, home)
+		t.Run(tt.name, func(t *testing.T) {
+			got := plug.ManualExpansion(tt.path, home, tt.xdg)
 			if got != tt.want {
-				t.Errorf("ManualExpansion(%q, %q) = %q, want %q", tt.path, home, got, tt.want)
+				t.Errorf("ManualExpansion(%q, %q, %q) = %q, want %q", tt.path, home, tt.xdg, got, tt.want)
 			}
 		})
 	}

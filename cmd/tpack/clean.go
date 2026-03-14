@@ -27,7 +27,7 @@ func runClean(args []string) int {
 
 	mgr := newManagerDeps(cfg.PluginPath, output)
 
-	plugins := config.GatherPlugins(runner, config.RealFS{}, cfg.TmuxConf, cfg.Home)
+	plugins := config.GatherPlugins(runner, config.RealFS{}, cfg.TmuxConf, cfg.Home, xdgConfigHome(cfg.Home))
 
 	mgr.Clean(context.Background(), plugins)
 

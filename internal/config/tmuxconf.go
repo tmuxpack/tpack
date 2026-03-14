@@ -11,7 +11,7 @@ import (
 // 1. Legacy @tpm_plugins tmux option
 // 2. New @plugin syntax in tmux.conf + /etc/tmux.conf + sourced files (one level deep)
 // TODO: Move to a separate config structure down the line, mayybe something akin to LazyVim
-func GatherPlugins(runner tmux.Runner, fs FS, tmuxConf, home string) []plug.Plugin {
+func GatherPlugins(runner tmux.Runner, fs FS, tmuxConf, home, xdgConfigHome string) []plug.Plugin {
 	var specs []string
 
 	if legacy, err := runner.ShowOption("@tpm_plugins"); err == nil && legacy != "" {
@@ -24,7 +24,7 @@ func GatherPlugins(runner tmux.Runner, fs FS, tmuxConf, home string) []plug.Plug
 	}
 
 	// New syntax: read config content.
-	content := configContent(fs, tmuxConf, home)
+	content := configContent(fs, tmuxConf, home, xdgConfigHome)
 	specs = append(specs, plug.ExtractPluginsFromConfig(content)...)
 
 	// Parse all specs into Plugin structs.
@@ -36,7 +36,7 @@ func GatherPlugins(runner tmux.Runner, fs FS, tmuxConf, home string) []plug.Plug
 }
 
 // configContent reads /etc/tmux.conf + user tmux.conf + one level of sourced files.
-func configContent(fs FS, tmuxConf, home string) string {
+func configContent(fs FS, tmuxConf, home, xdgConfigHome string) string {
 	var b strings.Builder
 
 	// /etc/tmux.conf (system config)
@@ -56,7 +56,7 @@ func configContent(fs FS, tmuxConf, home string) string {
 
 	// Sourced files (one level deep, not recursive).
 	for _, file := range plug.ExtractSourcedFiles(base) {
-		expanded := plug.ManualExpansion(file, home)
+		expanded := plug.ManualExpansion(file, home, xdgConfigHome)
 		if data, err := fs.ReadFile(expanded); err == nil {
 			b.WriteByte('\n')
 			b.Write(data)
