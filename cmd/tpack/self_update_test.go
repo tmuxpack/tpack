@@ -4,7 +4,10 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -14,9 +17,35 @@ import (
 	"testing"
 	"time"
 
+	"runtime"
+
 	"github.com/tmuxpack/tpack/internal/state"
 	"github.com/tmuxpack/tpack/internal/tmux"
 )
+
+// sha256Hex returns the hex-encoded SHA-256 digest of data.
+func sha256Hex(data []byte) string {
+	h := sha256.Sum256(data)
+	return hex.EncodeToString(h[:])
+}
+
+// newDownloadServer creates an httptest server that serves both checksums.txt
+// and archive files for a given version.
+func newDownloadServer(t *testing.T, version string, archive []byte) *httptest.Server {
+	t.Helper()
+	checksum := sha256Hex(archive)
+	archiveName := fmt.Sprintf("tpack_%s_%s_%s.tar.gz", version, runtime.GOOS, runtime.GOARCH)
+
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/checksums.txt"):
+			fmt.Fprintf(w, "%s  %s\n", checksum, archiveName)
+		default:
+			w.Header().Set("Content-Type", "application/octet-stream")
+			w.Write(archive)
+		}
+	}))
+}
 
 // createTestArchive creates a tar.gz archive containing a "tpack" file
 // with the given content.
@@ -164,11 +193,7 @@ func TestSelfUpdateDownloadsNewVersion(t *testing.T) {
 	}))
 	defer apiServer.Close()
 
-	// Mock download server serving the archive.
-	downloadServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/octet-stream")
-		w.Write(archive)
-	}))
+	downloadServer := newDownloadServer(t, "2.0.0", archive)
 	defer downloadServer.Close()
 
 	runner := tmux.NewMockRunner()
@@ -313,10 +338,9 @@ func TestSelfUpdateDisplaysExtractError(t *testing.T) {
 	}))
 	defer apiServer.Close()
 
-	// Mock download server returning invalid data.
-	downloadServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.Write([]byte("not a valid tar.gz"))
-	}))
+	// Invalid archive data with matching checksum.
+	invalidArchive := []byte("not a valid tar.gz")
+	downloadServer := newDownloadServer(t, "2.0.0", invalidArchive)
 	defer downloadServer.Close()
 
 	runner := tmux.NewMockRunner()
@@ -362,10 +386,7 @@ func TestSelfUpdateDisplaysPermissionError(t *testing.T) {
 	}))
 	defer apiServer.Close()
 
-	// Mock download server serving the archive.
-	downloadServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.Write(archive)
-	}))
+	downloadServer := newDownloadServer(t, "2.0.0", archive)
 	defer downloadServer.Close()
 
 	runner := tmux.NewMockRunner()
@@ -486,10 +507,7 @@ func TestSelfUpdateIntegration(t *testing.T) {
 	}))
 	defer apiServer.Close()
 
-	downloadServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/octet-stream")
-		w.Write(archive)
-	}))
+	downloadServer := newDownloadServer(t, "3.1.0", archive)
 	defer downloadServer.Close()
 
 	runner := tmux.NewMockRunner()
@@ -676,5 +694,227 @@ func TestCreateTestArchive(t *testing.T) {
 	}
 	if string(data) != content {
 		t.Errorf("content = %q, want %q", string(data), content)
+	}
+}
+
+func TestParseChecksums(t *testing.T) {
+	tests := []struct {
+		name    string
+		content string
+		want    map[string]string
+	}{
+		{
+			name:    "single entry",
+			content: "abc123  tpack_1.0.0_linux_amd64.tar.gz\n",
+			want:    map[string]string{"tpack_1.0.0_linux_amd64.tar.gz": "abc123"},
+		},
+		{
+			name:    "multiple entries",
+			content: "aaa  file1.tar.gz\nbbb  file2.tar.gz\n",
+			want:    map[string]string{"file1.tar.gz": "aaa", "file2.tar.gz": "bbb"},
+		},
+		{
+			name:    "empty content",
+			content: "",
+			want:    map[string]string{},
+		},
+		{
+			name:    "blank lines",
+			content: "aaa  file1.tar.gz\n\nbbb  file2.tar.gz\n",
+			want:    map[string]string{"file1.tar.gz": "aaa", "file2.tar.gz": "bbb"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := parseChecksums(tt.content)
+			if len(got) != len(tt.want) {
+				t.Fatalf("got %d entries, want %d", len(got), len(tt.want))
+			}
+			for k, v := range tt.want {
+				if got[k] != v {
+					t.Errorf("checksums[%q] = %q, want %q", k, got[k], v)
+				}
+			}
+		})
+	}
+}
+
+func TestFetchChecksums(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			fmt.Fprintln(w, "abc123  tpack_1.0.0_linux_amd64.tar.gz")
+		}))
+		defer server.Close()
+
+		sums, err := fetchChecksums(server.URL, "1.0.0")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if sums["tpack_1.0.0_linux_amd64.tar.gz"] != "abc123" {
+			t.Errorf("unexpected checksum: %v", sums)
+		}
+	})
+
+	t.Run("server error", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusNotFound)
+		}))
+		defer server.Close()
+
+		_, err := fetchChecksums(server.URL, "1.0.0")
+		if err == nil {
+			t.Error("expected error for 404 response")
+		}
+	})
+}
+
+func TestDownloadVerifyExtract(t *testing.T) {
+	t.Run("valid checksum", func(t *testing.T) {
+		content := "verified-binary"
+		archive := createTestArchive(t, content)
+		expectedHash := sha256Hex(archive)
+
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.Write(archive)
+		}))
+		defer server.Close()
+
+		binaryPath, cleanup, err := downloadVerifyExtract(server.URL, expectedHash)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		defer cleanup()
+
+		data, err := os.ReadFile(binaryPath)
+		if err != nil {
+			t.Fatalf("failed to read binary: %v", err)
+		}
+		if string(data) != content {
+			t.Errorf("content = %q, want %q", string(data), content)
+		}
+	})
+
+	t.Run("checksum mismatch", func(t *testing.T) {
+		archive := createTestArchive(t, "some-binary")
+
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.Write(archive)
+		}))
+		defer server.Close()
+
+		_, _, err := downloadVerifyExtract(server.URL, "0000000000000000000000000000000000000000000000000000000000000000")
+		if err == nil {
+			t.Error("expected error for checksum mismatch")
+		}
+		if !strings.Contains(err.Error(), "checksum mismatch") {
+			t.Errorf("error = %q, want it to contain 'checksum mismatch'", err.Error())
+		}
+	})
+
+	t.Run("server error", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusNotFound)
+		}))
+		defer server.Close()
+
+		_, _, err := downloadVerifyExtract(server.URL, "unused")
+		if err == nil {
+			t.Error("expected error for server error")
+		}
+	})
+}
+
+func TestSelfUpdateChecksumFetchError(t *testing.T) {
+	dir := t.TempDir()
+	statePath := filepath.Join(dir, "state")
+
+	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(githubRelease{TagName: "v2.0.0"})
+	}))
+	defer apiServer.Close()
+
+	// Download server returns 404 for checksums.txt.
+	downloadServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/checksums.txt") {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		w.Write([]byte("unused"))
+	}))
+	defer downloadServer.Close()
+
+	runner := tmux.NewMockRunner()
+
+	p := selfUpdateParams{
+		statePath:   statePath,
+		version:     "1.0.0",
+		binaryPath:  filepath.Join(dir, "tpack"),
+		apiURL:      apiServer.URL,
+		downloadURL: downloadServer.URL,
+		skipGitSync: true,
+	}
+
+	result := selfUpdateCheck(p, runner)
+	if result != selfUpdateFailed {
+		t.Errorf("expected selfUpdateFailed, got %d", result)
+	}
+
+	found := false
+	for _, call := range runner.Calls {
+		if call.Method == "DisplayMessage" && len(call.Args) > 0 && call.Args[0] == "tpack: self-update failed (checksum fetch error)" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("expected DisplayMessage 'tpack: self-update failed (checksum fetch error)'")
+	}
+}
+
+func TestSelfUpdateNoChecksumForArchive(t *testing.T) {
+	dir := t.TempDir()
+	statePath := filepath.Join(dir, "state")
+
+	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(githubRelease{TagName: "v2.0.0"})
+	}))
+	defer apiServer.Close()
+
+	// Download server returns checksums for a different platform.
+	downloadServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/checksums.txt") {
+			fmt.Fprintln(w, "abc123  tpack_2.0.0_other_platform.tar.gz")
+			return
+		}
+		w.Write([]byte("unused"))
+	}))
+	defer downloadServer.Close()
+
+	runner := tmux.NewMockRunner()
+
+	p := selfUpdateParams{
+		statePath:   statePath,
+		version:     "1.0.0",
+		binaryPath:  filepath.Join(dir, "tpack"),
+		apiURL:      apiServer.URL,
+		downloadURL: downloadServer.URL,
+		skipGitSync: true,
+	}
+
+	result := selfUpdateCheck(p, runner)
+	if result != selfUpdateFailed {
+		t.Errorf("expected selfUpdateFailed, got %d", result)
+	}
+
+	found := false
+	for _, call := range runner.Calls {
+		if call.Method == "DisplayMessage" && len(call.Args) > 0 && call.Args[0] == "tpack: self-update failed (no checksum for archive)" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("expected DisplayMessage 'tpack: self-update failed (no checksum for archive)'")
 	}
 }

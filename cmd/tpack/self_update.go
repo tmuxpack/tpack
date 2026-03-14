@@ -4,6 +4,8 @@ import (
 	"archive/tar"
 	"compress/gzip"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -113,11 +115,24 @@ func selfUpdateCheck(p selfUpdateParams, runner tmux.Runner) selfUpdateResult {
 		return selfUpdateSkipped
 	}
 
-	// 5-6. Download and extract the new binary.
-	archiveURL := fmt.Sprintf("%s/v%s/tpack_%s_%s_%s.tar.gz",
-		p.downloadURL, latest, latest, runtime.GOOS, runtime.GOARCH)
+	// 5. Download checksums and build archive URL.
+	archiveName := fmt.Sprintf("tpack_%s_%s_%s.tar.gz", latest, runtime.GOOS, runtime.GOARCH)
+	archiveURL := fmt.Sprintf("%s/v%s/%s", p.downloadURL, latest, archiveName)
 
-	newBinaryPath, cleanup, err := downloadAndExtract(archiveURL)
+	checksums, err := fetchChecksums(p.downloadURL, latest)
+	if err != nil {
+		_ = runner.DisplayMessage("tpack: self-update failed (checksum fetch error)")
+		return selfUpdateFailed
+	}
+
+	expectedHash, ok := checksums[archiveName]
+	if !ok {
+		_ = runner.DisplayMessage("tpack: self-update failed (no checksum for archive)")
+		return selfUpdateFailed
+	}
+
+	// 6. Download, verify integrity, and extract the new binary.
+	newBinaryPath, cleanup, err := downloadVerifyExtract(archiveURL, expectedHash)
 	if err != nil {
 		_ = runner.DisplayMessage("tpack: self-update failed (extract error)")
 		return selfUpdateFailed
@@ -208,6 +223,125 @@ func downloadAndExtract(url string) (string, func(), error) {
 	limitedBody := io.LimitReader(resp.Body, maxBinarySize+1024*1024)
 
 	binaryPath, err := extractBinaryFromArchive(limitedBody, tmpDir)
+	if err != nil {
+		cleanup()
+		return "", nil, err
+	}
+
+	return binaryPath, cleanup, nil
+}
+
+// fetchChecksums downloads the checksums.txt file from a GitHub release and
+// returns a map of filename to SHA-256 hex digest.
+func fetchChecksums(baseURL, version string) (map[string]string, error) {
+	url := fmt.Sprintf("%s/v%s/checksums.txt", baseURL, version)
+
+	ctx, cancel := context.WithTimeout(context.Background(), selfUpdateTimeout)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("creating checksums request: %w", err)
+	}
+
+	resp, err := http.DefaultClient.Do(req) //nolint:gosec // URL is constructed from known GitHub release path
+	if err != nil {
+		return nil, fmt.Errorf("fetching checksums: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("checksums download: status %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 1024*1024)) // 1 MiB limit
+	if err != nil {
+		return nil, fmt.Errorf("reading checksums: %w", err)
+	}
+
+	return parseChecksums(string(body)), nil
+}
+
+// parseChecksums parses a GoReleaser checksums.txt file.
+// Each line has the format: "sha256hex  filename".
+func parseChecksums(content string) map[string]string {
+	sums := make(map[string]string)
+
+	for _, line := range strings.Split(content, "\n") {
+		parts := strings.Fields(line)
+		if len(parts) == 2 {
+			sums[parts[1]] = parts[0]
+		}
+	}
+
+	return sums
+}
+
+// downloadVerifyExtract downloads a tar.gz archive, verifies its SHA-256
+// checksum, and extracts the binary. Returns the path to the extracted binary,
+// a cleanup function, and any error.
+func downloadVerifyExtract(url, expectedHash string) (string, func(), error) {
+	ctx, cancel := context.WithTimeout(context.Background(), selfUpdateTimeout)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return "", nil, fmt.Errorf("creating request: %w", err)
+	}
+
+	resp, err := http.DefaultClient.Do(req) //nolint:gosec // URL is constructed from a known GitHub release asset
+	if err != nil {
+		return "", nil, fmt.Errorf("downloading archive: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", nil, fmt.Errorf("download failed: status %d", resp.StatusCode)
+	}
+
+	tmpDir, err := os.MkdirTemp("", "tpack-update-*")
+	if err != nil {
+		return "", nil, fmt.Errorf("creating temp dir: %w", err)
+	}
+
+	cleanup := func() { _ = os.RemoveAll(tmpDir) }
+
+	// Save archive to temp file while computing checksum.
+	archivePath := filepath.Join(tmpDir, "archive.tar.gz")
+
+	archiveFile, err := os.Create(archivePath) //nolint:gosec // temp file in controlled directory
+	if err != nil {
+		cleanup()
+		return "", nil, fmt.Errorf("creating temp archive: %w", err)
+	}
+
+	hasher := sha256.New()
+
+	if _, copyErr := io.Copy(archiveFile, io.TeeReader(resp.Body, hasher)); copyErr != nil {
+		_ = archiveFile.Close()
+		cleanup()
+
+		return "", nil, fmt.Errorf("saving archive: %w", copyErr)
+	}
+
+	_ = archiveFile.Close()
+
+	// Verify checksum before extraction.
+	actual := hex.EncodeToString(hasher.Sum(nil))
+	if actual != expectedHash {
+		cleanup()
+		return "", nil, fmt.Errorf("checksum mismatch: expected %s, got %s", expectedHash, actual)
+	}
+
+	// Extract binary from verified archive.
+	f, err := os.Open(archivePath)
+	if err != nil {
+		cleanup()
+		return "", nil, fmt.Errorf("opening archive: %w", err)
+	}
+	defer f.Close()
+
+	binaryPath, err := extractBinaryFromArchive(f, tmpDir)
 	if err != nil {
 		cleanup()
 		return "", nil, err
