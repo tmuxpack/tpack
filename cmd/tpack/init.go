@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -40,12 +41,17 @@ func runInit() int {
 	}
 
 	// Set plugin path in tmux environment (set both for compatibility).
-	// TODO: why ignore errors here?
-	_ = runner.SetEnvironment(config.PluginPathEnvVar, cfg.PluginPath)
-	_ = runner.SetEnvironment(config.LegacyPluginPathEnvVar, cfg.PluginPath)
+	if err := runner.SetEnvironment(config.PluginPathEnvVar, cfg.PluginPath); err != nil {
+		fmt.Fprintf(os.Stderr, "tpack: warning: failed to set %s: %v\n", config.PluginPathEnvVar, err)
+	}
+	if err := runner.SetEnvironment(config.LegacyPluginPathEnvVar, cfg.PluginPath); err != nil {
+		fmt.Fprintf(os.Stderr, "tpack: warning: failed to set %s: %v\n", config.LegacyPluginPathEnvVar, err)
+	}
 
 	binary := findBinary()
-	bindKeys(runner, cfg, binary)
+	if err := bindKeys(runner, cfg, binary); err != nil {
+		fmt.Fprintf(os.Stderr, "tpack: warning: failed to bind keys: %v\n", err)
+	}
 
 	// Source plugins.
 	output := ui.NewShellOutput()
@@ -64,14 +70,12 @@ func runInit() int {
 	return 0
 }
 
-// TODO: don't ignore errors here
-func bindKeys(runner tmux.Runner, cfg *config.Config, binary string) {
+func bindKeys(runner tmux.Runner, cfg *config.Config, binary string) error {
 	verStr, err := runner.Version()
 	if err == nil && popupSupported(verStr) {
-		bindPopupKeys(runner, cfg, binary)
-	} else {
-		bindInlineKeys(runner, cfg, binary)
+		return bindPopupKeys(runner, cfg, binary)
 	}
+	return bindInlineKeys(runner, cfg, binary)
 }
 
 // tuiShellCmd builds a shell command that runs the TUI with the given flags.
@@ -86,7 +90,7 @@ func tuiShellCmd(binary, flags string) string {
 
 // bindPopupKeys binds keys using display-popup for tmux >= 3.2.
 // Falls back to new-window if the popup cannot open (e.g. terminal too small).
-func bindPopupKeys(runner tmux.Runner, cfg *config.Config, binary string) {
+func bindPopupKeys(runner tmux.Runner, cfg *config.Config, binary string) error {
 	build := func(flags string) string {
 		quoted := shell.Quote(tuiShellCmd(binary, flags))
 		popup := fmt.Sprintf("tmux display-popup -E -w %d -h %d %s",
@@ -95,23 +99,27 @@ func bindPopupKeys(runner tmux.Runner, cfg *config.Config, binary string) {
 		return popup + " 2>/dev/null || " + fallback
 	}
 
-	_ = runner.BindKey(cfg.InstallKey, build("--install"), "[tpack] Install plugins")
-	_ = runner.BindKey(cfg.UpdateKey, build("--update"), "[tpack] Update plugins")
-	_ = runner.BindKey(cfg.CleanKey, build("--clean"), "[tpack] Clean plugins")
-	_ = runner.BindKey(cfg.TuiKey, build(""), "[tpack] Open TUI")
+	return errors.Join(
+		runner.BindKey(cfg.InstallKey, build("--install"), "[tpack] Install plugins"),
+		runner.BindKey(cfg.UpdateKey, build("--update"), "[tpack] Update plugins"),
+		runner.BindKey(cfg.CleanKey, build("--clean"), "[tpack] Clean plugins"),
+		runner.BindKey(cfg.TuiKey, build(""), "[tpack] Open TUI"),
+	)
 }
 
 // bindInlineKeys binds keys for tmux < 3.2 (no popup support).
 // Uses new-window to ensure the TUI has a controlling terminal.
-func bindInlineKeys(runner tmux.Runner, cfg *config.Config, binary string) {
+func bindInlineKeys(runner tmux.Runner, cfg *config.Config, binary string) error {
 	build := func(flags string) string {
 		return "tmux new-window " + shell.Quote(tuiShellCmd(binary, flags))
 	}
 
-	_ = runner.BindKey(cfg.InstallKey, build("--install"), "[tpack] Install plugins")
-	_ = runner.BindKey(cfg.UpdateKey, build("--update"), "[tpack] Update plugins")
-	_ = runner.BindKey(cfg.CleanKey, build("--clean"), "[tpack] Clean plugins")
-	_ = runner.BindKey(cfg.TuiKey, build(""), "[tpack] Open TUI")
+	return errors.Join(
+		runner.BindKey(cfg.InstallKey, build("--install"), "[tpack] Install plugins"),
+		runner.BindKey(cfg.UpdateKey, build("--update"), "[tpack] Update plugins"),
+		runner.BindKey(cfg.CleanKey, build("--clean"), "[tpack] Clean plugins"),
+		runner.BindKey(cfg.TuiKey, build(""), "[tpack] Open TUI"),
+	)
 }
 
 // Reports whether the binary is at the auto-download location.

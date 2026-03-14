@@ -14,7 +14,6 @@ import (
 	"github.com/tmuxpack/tpack/internal/plug"
 )
 
-// TODO: check original TPM, this seems insane
 // Source executes all *.tmux files from each plugin directory.
 func (m *Manager) Source(ctx context.Context, plugins []plug.Plugin) {
 	for _, p := range plugins {
