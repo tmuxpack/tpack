@@ -46,6 +46,29 @@ func TestAppendPlugin_NoDuplicate(t *testing.T) {
 	}
 }
 
+func TestAppendPlugin_SubstringNotBlocked(t *testing.T) {
+	tmp := t.TempDir() + "/tmux.conf"
+	initial := `set -g @plugin "user/foobar"` + "\n"
+	if err := os.WriteFile(tmp, []byte(initial), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// "user/foo" is a substring of "user/foobar" but should NOT be treated as duplicate.
+	if err := AppendPlugin(tmp, "user/foo"); err != nil {
+		t.Fatalf("AppendPlugin: %v", err)
+	}
+
+	data, _ := os.ReadFile(tmp)
+	content := string(data)
+
+	if !strings.Contains(content, `set -g @plugin "user/foo"`) {
+		t.Errorf("expected user/foo to be added, got:\n%s", content)
+	}
+	if strings.Count(content, "user/foobar") != 1 {
+		t.Error("original plugin should be preserved exactly once")
+	}
+}
+
 func TestRemovePlugin(t *testing.T) {
 	tmp := t.TempDir() + "/tmux.conf"
 	initial := `set -g @plugin "tmux-plugins/tpm"
