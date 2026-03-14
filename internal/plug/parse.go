@@ -73,9 +73,10 @@ func ExtractSourcedFiles(content string) []string {
 	return extractMatches(content, sourcedFileRe)
 }
 
-// ManualExpansion expands ~ and $HOME in a path, mirroring the bash behavior.
-// TODO: Should add support for ${HOME}
-func ManualExpansion(path, home string) string {
+// ManualExpansion expands ~, $HOME, ${HOME}, $XDG_CONFIG_HOME, and
+// ${XDG_CONFIG_HOME} in a path. When xdgConfigHome is empty, XDG
+// variables are left unexpanded.
+func ManualExpansion(path, home, xdgConfigHome string) string {
 	if strings.HasPrefix(path, "~/") {
 		return home + path[1:]
 	}
@@ -87,6 +88,26 @@ func ManualExpansion(path, home string) string {
 	}
 	if path == "$HOME" {
 		return home
+	}
+	if strings.HasPrefix(path, "${HOME}/") {
+		return home + path[7:]
+	}
+	if path == "${HOME}" {
+		return home
+	}
+	if xdgConfigHome != "" {
+		if strings.HasPrefix(path, "$XDG_CONFIG_HOME/") {
+			return xdgConfigHome + path[16:]
+		}
+		if path == "$XDG_CONFIG_HOME" {
+			return xdgConfigHome
+		}
+		if strings.HasPrefix(path, "${XDG_CONFIG_HOME}/") {
+			return xdgConfigHome + path[18:]
+		}
+		if path == "${XDG_CONFIG_HOME}" {
+			return xdgConfigHome
+		}
 	}
 	return path
 }

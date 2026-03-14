@@ -46,7 +46,7 @@ func runTui(args []string) int {
 	}
 	theme = tui.OverlayConfigColors(theme, cfg.Colors)
 
-	plugins := config.GatherPlugins(runner, config.RealFS{}, cfg.TmuxConf, cfg.Home)
+	plugins := config.GatherPlugins(runner, config.RealFS{}, cfg.TmuxConf, cfg.Home, xdgConfigHome(cfg.Home))
 
 	deps := tui.Deps{
 		Cloner:    gitcli.NewCloner(),

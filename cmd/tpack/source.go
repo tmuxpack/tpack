@@ -23,7 +23,7 @@ func runSource() int {
 	output := ui.NewShellOutput()
 	mgr := newManagerDeps(cfg.PluginPath, output)
 
-	plugins := config.GatherPlugins(runner, config.RealFS{}, cfg.TmuxConf, cfg.Home)
+	plugins := config.GatherPlugins(runner, config.RealFS{}, cfg.TmuxConf, cfg.Home, xdgConfigHome(cfg.Home))
 
 	mgr.Source(context.Background(), plugins)
 	return 0

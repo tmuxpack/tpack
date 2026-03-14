@@ -138,6 +138,7 @@ set -g @plugin "user/repo#develop"
 		fs,
 		confFile,
 		os.Getenv("HOME"),
+		"",
 	)
 	if len(plugins) != 3 {
 		t.Fatalf("expected 3 plugins, got %d", len(plugins))
