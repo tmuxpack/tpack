@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -38,12 +39,17 @@ func runInit() int {
 	}
 
 	// Set plugin path in tmux environment (set both for compatibility).
-	// TODO: why ignore errors here?
-	_ = runner.SetEnvironment(config.PluginPathEnvVar, cfg.PluginPath)
-	_ = runner.SetEnvironment(config.LegacyPluginPathEnvVar, cfg.PluginPath)
+	if err := runner.SetEnvironment(config.PluginPathEnvVar, cfg.PluginPath); err != nil {
+		fmt.Fprintf(os.Stderr, "tpack: warning: failed to set %s: %v\n", config.PluginPathEnvVar, err)
+	}
+	if err := runner.SetEnvironment(config.LegacyPluginPathEnvVar, cfg.PluginPath); err != nil {
+		fmt.Fprintf(os.Stderr, "tpack: warning: failed to set %s: %v\n", config.LegacyPluginPathEnvVar, err)
+	}
 
 	binary := findBinary()
-	bindKeys(runner, cfg, binary)
+	if err := bindKeys(runner, cfg, binary); err != nil {
+		fmt.Fprintf(os.Stderr, "tpack: warning: failed to bind keys: %v\n", err)
+	}
 
 	// Source plugins.
 	output := ui.NewShellOutput()
@@ -62,12 +68,13 @@ func runInit() int {
 	return 0
 }
 
-// TODO: don't ignore errors here
-func bindKeys(runner tmux.Runner, cfg *config.Config, binary string) {
-	_ = runner.BindKey(cfg.InstallKey, binary+" tui --popup --install", "[tpack] Install plugins")
-	_ = runner.BindKey(cfg.UpdateKey, binary+" tui --popup --update", "[tpack] Update plugins")
-	_ = runner.BindKey(cfg.CleanKey, binary+" tui --popup --clean", "[tpack] Clean plugins")
-	_ = runner.BindKey(cfg.TuiKey, binary+" tui --popup", "[tpack] Open TUI")
+func bindKeys(runner tmux.Runner, cfg *config.Config, binary string) error {
+	return errors.Join(
+		runner.BindKey(cfg.InstallKey, binary+" tui --popup --install", "[tpack] Install plugins"),
+		runner.BindKey(cfg.UpdateKey, binary+" tui --popup --update", "[tpack] Update plugins"),
+		runner.BindKey(cfg.CleanKey, binary+" tui --popup --clean", "[tpack] Clean plugins"),
+		runner.BindKey(cfg.TuiKey, binary+" tui --popup", "[tpack] Open TUI"),
+	)
 }
 
 // Reports whether the binary is at the auto-download location.

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -48,6 +49,25 @@ func TestFindBinary_WithCurrentDirEnv(t *testing.T) {
 	}
 }
 
+func TestBindKeys_ReturnsError(t *testing.T) {
+	runner := tmux.NewMockRunner()
+	runner.Errors["BindKey:I"] = errors.New("bind failed")
+	cfg := &config.Config{
+		InstallKey: "I",
+		UpdateKey:  "U",
+		CleanKey:   "M-u",
+		TuiKey:     "T",
+	}
+
+	err := bindKeys(runner, cfg, "/usr/bin/tpack")
+	if err == nil {
+		t.Fatal("expected error from bindKeys when BindKey fails")
+	}
+	if !strings.Contains(err.Error(), "bind failed") {
+		t.Errorf("expected error to contain 'bind failed', got: %v", err)
+	}
+}
+
 func TestBindKeys_UseTuiPopup(t *testing.T) {
 	runner := tmux.NewMockRunner()
 	cfg := &config.Config{
@@ -57,7 +77,10 @@ func TestBindKeys_UseTuiPopup(t *testing.T) {
 		TuiKey:     "T",
 	}
 
-	bindKeys(runner, cfg, "/usr/bin/tpack")
+	err := bindKeys(runner, cfg, "/usr/bin/tpack")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	if len(runner.Calls) != 4 {
 		t.Fatalf("expected 4 BindKey calls, got %d", len(runner.Calls))
