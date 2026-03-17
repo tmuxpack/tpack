@@ -14,9 +14,10 @@ import (
 )
 
 var updateCmd = &cobra.Command{
-	Use:   "update [plugin...]",
-	Short: "Update specific plugin(s) or all",
-	Long:  `Update one or more plugins by name, or use "all" to update everything.`,
+	Use:               "update [plugin...]",
+	Short:             "Update specific plugin(s) or all",
+	Long:              `Update one or more plugins by name, or use "all" to update everything.`,
+	ValidArgsFunction: completePluginNames,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		tmuxEcho, _ := cmd.Flags().GetBool("tmux-echo")
 

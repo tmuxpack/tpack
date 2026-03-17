@@ -53,4 +53,6 @@ func init() {
 	_ = commitsCmd.MarkFlagRequired("from")
 	_ = commitsCmd.MarkFlagRequired("to")
 	_ = commitsCmd.MarkFlagRequired("name")
+
+	_ = commitsCmd.RegisterFlagCompletionFunc("name", completePluginNames)
 }
