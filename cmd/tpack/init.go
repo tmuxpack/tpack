@@ -9,33 +9,42 @@ import (
 	"path/filepath"
 	"syscall"
 
+	"github.com/spf13/cobra"
 	"github.com/tmuxpack/tpack/internal/config"
 	"github.com/tmuxpack/tpack/internal/tmux"
 	"github.com/tmuxpack/tpack/internal/ui"
 )
 
-func runInit() int {
+var initCmd = &cobra.Command{
+	Use:   "init",
+	Short: "Initialize tpack, bind keys, and source plugins",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return runInitCmd()
+	},
+}
+
+func runInitCmd() error {
 	runner := tmux.NewRealRunner()
 
 	// Check tmux version.
 	verStr, err := runner.Version()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "tpack: failed to get tmux version")
-		return 1
+		return errSilent
 	}
 	current := tmux.ParseVersionDigits(verStr)
 	if !tmux.IsVersionSupported(current, config.SupportedTmuxVersion) {
 		// TODO: add e2e tests with version 1.9
 		msg := "Error, Tmux version unsupported! Please install Tmux version 1.9 or greater!"
 		_ = runner.DisplayMessage(msg)
-		return 1
+		return errSilent
 	}
 
 	// Resolve config.
 	cfg, err := config.Resolve(runner)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "tpack: config error:", err)
-		return 1
+		return errSilent
 	}
 
 	// Set plugin path in tmux environment (set both for compatibility).
@@ -65,7 +74,7 @@ func runInit() int {
 		spawnSelfUpdate(binary)
 	}
 
-	return 0
+	return nil
 }
 
 func bindKeys(runner tmux.Runner, cfg *config.Config, binary string) error {

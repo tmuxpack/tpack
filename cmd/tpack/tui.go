@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/spf13/cobra"
 	"github.com/tmuxpack/tpack/internal/config"
 	gitcli "github.com/tmuxpack/tpack/internal/git/cli"
 	"github.com/tmuxpack/tpack/internal/plug"
@@ -15,66 +16,87 @@ import (
 	"github.com/tmuxpack/tpack/internal/tui"
 )
 
-func runTui(args []string) int {
-	popup := hasFlag(args, "--popup")
+var tuiCmd = &cobra.Command{
+	Use:   "tui",
+	Short: "Open the interactive TUI",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		popup, _ := cmd.Flags().GetBool("popup")
 
-	// Parse operation flags.
-	var autoOp tui.Operation
-	switch {
-	case hasFlag(args, "--install"):
-		autoOp = tui.OpInstall
-	case hasFlag(args, "--update"):
-		autoOp = tui.OpUpdate
-	case hasFlag(args, "--clean"):
-		autoOp = tui.OpClean
-	}
-
-	runner := tmux.NewRealRunner()
-
-	// Fall back to inline TUI if tmux doesn't support display-popup (< 3.2).
-	if popup {
-		if verStr, err := runner.Version(); err != nil || !popupSupported(verStr) {
-			popup = false
+		// Parse operation flags.
+		var autoOp tui.Operation
+		switch {
+		case flagIsSet(cmd, "install"):
+			autoOp = tui.OpInstall
+		case flagIsSet(cmd, "update"):
+			autoOp = tui.OpUpdate
+		case flagIsSet(cmd, "clean"):
+			autoOp = tui.OpClean
 		}
-	}
 
-	theme := tui.BuildTheme(runner)
-	cfg, err := config.Resolve(runner)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "tpack: config error:", err)
-		return 1
-	}
-	theme = tui.OverlayConfigColors(theme, cfg.Colors)
+		runner := tmux.NewRealRunner()
 
-	plugins := config.GatherPlugins(runner, config.RealFS{}, cfg.TmuxConf, cfg.Home, xdgConfigHome(cfg.Home))
+		// Fall back to inline TUI if tmux doesn't support display-popup (< 3.2).
+		if popup {
+			if verStr, err := runner.Version(); err != nil || !popupSupported(verStr) {
+				popup = false
+			}
+		}
 
-	deps := tui.Deps{
-		Cloner:    gitcli.NewCloner(),
-		Puller:    gitcli.NewPuller(),
-		Validator: gitcli.NewValidator(),
-		Fetcher:   gitcli.NewFetcher(),
-		RevParser: gitcli.NewRevParser(),
-		Logger:    gitcli.NewLogger(),
-	}
-	deps.Runner = runner
+		theme := tui.BuildTheme(runner)
+		cfg, err := config.Resolve(runner)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "tpack: config error:", err)
+			return errSilent
+		}
+		theme = tui.OverlayConfigColors(theme, cfg.Colors)
 
-	var opts []tui.ModelOption
-	opts = append(opts, tui.WithTheme(theme))
-	opts = append(opts, tui.WithVersion(version))
-	opts = append(opts, tui.WithBinaryPath(findBinary()))
-	if autoOp != tui.OpNone {
-		opts = append(opts, tui.WithAutoOp(autoOp))
-	}
+		plugins := config.GatherPlugins(runner, config.RealFS{}, cfg.TmuxConf, cfg.Home, xdgConfigHome(cfg.Home))
 
-	if popup {
-		return launchPopup(cfg, plugins, deps, opts, autoOp)
-	}
+		deps := tui.Deps{
+			Cloner:    gitcli.NewCloner(),
+			Puller:    gitcli.NewPuller(),
+			Validator: gitcli.NewValidator(),
+			Fetcher:   gitcli.NewFetcher(),
+			RevParser: gitcli.NewRevParser(),
+			Logger:    gitcli.NewLogger(),
+		}
+		deps.Runner = runner
 
-	if err := tui.Run(cfg, plugins, deps, opts...); err != nil {
-		fmt.Fprintln(os.Stderr, "tpack:", err)
-		return 1
-	}
-	return 0
+		var opts []tui.ModelOption
+		opts = append(opts, tui.WithTheme(theme))
+		opts = append(opts, tui.WithVersion(version))
+		opts = append(opts, tui.WithBinaryPath(findBinary()))
+		if autoOp != tui.OpNone {
+			opts = append(opts, tui.WithAutoOp(autoOp))
+		}
+
+		if popup {
+			code := launchPopup(cfg, plugins, deps, opts, autoOp)
+			if code != 0 {
+				return errSilent
+			}
+			return nil
+		}
+
+		if err := tui.Run(cfg, plugins, deps, opts...); err != nil {
+			fmt.Fprintln(os.Stderr, "tpack:", err)
+			return errSilent
+		}
+		return nil
+	},
+}
+
+// flagIsSet reports whether a boolean flag was explicitly set on the command.
+func flagIsSet(cmd *cobra.Command, name string) bool {
+	v, _ := cmd.Flags().GetBool(name)
+	return v
+}
+
+func init() {
+	tuiCmd.Flags().Bool("popup", false, "launch in tmux popup (requires tmux 3.2+)")
+	tuiCmd.Flags().Bool("install", false, "auto-run install operation")
+	tuiCmd.Flags().Bool("update", false, "auto-run update operation")
+	tuiCmd.Flags().Bool("clean", false, "auto-run clean operation")
 }
 
 func launchPopup(

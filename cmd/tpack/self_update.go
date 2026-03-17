@@ -18,10 +18,23 @@ import (
 	"strings"
 	"time"
 
+	"github.com/spf13/cobra"
 	"github.com/tmuxpack/tpack/internal/config"
 	"github.com/tmuxpack/tpack/internal/state"
 	"github.com/tmuxpack/tpack/internal/tmux"
 )
+
+var selfUpdateCmd = &cobra.Command{
+	Use:   "self-update",
+	Short: "Update the tpack binary to the latest release",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		code := runSelfUpdate()
+		if code != 0 {
+			return errSilent
+		}
+		return nil
+	},
+}
 
 const (
 	selfUpdateInterval = 24 * time.Hour
