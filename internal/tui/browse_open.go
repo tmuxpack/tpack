@@ -11,6 +11,7 @@ import (
 )
 
 type clearBrowseStatusMsg struct{}
+type openURLResultMsg struct{ err error }
 
 func (m Model) openFromBrowse() (tea.Model, tea.Cmd) {
 	if m.browseScroll.cursor < 0 || m.browseScroll.cursor >= len(m.browseResults) {
@@ -24,7 +25,7 @@ func (m Model) openFromBrowse() (tea.Model, tea.Cmd) {
 	}
 	url := "https://" + host + "/" + selected.Repo
 
-	m.browseStatus = "Copied to clipboard: " + url
+	m.browseStatus = "Opening " + url
 
 	return m, tea.Batch(
 		tea.SetClipboard(url),
@@ -35,11 +36,21 @@ func (m Model) openFromBrowse() (tea.Model, tea.Cmd) {
 	)
 }
 
+func (m Model) handleOpenURLResult(msg openURLResultMsg) (tea.Model, tea.Cmd) {
+	if msg.err != nil {
+		m.browseStatus = "Failed to open: " + msg.err.Error()
+	} else {
+		m.browseStatus = "Opened in browser"
+	}
+	return m, tea.Tick(3*time.Second, func(time.Time) tea.Msg {
+		return clearBrowseStatusMsg{}
+	})
+}
+
 func openURLCmd(url string) tea.Cmd {
 	return func() tea.Msg {
 		ctx := context.Background()
-		_ = openURL(ctx, url)
-		return nil
+		return openURLResultMsg{err: openURL(ctx, url)}
 	}
 }
 
