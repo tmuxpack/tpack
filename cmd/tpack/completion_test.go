@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"strings"
 	"testing"
+
+	"github.com/spf13/cobra"
 )
 
 func executeCompletion(t *testing.T, shell string) string {
@@ -40,4 +42,14 @@ func TestCompletionFish(t *testing.T) {
 	if !strings.Contains(out, "fish") {
 		t.Error("expected fish completion output to contain 'fish'")
 	}
+}
+
+func TestCompletePluginNames_ErrorPath(t *testing.T) {
+	// completePluginNames calls config.Resolve which needs tmux.
+	// Without tmux, it returns nil names and NoFileComp directive.
+	names, directive := completePluginNames(nil, nil, "")
+	if directive != cobra.ShellCompDirectiveNoFileComp {
+		t.Errorf("expected ShellCompDirectiveNoFileComp, got %v", directive)
+	}
+	_ = names
 }

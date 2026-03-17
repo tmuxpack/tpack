@@ -87,3 +87,20 @@ func newManagerDeps(pluginPath string, output ui.Output) *manager.Manager {
 		output,
 	)
 }
+
+// completePluginNames returns a list of plugin names for shell completion.
+func completePluginNames(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	runner := tmux.NewRealRunner()
+	cfg, err := config.Resolve(runner)
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	plugins := config.GatherPlugins(runner, config.RealFS{}, cfg.TmuxConf, cfg.Home, xdgConfigHome(cfg.Home))
+
+	var names []string
+	for _, p := range plugins {
+		names = append(names, p.Name)
+	}
+	return names, cobra.ShellCompDirectiveNoFileComp
+}
