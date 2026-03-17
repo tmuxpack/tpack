@@ -16,6 +16,7 @@ The `tpack` binary can be used directly from the command line, outside of tmux k
 | `tpack self-update` | Update the tpack binary to the latest release |
 | `tpack version` | Print tpack version |
 | `tpack init` | Initialize tpack (backward compatibility with TPM scripts) |
+| `tpack completion [bash\|zsh\|fish]` | Generate shell completion scripts |
 
 ## Examples
 
@@ -42,6 +43,35 @@ Remove orphaned plugin directories:
 ```bash
 tpack clean
 ```
+
+## Shell Completions
+
+Generate and install shell completion scripts for tab-completion support.
+
+### Zsh
+
+```bash
+tpack completion zsh > "${fpath[1]}/_tpack"
+compinit
+```
+
+### Bash
+
+```bash
+# Linux:
+tpack completion bash > /etc/bash_completion.d/tpack
+
+# macOS:
+tpack completion bash > $(brew --prefix)/etc/bash_completion.d/tpack
+```
+
+### Fish
+
+```bash
+tpack completion fish > ~/.config/fish/completions/tpack.fish
+```
+
+Completions include all commands, flags, and dynamic plugin name completion for `tpack update` and `tpack commits --name`.
 
 ## Legacy shell scripts
 
