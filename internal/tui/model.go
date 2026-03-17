@@ -170,11 +170,8 @@ func (m Model) Init() tea.Cmd {
 // model snapshots; mutations are returned as new values via (tea.Model, tea.Cmd).
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
-	case tea.BackgroundColorMsg:
-		m.handleBackgroundColor(msg)
-		return m, nil
-	case tea.WindowSizeMsg:
-		m.handleWindowSize(msg)
+	case tea.BackgroundColorMsg, tea.WindowSizeMsg:
+		m.handleTerminalMsg(msg)
 		return m, nil
 	case tea.KeyPressMsg:
 		return m.handleKeyMsg(msg)
@@ -198,6 +195,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleRemoveResult(msg)
 	case registryFetchResultMsg:
 		return m.handleRegistryFetch(msg)
+	case openURLResultMsg:
+		return m.handleOpenURLResult(msg)
 	case sourceCompleteMsg, clearBrowseStatusMsg:
 		m.browseStatus = ""
 		return m, nil
@@ -211,20 +210,20 @@ func handleFrameMsg(m Model, msg progress.FrameMsg) tea.Cmd {
 	return cmd
 }
 
-// handleBackgroundColor adjusts the theme when the terminal has a light background.
-func (m *Model) handleBackgroundColor(msg tea.BackgroundColorMsg) {
-	if !m.customTheme && !msg.IsDark() {
-		m.theme = DefaultLightTheme()
+// handleTerminalMsg handles terminal environment messages (background color, window size).
+func (m *Model) handleTerminalMsg(msg tea.Msg) {
+	switch msg := msg.(type) {
+	case tea.BackgroundColorMsg:
+		if !m.customTheme && !msg.IsDark() {
+			m.theme = DefaultLightTheme()
+		}
+	case tea.WindowSizeMsg:
+		m.width = msg.Width
+		m.height = msg.Height
+		m.sizeKnown = true
+		m.viewHeight = max(msg.Height-TitleReservedLines, MinViewHeight)
+		m.progressBar.SetWidth(min(msg.Width-ProgressBarPadding, ProgressBarMaxWidth))
 	}
-}
-
-// handleWindowSize updates layout dimensions from the actual terminal/popup size.
-func (m *Model) handleWindowSize(msg tea.WindowSizeMsg) {
-	m.width = msg.Width
-	m.height = msg.Height
-	m.sizeKnown = true
-	m.viewHeight = max(msg.Height-TitleReservedLines, MinViewHeight)
-	m.progressBar.SetWidth(min(msg.Width-ProgressBarPadding, ProgressBarMaxWidth))
 }
 
 // handleKeyMsg routes key events to the appropriate screen handler.
