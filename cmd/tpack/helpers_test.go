@@ -7,55 +7,6 @@ import (
 	"github.com/tmuxpack/tpack/internal/ui"
 )
 
-func TestHasFlag(t *testing.T) {
-	tests := []struct {
-		name string
-		args []string
-		flag string
-		want bool
-	}{
-		{
-			name: "flag present",
-			args: []string{"--tmux-echo"},
-			flag: "--tmux-echo",
-			want: true,
-		},
-		{
-			name: "flag absent",
-			args: []string{"--shell-echo"},
-			flag: "--tmux-echo",
-			want: false,
-		},
-		{
-			name: "empty args",
-			args: []string{},
-			flag: "--tmux-echo",
-			want: false,
-		},
-		{
-			name: "flag at end of multiple args",
-			args: []string{"foo", "bar", "--tmux-echo"},
-			flag: "--tmux-echo",
-			want: true,
-		},
-		{
-			name: "similar but different flag",
-			args: []string{"--tmux-echo-extra"},
-			flag: "--tmux-echo",
-			want: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := hasFlag(tt.args, tt.flag)
-			if got != tt.want {
-				t.Errorf("hasFlag(%v, %q) = %v, want %v", tt.args, tt.flag, got, tt.want)
-			}
-		})
-	}
-}
-
 func TestExitCode(t *testing.T) {
 	t.Run("no failure returns 0", func(t *testing.T) {
 		output := ui.NewMockOutput()

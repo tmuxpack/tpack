@@ -6,55 +6,62 @@ import (
 	"os"
 	"time"
 
+	"github.com/spf13/cobra"
 	"github.com/tmuxpack/tpack/internal/config"
 	"github.com/tmuxpack/tpack/internal/shell"
 	"github.com/tmuxpack/tpack/internal/tmux"
 	"github.com/tmuxpack/tpack/internal/ui"
 )
 
-func runUpdate(args []string) int {
-	tmuxEcho := hasFlag(args, "--tmux-echo")
+var updateCmd = &cobra.Command{
+	Use:   "update [plugin...]",
+	Short: "Update specific plugin(s) or all",
+	Long:  `Update one or more plugins by name, or use "all" to update everything.`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		tmuxEcho, _ := cmd.Flags().GetBool("tmux-echo")
 
-	// Filter out flags from args.
-	var names []string
-	for _, a := range args {
-		if a != "--tmux-echo" && a != "--shell-echo" {
-			names = append(names, a)
+		runner := tmux.NewRealRunner()
+		cfg, err := config.Resolve(runner)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "tpack: config error:", err)
+			return errSilent
 		}
-	}
 
-	runner := tmux.NewRealRunner()
-	cfg, err := config.Resolve(runner)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "tpack: config error:", err)
-		return 1
-	}
+		names := args
 
-	// No plugin names: show interactive prompt (tmux-echo) or update all (shell).
-	if len(names) == 0 {
+		// No plugin names: show interactive prompt (tmux-echo) or update all (shell).
+		if len(names) == 0 {
+			if tmuxEcho {
+				runUpdatePrompt(runner, cfg)
+				return nil
+			}
+			names = []string{"all"}
+		}
+
+		output := newOutput(tmuxEcho, runner)
+
+		mgr := newManagerDeps(cfg.PluginPath, output)
+
+		plugins := config.GatherPlugins(runner, config.RealFS{}, cfg.TmuxConf, cfg.Home, xdgConfigHome(cfg.Home))
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+		defer cancel()
+		mgr.Update(ctx, plugins, names)
+
 		if tmuxEcho {
-			runUpdatePrompt(runner, cfg)
-			return 0
+			_ = runner.SourceFile(cfg.TmuxConf)
+			output.EndMessage()
 		}
-		names = []string{"all"}
-	}
 
-	output := newOutput(tmuxEcho, runner)
+		if output.HasFailed() {
+			return errSilent
+		}
+		return nil
+	},
+}
 
-	mgr := newManagerDeps(cfg.PluginPath, output)
-
-	plugins := config.GatherPlugins(runner, config.RealFS{}, cfg.TmuxConf, cfg.Home, xdgConfigHome(cfg.Home))
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-	defer cancel()
-	mgr.Update(ctx, plugins, names)
-
-	if tmuxEcho {
-		_ = runner.SourceFile(cfg.TmuxConf)
-		output.EndMessage()
-	}
-
-	return exitCode(output)
+func init() {
+	updateCmd.Flags().Bool("tmux-echo", false, "output via tmux display-message")
 }
 
 // runUpdatePrompt handles the interactive update prompt from tmux keybinding.

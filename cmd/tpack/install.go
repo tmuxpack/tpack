@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/spf13/cobra"
 	"github.com/tmuxpack/tpack/internal/config"
 	gitcli "github.com/tmuxpack/tpack/internal/git/cli"
 	"github.com/tmuxpack/tpack/internal/manager"
@@ -14,38 +15,47 @@ import (
 	"github.com/tmuxpack/tpack/internal/ui"
 )
 
-func runInstall(args []string) int {
-	tmuxEcho := hasFlag(args, "--tmux-echo")
+var installCmd = &cobra.Command{
+	Use:   "install",
+	Short: "Install all plugins declared in tmux.conf",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		tmuxEcho, _ := cmd.Flags().GetBool("tmux-echo")
 
-	runner := tmux.NewRealRunner()
-	cfg, err := config.Resolve(runner)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "tpack: config error:", err)
-		return 1
-	}
+		runner := tmux.NewRealRunner()
+		cfg, err := config.Resolve(runner)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "tpack: config error:", err)
+			return errSilent
+		}
 
-	output := newOutput(tmuxEcho, runner)
+		output := newOutput(tmuxEcho, runner)
 
-	if tmuxEcho {
-		// Reload tmux environment before install.
-		_ = runner.SourceFile(cfg.TmuxConf)
-	}
+		if tmuxEcho {
+			_ = runner.SourceFile(cfg.TmuxConf)
+		}
 
-	mgr := newManagerDeps(cfg.PluginPath, output)
+		mgr := newManagerDeps(cfg.PluginPath, output)
 
-	plugins := config.GatherPlugins(runner, config.RealFS{}, cfg.TmuxConf, cfg.Home, xdgConfigHome(cfg.Home))
+		plugins := config.GatherPlugins(runner, config.RealFS{}, cfg.TmuxConf, cfg.Home, xdgConfigHome(cfg.Home))
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-	defer cancel()
-	mgr.Install(ctx, plugins)
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+		defer cancel()
+		mgr.Install(ctx, plugins)
 
-	if tmuxEcho {
-		// Reload tmux environment after install.
-		_ = runner.SourceFile(cfg.TmuxConf)
-		output.EndMessage()
-	}
+		if tmuxEcho {
+			_ = runner.SourceFile(cfg.TmuxConf)
+			output.EndMessage()
+		}
 
-	return exitCode(output)
+		if output.HasFailed() {
+			return errSilent
+		}
+		return nil
+	},
+}
+
+func init() {
+	installCmd.Flags().Bool("tmux-echo", false, "output via tmux display-message")
 }
 
 func newOutput(tmuxEcho bool, runner tmux.Runner) ui.Output {
@@ -53,15 +63,6 @@ func newOutput(tmuxEcho bool, runner tmux.Runner) ui.Output {
 		return ui.NewTmuxOutput(runner)
 	}
 	return ui.NewShellOutput()
-}
-
-func hasFlag(args []string, flag string) bool {
-	for _, a := range args {
-		if a == flag {
-			return true
-		}
-	}
-	return false
 }
 
 func exitCode(output ui.Output) int {

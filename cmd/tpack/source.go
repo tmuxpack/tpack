@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/spf13/cobra"
 	"github.com/tmuxpack/tpack/internal/config"
 	"github.com/tmuxpack/tpack/internal/tmux"
 	"github.com/tmuxpack/tpack/internal/ui"
@@ -12,19 +13,23 @@ import (
 
 // Loading point for plugins
 
-func runSource() int {
-	runner := tmux.NewRealRunner()
-	cfg, err := config.Resolve(runner)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "tpack: config error:", err)
-		return 1
-	}
+var sourceCmd = &cobra.Command{
+	Use:   "source",
+	Short: "Source all plugins without installing",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		runner := tmux.NewRealRunner()
+		cfg, err := config.Resolve(runner)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "tpack: config error:", err)
+			return errSilent
+		}
 
-	output := ui.NewShellOutput()
-	mgr := newManagerDeps(cfg.PluginPath, output)
+		output := ui.NewShellOutput()
+		mgr := newManagerDeps(cfg.PluginPath, output)
 
-	plugins := config.GatherPlugins(runner, config.RealFS{}, cfg.TmuxConf, cfg.Home, xdgConfigHome(cfg.Home))
+		plugins := config.GatherPlugins(runner, config.RealFS{}, cfg.TmuxConf, cfg.Home, xdgConfigHome(cfg.Home))
 
-	mgr.Source(context.Background(), plugins)
-	return 0
+		mgr.Source(context.Background(), plugins)
+		return nil
+	},
 }

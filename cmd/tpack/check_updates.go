@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/spf13/cobra"
 	"github.com/tmuxpack/tpack/internal/config"
 	gitcli "github.com/tmuxpack/tpack/internal/git/cli"
 	"github.com/tmuxpack/tpack/internal/parallel"
@@ -16,6 +17,18 @@ import (
 	"github.com/tmuxpack/tpack/internal/state"
 	"github.com/tmuxpack/tpack/internal/tmux"
 )
+
+var checkUpdatesCmd = &cobra.Command{
+	Use:   "check-updates",
+	Short: "Check if any plugins have updates available",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		code := runCheckUpdates()
+		if code != 0 {
+			return errSilent
+		}
+		return nil
+	},
+}
 
 func runCheckUpdates() int {
 	runner := tmux.NewRealRunner()

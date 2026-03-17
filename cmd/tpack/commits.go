@@ -4,55 +4,53 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"strings"
 	"time"
 
+	"github.com/spf13/cobra"
 	gitcli "github.com/tmuxpack/tpack/internal/git/cli"
 	"github.com/tmuxpack/tpack/internal/tui"
 )
 
-func runCommits(args []string) int {
-	dir := flagValue(args, "--dir")
-	from := flagValue(args, "--from")
-	to := flagValue(args, "--to")
-	name := flagValue(args, "--name")
+var commitsCmd = &cobra.Command{
+	Use:   "commits",
+	Short: "Show commit history for a plugin",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		dir, _ := cmd.Flags().GetString("dir")
+		from, _ := cmd.Flags().GetString("from")
+		to, _ := cmd.Flags().GetString("to")
+		name, _ := cmd.Flags().GetString("name")
 
-	if dir == "" || from == "" || to == "" || name == "" {
-		fmt.Fprintln(os.Stderr, "tpack commits: --dir, --from, --to, and --name are required")
-		return 1
-	}
+		// Run git log to get commits.
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
 
-	// Run git log to get commits.
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
+		logger := gitcli.NewLogger()
+		commits, err := logger.Log(ctx, dir, from, to)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "tpack commits: git log failed:", err)
+			return errSilent
+		}
 
-	logger := gitcli.NewLogger()
-	commits, err := logger.Log(ctx, dir, from, to)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "tpack commits: git log failed:", err)
-		return 1
-	}
+		if len(commits) == 0 {
+			return nil
+		}
 
-	if len(commits) == 0 {
-		return 0
-	}
-
-	if err := tui.RunCommitViewer(name, commits, tui.DefaultTheme()); err != nil {
-		fmt.Fprintln(os.Stderr, "tpack:", err)
-		return 1
-	}
-	return 0
+		if err := tui.RunCommitViewer(name, commits, tui.DefaultTheme()); err != nil {
+			fmt.Fprintln(os.Stderr, "tpack:", err)
+			return errSilent
+		}
+		return nil
+	},
 }
 
-// flagValue returns the value after the given flag in args, or empty string.
-func flagValue(args []string, flag string) string {
-	for i, a := range args {
-		if a == flag && i+1 < len(args) {
-			return args[i+1]
-		}
-		if strings.HasPrefix(a, flag+"=") {
-			return a[len(flag)+1:]
-		}
-	}
-	return ""
+func init() {
+	commitsCmd.Flags().String("dir", "", "plugin directory")
+	commitsCmd.Flags().String("from", "", "start commit")
+	commitsCmd.Flags().String("to", "", "end commit")
+	commitsCmd.Flags().String("name", "", "plugin name")
+
+	_ = commitsCmd.MarkFlagRequired("dir")
+	_ = commitsCmd.MarkFlagRequired("from")
+	_ = commitsCmd.MarkFlagRequired("to")
+	_ = commitsCmd.MarkFlagRequired("name")
 }
