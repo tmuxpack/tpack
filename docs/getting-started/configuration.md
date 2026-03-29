@@ -9,32 +9,47 @@ Your tmux configuration file is typically at one of these paths:
 - `~/.tmux.conf`
 - `$XDG_CONFIG_HOME/tmux/tmux.conf`
 
-## 2. Declare plugins
+## 2. Declare plugins and initialize tpack
 
-Add `set -g @plugin` lines for each plugin you want:
+The configuration depends on how you installed tpack.
 
-```bash
-# List of plugins
-set -g @plugin 'tmuxpack/tpack'
-set -g @plugin 'tmux-plugins/tmux-sensible'
-```
+=== "Standalone binary"
 
-## 3. Add the initialization line
+    If you installed tpack via Homebrew, AUR, DEB/RPM, or built from source
+    (i.e. the `tpack` binary is on your `$PATH`):
 
-This **must** be the very last line in your config:
+    ```bash
+    # List of plugins
+    set -g @plugin 'tmux-plugins/tmux-sensible'
 
-```bash
-# Initialize tpack (keep this line at the very bottom of tmux.conf)
-run '~/.tmux/plugins/tpm/tpm'
-```
+    # Initialize tpack (keep this line at the very bottom of tmux.conf)
+    run 'tpack init'
+    ```
 
-## 4. Reload tmux
+=== "Git clone (TPM drop-in)"
+
+    If you cloned tpack into `~/.tmux/plugins/tpm`:
+
+    ```bash
+    # List of plugins
+    set -g @plugin 'tmux-plugins/tmux-sensible'
+
+    # Initialize tpack (keep this line at the very bottom of tmux.conf)
+    run '~/.tmux/plugins/tpm/tpm'
+    ```
+
+    tpack automatically updates itself when using the auto-downloaded
+    binary (the default for git clone installs) — no self-referencing
+    plugin line is needed. If you built from source with `make build`,
+    use `tpack self-update` or rebuild manually.
+
+## 3. Reload tmux
 
 ```bash
 tmux source ~/.tmux.conf
 ```
 
-## 5. Install plugins
+## 4. Install plugins
 
 Press ++prefix+shift+i++ to fetch and install all declared plugins.
 

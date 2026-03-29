@@ -7,7 +7,7 @@ The `tpack` binary can be used directly from the command line, outside of tmux k
 | Command | Description |
 |---------|-------------|
 | `tpack install` | Install all plugins declared in tmux.conf |
-| `tpack update [name]` | Update a specific plugin, or all if `all` is given |
+| `tpack update [name...]` | Update one or more plugins by name, or all if `all` is given |
 | `tpack clean` | Remove plugin directories not declared in tmux.conf |
 | `tpack source` | Source all plugins without installing (useful for already-cloned plugins) |
 | `tpack tui` | Open the interactive TUI |

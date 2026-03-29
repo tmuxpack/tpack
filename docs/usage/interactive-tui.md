@@ -6,7 +6,7 @@ Press ++prefix+shift+t++ to open the TUI. On tmux 3.2+ it launches in a popup wi
 
 ## Plugin List
 
-The default screen shows all declared plugins and their status (Installed, Not Installed, Outdated, Checking). Select plugins with ++space++ or ++tab++, then trigger an operation.
+The default screen shows all declared plugins and their status (Installed, Not Installed, Outdated, Checking, Check Failed). Select plugins with ++space++ or ++tab++, then trigger an operation.
 
 ## Progress View
 
@@ -78,4 +78,4 @@ Press ++at++ on the plugin list to open the debug screen. Displays tpack version
 |-----|--------|
 | ++arrow-up++ / ++arrow-down++ | Browse results |
 | ++enter++ | View commits for the selected result |
-| ++escape++ | Go back to plugin list |
+| ++escape++ | Go back to plugin list (or quit if launched from a key binding) |

@@ -19,7 +19,6 @@ Solutions to common issues with tpack.
 
     ```bash
     set -g @tpm_plugins '           \
-      tmuxpack/tpack                 \
       tmux-plugins/tmux-sensible     \
       tmux-plugins/tmux-resurrect    \
     '

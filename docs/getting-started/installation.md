@@ -6,7 +6,13 @@
 - **git**
 - **bash**
 
-## Install tpack
+There are two ways to install tpack. Pick whichever fits your workflow — both
+give you the same features.
+
+## Option A: Standalone binary
+
+Install tpack as a binary on your `$PATH`. This is the recommended approach for
+new setups. In your tmux config you'll use `run 'tpack init'` to load it.
 
 === "Homebrew"
 
@@ -40,13 +46,15 @@
     sudo rpm -i tpack_*.rpm
     ```
 
-=== "Git clone"
+=== "Go install"
 
-    Clone the repository into the default TPM path:
+    Requires [Go](https://go.dev/) 1.26 or later:
 
     ```bash
-    git clone https://github.com/tmuxpack/tpack ~/.tmux/plugins/tpm
+    go install github.com/tmuxpack/tpack/cmd/tpack@latest
     ```
+
+    Make sure `$GOPATH/bin` (or `$HOME/go/bin`) is on your `$PATH`.
 
 === "Build from source"
 
@@ -62,10 +70,21 @@
     sudo cp dist/tpack /usr/local/bin/
     ```
 
+## Option B: Git clone (TPM drop-in replacement)
+
+Clone tpack into the TPM directory. This is fully backward compatible with
+existing TPM configurations — if you're switching from TPM, no `tmux.conf`
+changes are needed. In your tmux config you'll use
+`run '~/.tmux/plugins/tpm/tpm'` to load it.
+
+```bash
+git clone https://github.com/tmuxpack/tpack ~/.tmux/plugins/tpm
+```
+
 ## Verify
 
 ```bash
-tpack --version
+tpack version
 ```
 
 ## Next step

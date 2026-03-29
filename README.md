@@ -24,19 +24,34 @@ Works on Linux, macOS, and FreeBSD.
 
 Requirements: `tmux` version 1.9 (or higher), `git`, `bash`.
 
-### Homebrew (macOS / Linux)
+There are two ways to set up tpack, each with different installation methods and
+configuration. Pick whichever fits your workflow.
+
+### Option A: Standalone binary
+
+Install tpack as a binary on your `$PATH`. This is the recommended approach for
+new setups.
+
+<details>
+<summary><b>Homebrew (macOS / Linux)</b></summary>
 
 ```bash
 brew install tmuxpack/tpack/tpack
 ```
 
-### AUR (Arch Linux)
+</details>
+
+<details>
+<summary><b>AUR (Arch Linux)</b></summary>
 
 ```bash
 yay -S tpack-bin
 ```
 
-### DEB / RPM (Debian, Ubuntu, Fedora, etc.)
+</details>
+
+<details>
+<summary><b>DEB / RPM (Debian, Ubuntu, Fedora, etc.)</b></summary>
 
 Download the latest `.deb` or `.rpm` package from the
 [releases page](https://github.com/tmuxpack/tpack/releases/latest) and install
@@ -50,33 +65,65 @@ sudo dpkg -i tpack_*.deb
 sudo rpm -i tpack_*.rpm
 ```
 
-### Git clone
+</details>
+
+<details>
+<summary><b>Go install</b></summary>
+
+Requires [Go](https://go.dev/) 1.26 or later:
 
 ```bash
-git clone https://github.com/tmuxpack/tpack ~/.tmux/plugins/tpm
+go install github.com/tmuxpack/tpack/cmd/tpack@latest
 ```
 
-### Build from source
+Make sure `$GOPATH/bin` (or `$HOME/go/bin`) is on your `$PATH`.
+
+</details>
+
+<details>
+<summary><b>Build from source</b></summary>
 
 ```bash
 git clone https://github.com/tmuxpack/tpack
 cd tpack
 make build
-# Binary is at dist/tpack
+# Binary is at dist/tpack — move it somewhere on your $PATH
+sudo cp dist/tpack /usr/local/bin/
 ```
 
-## Quick start
+</details>
 
-Add to `~/.tmux.conf` (or `$XDG_CONFIG_HOME/tmux/tmux.conf`):
+Then add to `~/.tmux.conf` (or `$XDG_CONFIG_HOME/tmux/tmux.conf`):
 
 ```bash
 # List of plugins
-set -g @plugin 'tmuxpack/tpack'
+set -g @plugin 'tmux-plugins/tmux-sensible'
+
+# Initialize tpack (keep this line at the very bottom of tmux.conf)
+run 'tpack init'
+```
+
+### Option B: Git clone (TPM drop-in replacement)
+
+Clone tpack into the TPM directory. This is fully backward compatible with
+existing TPM configurations — no `tmux.conf` changes needed if you're switching
+from TPM.
+
+```bash
+git clone https://github.com/tmuxpack/tpack ~/.tmux/plugins/tpm
+```
+
+Then add to `~/.tmux.conf` (or `$XDG_CONFIG_HOME/tmux/tmux.conf`):
+
+```bash
+# List of plugins
 set -g @plugin 'tmux-plugins/tmux-sensible'
 
 # Initialize tpack (keep this line at the very bottom of tmux.conf)
 run '~/.tmux/plugins/tpm/tpm'
 ```
+
+### Load and install plugins
 
 Reload tmux and press `prefix` + <kbd>I</kbd> to install plugins:
 
@@ -96,7 +143,7 @@ guide for full setup instructions.
 - **Automatic updates** — optional background update checking for plugins and
   tpack itself
 - **Customizable** — key bindings, colors, plugin directory, and update behavior
-- **Plugins browser** — search, brose and install plugins from the TUI, the list being maintained on the [plugins-registry](https://github.com/tmuxpack/plugins-registry)
+- **Plugins browser** — search, browse and install plugins from the TUI, the list being maintained on the [plugins-registry](https://github.com/tmuxpack/plugins-registry)
 
 See the [full documentation](https://tmuxpack.github.io/tpack/) for details on
 configuration, usage, and the CLI reference.
@@ -115,8 +162,8 @@ tpack is a drop-in replacement for TPM. Two ways to switch:
   ```
 
 - **Package manager** — install tpack via Homebrew, AUR, DEB/RPM, or
-  `go install`, then replace the `run` line in your `tmux.conf` with
-  `run 'tpack init'`.
+  `go install` (see [installation guide](https://tmuxpack.github.io/tpack/getting-started/installation/)),
+  then replace the `run` line in your `tmux.conf` with `run 'tpack init'`.
 
 See the
 [full migration guide](https://tmuxpack.github.io/tpack/getting-started/migrating-from-tpm/)

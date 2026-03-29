@@ -41,25 +41,40 @@ Works on Linux, macOS, and FreeBSD.
 
 ## Quick Start
 
-Install tpack:
+=== "Standalone binary"
 
-```bash
-# Install (macOS / Linux)
-brew install tmuxpack/tpack/tpack
-```
+    Install tpack and add it to your tmux config:
 
-Add plugins to your tmux configuration:
+    ```bash
+    # Install (macOS / Linux)
+    brew install tmuxpack/tpack/tpack
+    ```
 
-```bash
-# ~/.tmux.conf
-set -g @plugin 'tmuxpack/tpack'
-set -g @plugin 'tmux-plugins/tmux-sensible'
+    ```bash
+    # ~/.tmux.conf
+    set -g @plugin 'tmux-plugins/tmux-sensible'
 
-# Initialize tpack (keep this line at the very bottom of tmux.conf)
-run '~/.tmux/plugins/tpm/tpm'
-```
+    # Initialize tpack (keep this line at the very bottom of tmux.conf)
+    run 'tpack init'
+    ```
 
-Reload tmux:
+=== "Git clone (TPM drop-in)"
+
+    Clone tpack and add it to your tmux config:
+
+    ```bash
+    git clone https://github.com/tmuxpack/tpack ~/.tmux/plugins/tpm
+    ```
+
+    ```bash
+    # ~/.tmux.conf
+    set -g @plugin 'tmux-plugins/tmux-sensible'
+
+    # Initialize tpack (keep this line at the very bottom of tmux.conf)
+    run '~/.tmux/plugins/tpm/tpm'
+    ```
+
+Reload tmux and press ++prefix+shift+i++ to install plugins:
 
 ```bash
 tmux source ~/.tmux.conf
