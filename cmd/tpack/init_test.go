@@ -48,8 +48,9 @@ func TestFindBinary_WithCurrentDirEnv(t *testing.T) {
 	}
 }
 
-func TestBindKeys_UseTuiPopup(t *testing.T) {
+func TestBindKeys_PopupPath(t *testing.T) {
 	runner := tmux.NewMockRunner()
+	runner.VersionStr = "tmux 3.4"
 	cfg := &config.Config{
 		InstallKey: "I",
 		UpdateKey:  "U",
@@ -59,35 +60,77 @@ func TestBindKeys_UseTuiPopup(t *testing.T) {
 
 	bindKeys(runner, cfg, "/usr/bin/tpack")
 
-	if len(runner.Calls) != 4 {
-		t.Fatalf("expected 4 BindKey calls, got %d", len(runner.Calls))
+	var bindCalls []tmux.Call
+	for _, c := range runner.Calls {
+		if c.Method == "BindKey" {
+			bindCalls = append(bindCalls, c)
+		}
 	}
 
-	// Verify install key binding uses tui --popup --install.
-	installCall := runner.Calls[0]
-	if installCall.Method != "BindKey" {
-		t.Errorf("expected BindKey method, got %s", installCall.Method)
-	}
-	if !strings.Contains(installCall.Args[1], "tui --popup --install") {
-		t.Errorf("expected install binding to use 'tui --popup --install', got %s", installCall.Args[1])
+	if len(bindCalls) != 4 {
+		t.Fatalf("expected 4 BindKey calls, got %d", len(bindCalls))
 	}
 
-	// Verify update key binding uses tui --popup --update.
-	updateCall := runner.Calls[1]
-	if !strings.Contains(updateCall.Args[1], "tui --popup --update") {
-		t.Errorf("expected update binding to use 'tui --popup --update', got %s", updateCall.Args[1])
+	// All popup bindings should use display-popup with new-window fallback.
+	for i, c := range bindCalls {
+		cmd := c.Args[1]
+		if !strings.Contains(cmd, "display-popup") {
+			t.Errorf("binding %d: expected display-popup, got %s", i, cmd)
+		}
+		if !strings.Contains(cmd, "new-window") {
+			t.Errorf("binding %d: expected new-window fallback, got %s", i, cmd)
+		}
 	}
 
-	// Verify clean key binding uses tui --popup --clean.
-	cleanCall := runner.Calls[2]
-	if !strings.Contains(cleanCall.Args[1], "tui --popup --clean") {
-		t.Errorf("expected clean binding to use 'tui --popup --clean', got %s", cleanCall.Args[1])
+	if !strings.Contains(bindCalls[0].Args[1], "tui --install") {
+		t.Errorf("expected install binding to contain 'tui --install', got %s", bindCalls[0].Args[1])
+	}
+	if !strings.Contains(bindCalls[1].Args[1], "tui --update") {
+		t.Errorf("expected update binding to contain 'tui --update', got %s", bindCalls[1].Args[1])
+	}
+	if !strings.Contains(bindCalls[2].Args[1], "tui --clean") {
+		t.Errorf("expected clean binding to contain 'tui --clean', got %s", bindCalls[2].Args[1])
+	}
+	if !strings.Contains(bindCalls[3].Args[1], "tui") {
+		t.Errorf("expected TUI binding to contain 'tui', got %s", bindCalls[3].Args[1])
+	}
+}
+
+func TestBindKeys_InlinePath(t *testing.T) {
+	runner := tmux.NewMockRunner()
+	runner.VersionStr = "tmux 2.9"
+	cfg := &config.Config{
+		InstallKey: "I",
+		UpdateKey:  "U",
+		CleanKey:   "M-u",
+		TuiKey:     "T",
 	}
 
-	// Verify TUI key binding uses tui --popup.
-	tuiCall := runner.Calls[3]
-	if !strings.Contains(tuiCall.Args[1], "tui --popup") {
-		t.Errorf("expected tui binding to use 'tui --popup', got %s", tuiCall.Args[1])
+	bindKeys(runner, cfg, "/usr/bin/tpack")
+
+	var bindCalls []tmux.Call
+	for _, c := range runner.Calls {
+		if c.Method == "BindKey" {
+			bindCalls = append(bindCalls, c)
+		}
+	}
+
+	if len(bindCalls) != 4 {
+		t.Fatalf("expected 4 BindKey calls, got %d", len(bindCalls))
+	}
+
+	for i, c := range bindCalls {
+		cmd := c.Args[1]
+		if !strings.Contains(cmd, "new-window") {
+			t.Errorf("binding %d: expected new-window, got %s", i, cmd)
+		}
+		if strings.Contains(cmd, "display-popup") {
+			t.Errorf("binding %d: unexpected display-popup in inline binding, got %s", i, cmd)
+		}
+	}
+
+	if !strings.Contains(bindCalls[0].Args[1], "tui --install") {
+		t.Errorf("expected install binding to contain 'tui --install', got %s", bindCalls[0].Args[1])
 	}
 }
 

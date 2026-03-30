@@ -93,7 +93,7 @@ func TestInitBindsKeysWithLegacySyntax(t *testing.T) {
 
 	keys := tmuxListKeys(t, socket)
 
-	assertContains(t, keys, "tui --popup --install")
+	assertContains(t, keys, "tui --install")
 }
 
 func TestInitWithLegacyAndNewSyntax(t *testing.T) {
@@ -119,5 +119,5 @@ func TestInitWithLegacyAndNewSyntax(t *testing.T) {
 
 	keys := tmuxListKeys(t, socket)
 
-	assertContains(t, keys, "tui --popup --install")
+	assertContains(t, keys, "tui --install")
 }

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 )
 
@@ -31,23 +30,9 @@ func TestInitBindsKeys(t *testing.T) {
 
 	keys := tmuxListKeys(t, socket)
 
-	assertContains(t, keys, "tui --popup --install")
-	assertContains(t, keys, "tui --popup --update")
-	assertContains(t, keys, "tui --popup --clean")
-
-	// The TUI key binding uses "tui --popup" without a sub-command.
-	// Count occurrences of "tui --popup" vs the specific sub-commands.
-	// There should be at least 4 total: install, update, clean, and standalone.
-	totalPopup := strings.Count(keys, "tui --popup")
-	subCommands := strings.Count(keys, "tui --popup --install") +
-		strings.Count(keys, "tui --popup --update") +
-		strings.Count(keys, "tui --popup --clean")
-
-	if totalPopup <= subCommands {
-		t.Errorf("expected standalone 'tui --popup' binding in addition to sub-command bindings; "+
-			"total 'tui --popup' occurrences: %d, sub-command occurrences: %d",
-			totalPopup, subCommands)
-	}
+	assertContains(t, keys, "tui --install")
+	assertContains(t, keys, "tui --update")
+	assertContains(t, keys, "tui --clean")
 }
 
 func TestInitBindsKeysSetOption(t *testing.T) {
@@ -73,7 +58,7 @@ func TestInitBindsKeysSetOption(t *testing.T) {
 
 	keys := tmuxListKeys(t, socket)
 
-	assertContains(t, keys, "tui --popup --install")
+	assertContains(t, keys, "tui --install")
 }
 
 func TestInitCustomPluginDir(t *testing.T) {
