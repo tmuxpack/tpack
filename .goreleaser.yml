@@ -68,3 +68,18 @@ nfpms:
     priority: optional
     dependencies:
       - tmux
+
+  - id: tpack-termux
+    package_name: tpack
+    homepage: https://github.com/tmuxpack/tpack
+    description: Tmux Plugin Manager (Termux)
+    maintainer: tmuxpack <tmuxpack@users.noreply.github.com>
+    license: MIT
+    formats:
+      - deb
+    bindir: /data/data/com.termux/files/usr/bin
+    section: utils
+    priority: optional
+    overrides:
+      deb:
+        file_name_template: "tpack_{{ .Version }}_termux_{{ .Arch }}"
