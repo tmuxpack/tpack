@@ -28,6 +28,34 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GORELEASER_TOKEN: ${{ secrets.GORELEASER_TOKEN }}
 
+      - name: Fix Termux deb architecture
+        run: |
+          for deb in dist/*termux*arm64*.deb; do
+            [ -f "$deb" ] || continue
+            tmpdir=$(mktemp -d)
+            dpkg-deb -R "$deb" "$tmpdir"
+            sed -i 's/^Architecture: arm64$/Architecture: aarch64/' "$tmpdir/DEBIAN/control"
+            dpkg-deb -b "$tmpdir" "$deb"
+            rm -rf "$tmpdir"
+          done
+
+      - name: Update checksums and upload fixed Termux debs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Regenerate checksums for modified debs
+          for deb in dist/*termux*arm64*.deb; do
+            [ -f "$deb" ] || continue
+            filename=$(basename "$deb")
+            sha=$(sha256sum "$deb" | awk '{print $1}')
+            sed -i "s/^[a-f0-9]\{64\}  ${filename}$/${sha}  ${filename}/" dist/checksums.txt
+          done
+          gh release upload "${GITHUB_REF_NAME}" dist/checksums.txt --clobber
+          for deb in dist/*termux*.deb; do
+            [ -f "$deb" ] || continue
+            gh release upload "${GITHUB_REF_NAME}" "$deb" --clobber
+          done
+
   aur-publish:
     needs: release
     runs-on: ubuntu-latest

@@ -10,13 +10,9 @@ builds:
       - linux
       - darwin
       - freebsd
-      - android
     goarch:
       - amd64
       - arm64
-    ignore:
-      - goos: android
-        goarch: amd64
     ldflags:
       - -s -w -X main.version={{.Version}}
 
@@ -80,10 +76,10 @@ nfpms:
     maintainer: tmuxpack <tmuxpack@users.noreply.github.com>
     license: MIT
     formats:
-      - termux.deb
-    bindir: /usr/bin
+      - deb
+    bindir: /data/data/com.termux/files/usr/bin
     section: utils
     priority: optional
     overrides:
-      termux.deb:
+      deb:
         file_name_template: "tpack_{{ .Version }}_termux_{{ .Arch }}"
