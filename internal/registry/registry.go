@@ -21,6 +21,7 @@ type RegistryItem struct {
 	Category    string `yaml:"category"`
 	Stars       int    `yaml:"stars"`
 	Host        string `yaml:"host,omitempty"`
+	AddedDate   string `yaml:"added_date,omitempty"`
 }
 
 // Parse deserializes raw YAML bytes into a Registry.
@@ -63,6 +64,35 @@ func FilterByCategory(reg *Registry, category string) []RegistryItem {
 		}
 	}
 	return results
+}
+
+// Newest returns the n most recently added plugins, sorted by added_date
+// descending, then by stars descending within the same date. Entries with
+// empty added_date sort last.
+func Newest(reg *Registry, n int) []RegistryItem {
+	items := make([]RegistryItem, len(reg.Plugins))
+	copy(items, reg.Plugins)
+
+	sort.SliceStable(items, func(i, j int) bool {
+		di, dj := items[i].AddedDate, items[j].AddedDate
+		switch {
+		case di == "" && dj == "":
+			return items[i].Stars > items[j].Stars
+		case di == "":
+			return false
+		case dj == "":
+			return true
+		case di != dj:
+			return di > dj
+		default:
+			return items[i].Stars > items[j].Stars
+		}
+	})
+
+	if n > len(items) {
+		n = len(items)
+	}
+	return items[:n]
 }
 
 func sortByStars(items []RegistryItem) {

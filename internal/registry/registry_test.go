@@ -184,6 +184,71 @@ func TestParseRegistry_HostOmittedInOutput(t *testing.T) {
 	}
 }
 
+func TestNewest(t *testing.T) {
+	reg := &Registry{
+		Plugins: []RegistryItem{
+			{Repo: "old/plugin", Description: "Old plugin", Stars: 5000, AddedDate: "2026-01-01"},
+			{Repo: "new/plugin", Description: "New plugin", Stars: 100, AddedDate: "2026-04-01"},
+			{Repo: "mid/plugin", Description: "Mid plugin", Stars: 3000, AddedDate: "2026-02-15"},
+			{Repo: "also-new/plugin", Description: "Also new", Stars: 500, AddedDate: "2026-04-01"},
+		},
+	}
+
+	results := Newest(reg, 3)
+	if len(results) != 3 {
+		t.Fatalf("expected 3 results, got %d", len(results))
+	}
+
+	// Newest date first, then by stars within same date
+	if results[0].Repo != "also-new/plugin" {
+		t.Errorf("expected also-new/plugin first (same date, higher stars), got %s", results[0].Repo)
+	}
+	if results[1].Repo != "new/plugin" {
+		t.Errorf("expected new/plugin second (same date, lower stars), got %s", results[1].Repo)
+	}
+	if results[2].Repo != "mid/plugin" {
+		t.Errorf("expected mid/plugin third, got %s", results[2].Repo)
+	}
+}
+
+func TestNewest_EmptyDatesSortLast(t *testing.T) {
+	reg := &Registry{
+		Plugins: []RegistryItem{
+			{Repo: "no-date/plugin", Description: "No date", Stars: 9999},
+			{Repo: "has-date/plugin", Description: "Has date", Stars: 1, AddedDate: "2026-01-01"},
+		},
+	}
+
+	results := Newest(reg, 2)
+	if results[0].Repo != "has-date/plugin" {
+		t.Errorf("expected has-date/plugin first, got %s", results[0].Repo)
+	}
+	if results[1].Repo != "no-date/plugin" {
+		t.Errorf("expected no-date/plugin last, got %s", results[1].Repo)
+	}
+}
+
+func TestNewest_NLargerThanPlugins(t *testing.T) {
+	reg := &Registry{
+		Plugins: []RegistryItem{
+			{Repo: "only/one", Description: "Only one", Stars: 10, AddedDate: "2026-03-01"},
+		},
+	}
+
+	results := Newest(reg, 20)
+	if len(results) != 1 {
+		t.Errorf("expected 1 result, got %d", len(results))
+	}
+}
+
+func TestNewest_EmptyRegistry(t *testing.T) {
+	reg := &Registry{}
+	results := Newest(reg, 10)
+	if len(results) != 0 {
+		t.Errorf("expected 0 results, got %d", len(results))
+	}
+}
+
 func TestSearch_SortedByStars(t *testing.T) {
 	reg := &Registry{
 		Plugins: []RegistryItem{
