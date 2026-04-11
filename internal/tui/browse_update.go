@@ -18,7 +18,7 @@ type registryFetchResultMsg struct {
 func (m Model) enterBrowse() (tea.Model, tea.Cmd) {
 	m.screen = ScreenBrowse
 	m.browseLoading = true
-	m.browseCategory = -1
+	m.browseCategory = -2
 	m.browseResults = nil
 	m.browseErr = nil
 	m.browseQuery = ""
@@ -106,7 +106,7 @@ func (m *Model) cycleCategory() {
 	}
 	m.browseCategory++
 	if m.browseCategory >= len(m.browseRegistry.Categories) {
-		m.browseCategory = -1
+		m.browseCategory = -2
 	}
 	m.browseScroll.reset()
 }
@@ -114,6 +114,18 @@ func (m *Model) cycleCategory() {
 func (m *Model) applyBrowseFilter() {
 	if m.browseRegistry == nil {
 		m.browseResults = nil
+		return
+	}
+
+	if m.browseCategory == -2 {
+		m.browseResults = registry.Newest(m.browseRegistry, 20)
+		if m.browseQuery != "" {
+			m.browseResults = registry.Search(
+				&registry.Registry{Plugins: m.browseResults, Categories: m.browseRegistry.Categories},
+				m.browseQuery,
+			)
+		}
+		m.browseScroll.reset()
 		return
 	}
 

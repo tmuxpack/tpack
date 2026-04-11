@@ -138,7 +138,7 @@ func NewModel(cfg *config.Config, plugins []plug.Plugin, deps Deps, opts ...Mode
 	ti.CharLimit = 100
 	ti.Prompt = "/ "
 	m.browseInput = ti
-	m.browseCategory = -1
+	m.browseCategory = -2
 	m.progressBar.SetWidth(min(FixedWidth-ProgressBarPadding, ProgressBarMaxWidth))
 	for _, opt := range opts {
 		opt(&m)

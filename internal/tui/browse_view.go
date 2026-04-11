@@ -58,6 +58,13 @@ func (m *Model) renderCategoryBar() string {
 	}
 
 	var parts []string
+
+	if m.browseCategory == -2 {
+		parts = append(parts, m.theme.BrowseCategoryStyle.Render("[new]"))
+	} else {
+		parts = append(parts, m.theme.MutedTextStyle.Render("new"))
+	}
+
 	if m.browseCategory == -1 {
 		parts = append(parts, m.theme.BrowseCategoryStyle.Render("[all]"))
 	} else {

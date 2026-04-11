@@ -188,6 +188,49 @@ func TestOpenFromBrowse_NonGitHubHost(t *testing.T) {
 	}
 }
 
+func TestBrowseUpdate_DefaultCategoryIsNew(t *testing.T) {
+	m := newTestModel(t, nil)
+	msg := tea.KeyPressMsg{Code: 'b', Text: "b"}
+	result, _ := m.Update(msg)
+	m = result.(Model)
+
+	if m.browseCategory != -2 {
+		t.Errorf("expected default browseCategory -2 (new), got %d", m.browseCategory)
+	}
+}
+
+func TestBrowseUpdate_TabCyclesFromNew(t *testing.T) {
+	m := newBrowseModel(t)
+	m.browseCategory = -2
+
+	msg := tea.KeyPressMsg{Code: tea.KeyTab}
+
+	// -2 (new) -> -1 (all)
+	result, _ := m.Update(msg)
+	m = result.(Model)
+	if m.browseCategory != -1 {
+		t.Errorf("expected category -1 (all), got %d", m.browseCategory)
+	}
+
+	// -1 (all) -> 0 (theme)
+	result, _ = m.Update(msg)
+	m = result.(Model)
+	if m.browseCategory != 0 {
+		t.Errorf("expected category 0, got %d", m.browseCategory)
+	}
+
+	// cycle through all categories back to -2
+	result, _ = m.Update(msg) // 1
+	m = result.(Model)
+	result, _ = m.Update(msg) // 2
+	m = result.(Model)
+	result, _ = m.Update(msg) // wraps to -2
+	m = result.(Model)
+	if m.browseCategory != -2 {
+		t.Errorf("expected category -2 (new), got %d", m.browseCategory)
+	}
+}
+
 func TestInstallFromBrowse_NonGitHubHost_UsesFullURL(t *testing.T) {
 	m := newBrowseModel(t)
 	tmpDir := t.TempDir()
