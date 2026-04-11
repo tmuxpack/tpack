@@ -249,6 +249,36 @@ func TestNewest_EmptyRegistry(t *testing.T) {
 	}
 }
 
+func TestParseRegistry_WithAddedDate(t *testing.T) {
+	raw := []byte(`
+categories:
+  - theme
+
+plugins:
+  - repo: catppuccin/tmux
+    description: Soothing pastel theme for Tmux
+    author: catppuccin
+    category: theme
+    stars: 1250
+    added_date: "2026-02-17"
+  - repo: dracula/tmux
+    description: Dark theme for Tmux
+    author: dracula
+    category: theme
+    stars: 500
+`)
+	reg, err := Parse(raw)
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+	if reg.Plugins[0].AddedDate != "2026-02-17" {
+		t.Errorf("expected added_date 2026-02-17, got %q", reg.Plugins[0].AddedDate)
+	}
+	if reg.Plugins[1].AddedDate != "" {
+		t.Errorf("expected empty added_date for second plugin, got %q", reg.Plugins[1].AddedDate)
+	}
+}
+
 func TestSearch_SortedByStars(t *testing.T) {
 	reg := &Registry{
 		Plugins: []RegistryItem{
