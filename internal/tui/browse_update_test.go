@@ -23,12 +23,13 @@ func newBrowseModel(t *testing.T) Model {
 		},
 	}
 	m.browseResults = m.browseRegistry.Plugins
-	m.browseCategory = -1
+	m.browseCategory = -2
 	return m
 }
 
 func TestBrowseUpdate_TabCyclesCategory(t *testing.T) {
 	m := newBrowseModel(t)
+	m.browseCategory = -1 // start at "all" to test the original cycle behavior
 
 	msg := tea.KeyPressMsg{Code: tea.KeyTab}
 	result, _ := m.Update(msg)
@@ -43,12 +44,13 @@ func TestBrowseUpdate_TabCyclesCategory(t *testing.T) {
 		t.Errorf("expected category 1, got %d", m.browseCategory)
 	}
 
+	// Cycle through remaining categories to wrap
 	result, _ = m.Update(msg)
 	m = result.(Model)
 	result, _ = m.Update(msg)
 	m = result.(Model)
-	if m.browseCategory != -1 {
-		t.Errorf("expected category -1 (all), got %d", m.browseCategory)
+	if m.browseCategory != -2 {
+		t.Errorf("expected category -2 (new), got %d", m.browseCategory)
 	}
 }
 

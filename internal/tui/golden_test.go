@@ -391,7 +391,7 @@ func TestGolden_ScreenBrowse(t *testing.T) {
 				m.browseRegistry = &registry.Registry{
 					Categories: []string{"theme", "session"},
 				}
-				m.browseCategory = -1
+				m.browseCategory = -2
 			},
 		},
 		{
@@ -405,7 +405,7 @@ func TestGolden_ScreenBrowse(t *testing.T) {
 					{Repo: "catppuccin/tmux", Description: "Soothing pastel theme", Category: "theme", Stars: 1250},
 					{Repo: "tmux-plugins/tmux-resurrect", Description: "Persists tmux environment", Category: "session", Stars: 11400},
 				}
-				m.browseCategory = -1
+				m.browseCategory = -2
 			},
 		},
 		{
