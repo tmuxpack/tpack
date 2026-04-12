@@ -279,6 +279,54 @@ plugins:
 	}
 }
 
+func TestExcludeCategories(t *testing.T) {
+	reg := &Registry{
+		Categories: []string{"theme", "ai", "utility"},
+		Plugins: []RegistryItem{
+			{Repo: "catppuccin/tmux", Category: "theme", Stars: 1250},
+			{Repo: "agent/indicator", Category: "ai", Stars: 22},
+			{Repo: "tmux-plugins/sensible", Category: "utility", Stars: 5000},
+			{Repo: "another/ai-plugin", Category: "ai", Stars: 10},
+		},
+	}
+
+	result := ExcludeCategories(reg, []string{"ai"})
+
+	if len(result.Categories) != 2 {
+		t.Fatalf("expected 2 categories, got %d", len(result.Categories))
+	}
+	for _, c := range result.Categories {
+		if c == "ai" {
+			t.Error("ai category should be excluded")
+		}
+	}
+	if len(result.Plugins) != 2 {
+		t.Fatalf("expected 2 plugins, got %d", len(result.Plugins))
+	}
+	for _, p := range result.Plugins {
+		if p.Category == "ai" {
+			t.Errorf("ai plugin %s should be excluded", p.Repo)
+		}
+	}
+}
+
+func TestExcludeCategories_Empty(t *testing.T) {
+	reg := &Registry{
+		Categories: []string{"theme"},
+		Plugins:    []RegistryItem{{Repo: "a/b", Category: "theme"}},
+	}
+
+	result := ExcludeCategories(reg, nil)
+	if result != reg {
+		t.Error("expected same registry returned when exclude is empty")
+	}
+
+	result = ExcludeCategories(reg, []string{})
+	if result != reg {
+		t.Error("expected same registry returned when exclude is empty slice")
+	}
+}
+
 func TestSearch_SortedByStars(t *testing.T) {
 	reg := &Registry{
 		Plugins: []RegistryItem{

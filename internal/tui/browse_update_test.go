@@ -233,6 +233,46 @@ func TestBrowseUpdate_TabCyclesFromNew(t *testing.T) {
 	}
 }
 
+func TestBrowseUpdate_HiddenCategoriesFiltered(t *testing.T) {
+	m := newTestModel(t, nil)
+	m.cfg.HiddenCategories = []string{"ai"}
+
+	msg := tea.KeyPressMsg{Code: 'b', Text: "b"}
+	result, _ := m.Update(msg)
+	m = result.(Model)
+
+	result, _ = m.Update(registryFetchResultMsg{
+		Registry: &registry.Registry{
+			Categories: []string{"ai", "theme", "utility"},
+			Plugins: []registry.RegistryItem{
+				{Repo: "agent/indicator", Description: "AI agent", Category: "ai", Stars: 22},
+				{Repo: "catppuccin/tmux", Description: "Theme", Category: "theme", Stars: 1250},
+				{Repo: "sensible/tmux", Description: "Sensible", Category: "utility", Stars: 5000},
+			},
+		},
+	})
+	m = result.(Model)
+
+	// ai category should be removed
+	for _, c := range m.browseRegistry.Categories {
+		if c == "ai" {
+			t.Error("ai category should be hidden")
+		}
+	}
+	// ai plugins should be removed
+	for _, p := range m.browseRegistry.Plugins {
+		if p.Category == "ai" {
+			t.Errorf("ai plugin %s should be hidden", p.Repo)
+		}
+	}
+	if len(m.browseRegistry.Categories) != 2 {
+		t.Errorf("expected 2 categories, got %d", len(m.browseRegistry.Categories))
+	}
+	if len(m.browseRegistry.Plugins) != 2 {
+		t.Errorf("expected 2 plugins, got %d", len(m.browseRegistry.Plugins))
+	}
+}
+
 func TestInstallFromBrowse_NonGitHubHost_UsesFullURL(t *testing.T) {
 	m := newBrowseModel(t)
 	tmpDir := t.TempDir()

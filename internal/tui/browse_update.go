@@ -95,7 +95,7 @@ func (m Model) handleRegistryFetch(msg registryFetchResultMsg) (tea.Model, tea.C
 		m.browseErr = msg.Err
 		return m, nil
 	}
-	m.browseRegistry = msg.Registry
+	m.browseRegistry = registry.ExcludeCategories(msg.Registry, m.cfg.HiddenCategories)
 	m.applyBrowseFilter()
 	return m, nil
 }

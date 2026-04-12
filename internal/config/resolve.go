@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/tmuxpack/tpack/internal/tmux"
@@ -108,6 +109,7 @@ func Resolve(runner tmux.Runner, opts ...Option) (*Config, error) {
 		cfg.PinnedVersion = v
 	}
 
+	cfg.HiddenCategories = resolveHiddenCategories(runner)
 	cfg.StatePath = filepath.Join(o.xdgStateHome(), "tpack")
 	cfg.Home = o.home
 
@@ -232,4 +234,20 @@ func resolveOptionWithFallback(runner tmux.Runner, current, def string) string {
 	}
 
 	return def
+}
+
+// resolveHiddenCategories reads a comma-separated list of category names to hide.
+func resolveHiddenCategories(runner tmux.Runner) []string {
+	v, err := runner.ShowOption(HiddenCategoriesOption)
+	if err != nil || v == "" {
+		return nil
+	}
+	var cats []string
+	for _, c := range strings.Split(v, ",") {
+		c = strings.TrimSpace(c)
+		if c != "" {
+			cats = append(cats, c)
+		}
+	}
+	return cats
 }

@@ -35,8 +35,9 @@ const (
 	ColorTextOption      = "@tpack-color-text"
 
 	// Current tmux option names for update settings.
-	UpdateIntervalOption = "@tpack-update-interval"
-	UpdateModeOption     = "@tpack-update-mode"
+	UpdateIntervalOption   = "@tpack-update-interval"
+	UpdateModeOption       = "@tpack-update-mode"
+	HiddenCategoriesOption = "@tpack-hidden-categories"
 
 	// VersionOption is the tmux option for pinning the tpack version.
 	VersionOption = "@tpack-version"
@@ -68,6 +69,8 @@ type Config struct {
 	UpdateMode string
 	// PinnedVersion is the pinned tpack version from @tpack-version (empty = auto-update).
 	PinnedVersion string
+	// HiddenCategories is a list of registry categories to hide from the browse screen.
+	HiddenCategories []string
 	// Directory for persistent state (e.g. last update check).
 	StatePath string
 	// User's home directory

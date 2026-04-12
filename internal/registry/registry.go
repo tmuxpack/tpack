@@ -95,6 +95,31 @@ func Newest(reg *Registry, n int) []RegistryItem {
 	return items[:n]
 }
 
+// ExcludeCategories returns a new Registry with the given categories and their
+// plugins removed.
+func ExcludeCategories(reg *Registry, exclude []string) *Registry {
+	if len(exclude) == 0 {
+		return reg
+	}
+	hidden := make(map[string]bool, len(exclude))
+	for _, c := range exclude {
+		hidden[c] = true
+	}
+	var cats []string
+	for _, c := range reg.Categories {
+		if !hidden[c] {
+			cats = append(cats, c)
+		}
+	}
+	var plugins []RegistryItem
+	for _, p := range reg.Plugins {
+		if !hidden[p.Category] {
+			plugins = append(plugins, p)
+		}
+	}
+	return &Registry{Categories: cats, Plugins: plugins}
+}
+
 func sortByStars(items []RegistryItem) {
 	sort.SliceStable(items, func(i, j int) bool {
 		return items[i].Stars > items[j].Stars

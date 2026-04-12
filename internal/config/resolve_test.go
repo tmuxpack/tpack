@@ -428,4 +428,44 @@ func TestResolveDefaultsNoColors(t *testing.T) {
 	if cfg.PinnedVersion != "" {
 		t.Errorf("PinnedVersion = %q, want empty", cfg.PinnedVersion)
 	}
+	if len(cfg.HiddenCategories) != 0 {
+		t.Errorf("HiddenCategories = %v, want nil", cfg.HiddenCategories)
+	}
+}
+
+func TestResolveHiddenCategories(t *testing.T) {
+	tests := []struct {
+		name  string
+		value string
+		want  []string
+	}{
+		{"single category", "ai", []string{"ai"}},
+		{"multiple categories", "ai,development", []string{"ai", "development"}},
+		{"with spaces", " ai , development ", []string{"ai", "development"}},
+		{"empty string", "", nil},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := tmux.NewMockRunner()
+			if tt.value != "" {
+				m.Options["@tpack-hidden-categories"] = tt.value
+			}
+			fs := config.NewMockFS()
+
+			cfg, err := config.Resolve(m, testOpts(fs)...)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			if len(cfg.HiddenCategories) != len(tt.want) {
+				t.Fatalf("HiddenCategories = %v, want %v", cfg.HiddenCategories, tt.want)
+			}
+			for i, got := range cfg.HiddenCategories {
+				if got != tt.want[i] {
+					t.Errorf("HiddenCategories[%d] = %q, want %q", i, got, tt.want[i])
+				}
+			}
+		})
+	}
 }
