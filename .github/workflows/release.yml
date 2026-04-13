@@ -72,8 +72,19 @@ jobs:
 
       - name: Prepare PKGBUILD and .SRCINFO
         run: |
+          set -euo pipefail
+          rm -rf build aur-repo
           AMD64_SHA=$(grep "tpack_${{ steps.version.outputs.version }}_linux_amd64.tar.gz" checksums.txt | awk '{print $1}')
           ARM64_SHA=$(grep "tpack_${{ steps.version.outputs.version }}_linux_arm64.tar.gz" checksums.txt | awk '{print $1}')
+
+          if [[ -z "$AMD64_SHA" ]]; then
+            echo "error: AMD64 SHA not found in checksums.txt" >&2
+            exit 1
+          fi
+          if [[ -z "$ARM64_SHA" ]]; then
+            echo "error: ARM64 SHA not found in checksums.txt" >&2
+            exit 1
+          fi
 
           mkdir -p build
           sed -e "s/PKGVER_PLACEHOLDER/${{ steps.version.outputs.version }}/" \
