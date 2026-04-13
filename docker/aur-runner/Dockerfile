@@ -12,6 +12,8 @@ RUN pacman -Syu --noconfirm \
         jq \
         sudo \
         ca-certificates \
+        icu \
+        krb5 \
     && pacman -Scc --noconfirm
 
 RUN useradd --create-home --shell /bin/bash --uid 1001 runner \
@@ -25,10 +27,6 @@ RUN curl -fsSL -o actions-runner.tar.gz \
         "https://github.com/actions/runner/releases/download/v${RUNNER_VERSION}/actions-runner-linux-${RUNNER_ARCH}-${RUNNER_VERSION}.tar.gz" \
     && tar xzf actions-runner.tar.gz \
     && rm actions-runner.tar.gz
-
-USER root
-RUN /home/runner/bin/installdependencies.sh
-USER runner
 
 COPY --chown=runner:runner entrypoint.sh /usr/local/bin/entrypoint.sh
 
