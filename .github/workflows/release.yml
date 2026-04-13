@@ -58,7 +58,7 @@ jobs:
 
   aur-publish:
     needs: release
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, aur-publisher]
     steps:
       - uses: actions/checkout@v6
 
@@ -68,23 +68,37 @@ jobs:
 
       - name: Download release checksums
         run: |
-          curl -sL "https://github.com/tmuxpack/tpack/releases/download/${GITHUB_REF_NAME}/checksums.txt" -o checksums.txt
+          curl -fsSL "https://github.com/tmuxpack/tpack/releases/download/${GITHUB_REF_NAME}/checksums.txt" -o checksums.txt
 
-      - name: Prepare PKGBUILD
+      - name: Prepare PKGBUILD and .SRCINFO
         run: |
           AMD64_SHA=$(grep "tpack_${{ steps.version.outputs.version }}_linux_amd64.tar.gz" checksums.txt | awk '{print $1}')
           ARM64_SHA=$(grep "tpack_${{ steps.version.outputs.version }}_linux_arm64.tar.gz" checksums.txt | awk '{print $1}')
 
+          mkdir -p build
           sed -e "s/PKGVER_PLACEHOLDER/${{ steps.version.outputs.version }}/" \
               -e "s/SHA256SUM_AMD64_PLACEHOLDER/${AMD64_SHA}/" \
               -e "s/SHA256SUM_ARM64_PLACEHOLDER/${ARM64_SHA}/" \
-              aur/PKGBUILD > ${{ github.workspace }}/PKGBUILD
+              aur/PKGBUILD > build/PKGBUILD
 
-      - name: Publish to AUR
-        uses: KSXGitHub/github-actions-deploy-aur@v4.1.1
-        with:
-          pkgname: tpack-bin
-          pkgbuild: ${{ github.workspace }}/PKGBUILD
-          commit_username: tmuxpack
-          commit_email: tmuxpack@users.noreply.github.com
-          ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+          cd build
+          makepkg --printsrcinfo > .SRCINFO
+
+      - name: Push to AUR
+        env:
+          GIT_SSH_COMMAND: "ssh -i /home/runner/.ssh/aur -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=/dev/null"
+        run: |
+          git clone ssh://aur@aur.archlinux.org/tpack-bin.git aur-repo
+          cp build/PKGBUILD build/.SRCINFO aur-repo/
+          cd aur-repo
+          git -c user.name=tmuxpack \
+              -c user.email=tmuxpack@users.noreply.github.com \
+              add PKGBUILD .SRCINFO
+          if git diff --cached --quiet; then
+            echo "No changes to push."
+            exit 0
+          fi
+          git -c user.name=tmuxpack \
+              -c user.email=tmuxpack@users.noreply.github.com \
+              commit -m "Update to ${{ steps.version.outputs.version }}"
+          git push
