@@ -1,6 +1,6 @@
 FROM archlinux:latest
 
-ARG RUNNER_VERSION=2.320.0
+ARG RUNNER_VERSION=2.333.1
 ARG RUNNER_ARCH=x64
 
 RUN pacman -Syu --noconfirm \
@@ -17,7 +17,7 @@ RUN pacman -Syu --noconfirm \
     && pacman -Scc --noconfirm
 
 RUN useradd --create-home --shell /bin/bash --uid 1001 runner \
-    && mkdir -p /home/runner/.ssh \
+    && mkdir -p /home/runner/.ssh /home/runner/_work \
     && chown -R runner:runner /home/runner
 
 USER runner
