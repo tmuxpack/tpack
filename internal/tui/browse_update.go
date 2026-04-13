@@ -66,7 +66,11 @@ func (m Model) handleKeyMsgBrowse(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case key.Matches(msg, SharedKeys.Quit):
 		return m, tea.Quit
 	case msg.Code == tea.KeyTab:
-		m.cycleCategory()
+		if msg.Mod&tea.ModShift != 0 {
+			m.cycleCategoryBackward()
+		} else {
+			m.cycleCategory()
+		}
 		m.applyBrowseFilter()
 		return m, nil
 	case key.Matches(msg, ListKeys.Up):
@@ -107,6 +111,17 @@ func (m *Model) cycleCategory() {
 	m.browseCategory++
 	if m.browseCategory >= len(m.browseRegistry.Categories) {
 		m.browseCategory = -2
+	}
+	m.browseScroll.reset()
+}
+
+func (m *Model) cycleCategoryBackward() {
+	if m.browseRegistry == nil {
+		return
+	}
+	m.browseCategory--
+	if m.browseCategory < -2 {
+		m.browseCategory = len(m.browseRegistry.Categories) - 1
 	}
 	m.browseScroll.reset()
 }

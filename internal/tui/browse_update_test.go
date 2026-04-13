@@ -54,6 +54,38 @@ func TestBrowseUpdate_TabCyclesCategory(t *testing.T) {
 	}
 }
 
+func TestBrowseUpdate_ShiftTabCyclesBackward(t *testing.T) {
+	m := newBrowseModel(t)
+	m.browseCategory = -2 // start at "new"
+
+	msg := tea.KeyPressMsg{Code: tea.KeyTab, Mod: tea.ModShift}
+
+	// -2 (new) wraps to last category (2 = "utility")
+	result, _ := m.Update(msg)
+	m = result.(Model)
+	if m.browseCategory != 2 {
+		t.Errorf("expected category 2, got %d", m.browseCategory)
+	}
+
+	// 2 -> 1
+	result, _ = m.Update(msg)
+	m = result.(Model)
+	if m.browseCategory != 1 {
+		t.Errorf("expected category 1, got %d", m.browseCategory)
+	}
+
+	// 1 -> 0 -> -1 -> -2
+	result, _ = m.Update(msg)
+	m = result.(Model)
+	result, _ = m.Update(msg)
+	m = result.(Model)
+	result, _ = m.Update(msg)
+	m = result.(Model)
+	if m.browseCategory != -2 {
+		t.Errorf("expected category -2 (new), got %d", m.browseCategory)
+	}
+}
+
 func TestBrowseUpdate_CursorNavigation(t *testing.T) {
 	m := newBrowseModel(t)
 
