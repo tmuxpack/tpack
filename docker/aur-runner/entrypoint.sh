@@ -27,14 +27,19 @@ API_RESPONSE="$(
 
 REG_TOKEN="$(echo "$API_RESPONSE" | jq -r '.token // empty')"
 if [[ -z "$REG_TOKEN" ]]; then
-    echo "error: failed to obtain registration token" >&2
-    echo "$API_RESPONSE" >&2
+    API_MESSAGE="$(echo "$API_RESPONSE" | jq -r '.message // "unknown error"')"
+    echo "error: failed to obtain registration token: ${API_MESSAGE}" >&2
     exit 1
 fi
 
 cd "$RUNNER_WORKDIR"
 
 cleanup() {
+    if [[ -n "${RUNNER_PID:-}" ]]; then
+        echo "Stopping runner (pid ${RUNNER_PID})..."
+        kill -TERM "$RUNNER_PID" 2>/dev/null || true
+        wait "$RUNNER_PID" 2>/dev/null || true
+    fi
     echo "Deregistering runner..."
     REMOVE_RESPONSE="$(
         curl -fsSL \
@@ -42,13 +47,14 @@ cleanup() {
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer ${GITHUB_PAT}" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
-            "https://api.github.com/repos/${OWNER}/${REPO}/actions/runners/remove-token" || true
+            "https://api.github.com/repos/${OWNER}/${REPO}/actions/runners/remove-token" 2>/dev/null || true
     )"
-    REMOVE_TOKEN="$(echo "$REMOVE_RESPONSE" | jq -r '.token // empty')"
+    REMOVE_TOKEN="$(echo "$REMOVE_RESPONSE" | jq -r '.token // empty' 2>/dev/null || true)"
     if [[ -n "$REMOVE_TOKEN" ]]; then
         ./config.sh remove --token "$REMOVE_TOKEN" || true
     fi
 }
+RUNNER_PID=""
 trap cleanup SIGINT SIGTERM
 
 ./config.sh \
@@ -59,4 +65,6 @@ trap cleanup SIGINT SIGTERM
     --labels "$RUNNER_LABELS" \
     --name "$RUNNER_NAME"
 
-exec ./run.sh
+./run.sh &
+RUNNER_PID=$!
+wait "$RUNNER_PID" || true

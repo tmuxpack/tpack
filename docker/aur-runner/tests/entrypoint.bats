@@ -73,7 +73,6 @@ EOF
     export RUNNER_NAME=test-runner
     export RUNNER_LABELS=aur-publisher
     export RUNNER_WORKDIR="$TEST_TMPDIR"
-    stub_curl_success
     stub_config_and_run
     cat > "$TEST_TMPDIR/bin/curl" <<'EOF'
 #!/usr/bin/env bash
