@@ -22,7 +22,9 @@ Press ++b++ on the plugin list to open the browse screen. It fetches a curated p
 
 ### Category filtering
 
-A category bar at the top shows all available categories. Press ++tab++ to cycle through them. The default view shows all plugins.
+A category bar at the top shows `new`, `all`, and every category advertised by the registry. The default tab is `new`, which lists the 20 most recently added plugins. `all` shows every plugin in the registry. Press ++tab++ to cycle forward or ++shift+tab++ to cycle backward.
+
+Hide categories you don't care about with [`@tpack-hidden-categories`](../configuration/index.md#hiding-browse-categories).
 
 ### Searching
 
@@ -66,7 +68,8 @@ Press ++at++ on the plugin list to open the debug screen. Displays tpack version
 | ++arrow-up++ / ++k++ | Move cursor up |
 | ++arrow-down++ / ++j++ | Move cursor down |
 | ++slash++ | Search / filter plugins |
-| ++tab++ | Cycle category |
+| ++tab++ | Cycle category forward |
+| ++shift+tab++ | Cycle category backward |
 | ++i++ | Install selected plugin |
 | ++enter++ | Open plugin URL in browser |
 | ++escape++ | Go back to plugin list |

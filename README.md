@@ -145,6 +145,13 @@ guide for full setup instructions.
 - **Customizable** — key bindings, colors, plugin directory, and update behavior
 - **Plugins browser** — search, browse and install plugins from the TUI, the list being maintained on the [plugins-registry](https://github.com/tmuxpack/plugins-registry)
 
+Not interested in a whole category of plugins (e.g. `ai`)? Hide it from the
+browser with `@tpack-hidden-categories`:
+
+```bash
+set -g @tpack-hidden-categories 'ai'
+```
+
 See the [full documentation](https://tmuxpack.github.io/tpack/) for details on
 configuration, usage, and the CLI reference.
 

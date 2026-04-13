@@ -10,7 +10,7 @@ The `tpack` binary can be used directly from the command line, outside of tmux k
 | `tpack update [name...]` | Update one or more plugins by name, or all if `all` is given |
 | `tpack clean` | Remove plugin directories not declared in tmux.conf |
 | `tpack source` | Source all plugins without installing (useful for already-cloned plugins) |
-| `tpack tui` | Open the interactive TUI |
+| `tpack tui` | Open the interactive TUI (see flags below) |
 | `tpack commits` | Show commit history for a plugin (internal, used by the TUI) |
 | `tpack check-updates` | Check if any plugins have updates available |
 | `tpack self-update` | Update the tpack binary to the latest release |
@@ -42,6 +42,23 @@ Remove orphaned plugin directories:
 
 ```bash
 tpack clean
+```
+
+## TUI flags
+
+`tpack tui` accepts a few flags used by the default key bindings and scripts:
+
+| Flag | Description |
+|---|---|
+| `--popup` | Launch in a tmux popup window (requires tmux 3.2+; falls back to inline) |
+| `--install` | Auto-run the install operation on open |
+| `--update` | Auto-run the update operation on open |
+| `--clean` | Auto-run the clean operation on open |
+
+Example: open the TUI in a popup and start an update:
+
+```bash
+tpack tui --popup --update
 ```
 
 ## Shell Completions
