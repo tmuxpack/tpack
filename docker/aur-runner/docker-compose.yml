@@ -1,0 +1,18 @@
+services:
+  aur-runner:
+    build:
+      context: .
+    image: tpack-aur-runner:latest
+    container_name: tpack-aur-runner
+    env_file:
+      - .env
+    environment:
+      RUNNER_WORKDIR: /home/runner
+    volumes:
+      - ${AUR_SSH_KEY_PATH}:/home/runner/.ssh/aur:ro
+      - aur_runner_work:/home/runner/_work
+    restart: unless-stopped
+    stop_grace_period: 30s
+
+volumes:
+  aur_runner_work:
