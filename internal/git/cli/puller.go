@@ -17,22 +17,40 @@ func NewPuller() *Puller {
 }
 
 func (c *Puller) Pull(ctx context.Context, opts git.PullOptions) (string, error) {
+	pinned := false
 	if opts.Branch != "" {
+		// Best-effort: surface newly-published tags before checkout.
+		fetchCmd := exec.CommandContext(ctx, "git", "fetch", "--tags", "--force")
+		fetchCmd.Dir = opts.Dir
+		fetchCmd.Env = append(fetchCmd.Environ(), "GIT_TERMINAL_PROMPT=0")
+		_ = fetchCmd.Run()
+
 		checkoutCmd := exec.CommandContext(ctx, "git", "checkout", opts.Branch)
 		checkoutCmd.Dir = opts.Dir
 		checkoutCmd.Env = append(checkoutCmd.Environ(), "GIT_TERMINAL_PROMPT=0")
 		if err := checkoutCmd.Run(); err != nil {
 			return "", fmt.Errorf("git checkout %s: %w", opts.Branch, err)
 		}
+
+		// Detached HEAD means a tag/SHA pin; skip pull so HEAD stays put.
+		symCmd := exec.CommandContext(ctx, "git", "symbolic-ref", "-q", "HEAD")
+		symCmd.Dir = opts.Dir
+		symCmd.Env = append(symCmd.Environ(), "GIT_TERMINAL_PROMPT=0")
+		pinned = symCmd.Run() != nil
 	}
 
-	// git pull
-	pullCmd := exec.CommandContext(ctx, "git", "pull", "--rebase=false")
-	pullCmd.Dir = opts.Dir
-	pullCmd.Env = append(pullCmd.Environ(), "GIT_TERMINAL_PROMPT=0")
-	out, err := pullCmd.CombinedOutput()
-	if err != nil {
-		return strings.TrimSpace(string(out)), err
+	var out []byte
+	if pinned {
+		out = []byte(fmt.Sprintf("pinned to %s", opts.Branch))
+	} else {
+		pullCmd := exec.CommandContext(ctx, "git", "pull", "--rebase=false")
+		pullCmd.Dir = opts.Dir
+		pullCmd.Env = append(pullCmd.Environ(), "GIT_TERMINAL_PROMPT=0")
+		var err error
+		out, err = pullCmd.CombinedOutput()
+		if err != nil {
+			return strings.TrimSpace(string(out)), err
+		}
 	}
 
 	// Submodules are best-effort: a plugin whose submodule references an

@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -15,6 +16,16 @@ func NewFetcher() *Fetcher {
 }
 
 func (c *Fetcher) IsOutdated(ctx context.Context, dir string) (bool, error) {
+	// Detached HEAD (exit 1) means the plugin is pinned to a tag/SHA; never outdated.
+	symCmd := exec.CommandContext(ctx, "git", "symbolic-ref", "-q", "HEAD")
+	symCmd.Dir = dir
+	if err := symCmd.Run(); err != nil {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) && exitErr.ExitCode() == 1 {
+			return false, nil
+		}
+	}
+
 	fetchCmd := exec.CommandContext(ctx, "git", "fetch")
 	fetchCmd.Dir = dir
 	fetchCmd.Env = append(fetchCmd.Environ(), "GIT_TERMINAL_PROMPT=0")

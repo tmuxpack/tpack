@@ -23,6 +23,17 @@ See [Interactive TUI — Browse Screen](interactive-tui.md#browse-screen) for th
 !!! tip
     You can also install plugins directly from the [browse screen](interactive-tui.md#browse-screen) without manually editing your config.
 
+## Pinning a plugin
+
+Append `#<ref>` to pin a plugin to a tag or commit SHA. Pinned plugins are not fast-forwarded on update.
+
+```tmux
+set -g @plugin 'catppuccin/tmux#v2.1.3'
+set -g @plugin 'tmux-plugins/tmux-sensible#abc1234'
+```
+
+To move to a new version, edit the ref in your config and run an update.
+
 ## Updating plugins
 
 Press ++prefix+shift+u++ to update plugins. The TUI opens and you can select which plugins to update.

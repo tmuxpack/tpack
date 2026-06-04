@@ -21,6 +21,13 @@ var (
 	_ git.Logger    = (*gitcli.Logger)(nil)
 )
 
+// Isolate git from the developer's user/system config.
+func TestMain(m *testing.M) {
+	os.Setenv("GIT_CONFIG_GLOBAL", "/dev/null")
+	os.Setenv("GIT_CONFIG_SYSTEM", "/dev/null")
+	os.Exit(m.Run())
+}
+
 // initBareRepo creates a bare git repository with a single commit on the
 // default branch. It returns the path to the bare repo directory.
 func initBareRepo(t *testing.T) string {

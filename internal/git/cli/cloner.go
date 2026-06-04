@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"fmt"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -18,12 +19,17 @@ func NewCloner() *Cloner {
 }
 
 func (c *Cloner) Clone(ctx context.Context, opts git.CloneOptions) error {
-	args := []string{"clone", "--single-branch"}
-	if opts.Depth > 0 {
-		args = append(args, "--depth", strconv.Itoa(opts.Depth))
-	}
-	if opts.Branch != "" {
-		args = append(args, "-b", opts.Branch)
+	isSHA := opts.Branch != "" && looksLikeCommitSHA(opts.Branch)
+
+	args := []string{"clone"}
+	if !isSHA {
+		args = append(args, "--single-branch")
+		if opts.Depth > 0 {
+			args = append(args, "--depth", strconv.Itoa(opts.Depth))
+		}
+		if opts.Branch != "" {
+			args = append(args, "-b", opts.Branch)
+		}
 	}
 	args = append(args, opts.URL, opts.Dir)
 
@@ -31,6 +37,15 @@ func (c *Cloner) Clone(ctx context.Context, opts git.CloneOptions) error {
 	cmd.Env = append(cmd.Environ(), "GIT_TERMINAL_PROMPT=0")
 	if err := cmd.Run(); err != nil {
 		return err
+	}
+
+	if isSHA {
+		checkoutCmd := exec.CommandContext(ctx, "git", "checkout", opts.Branch)
+		checkoutCmd.Dir = opts.Dir
+		checkoutCmd.Env = append(checkoutCmd.Environ(), "GIT_TERMINAL_PROMPT=0")
+		if out, err := checkoutCmd.CombinedOutput(); err != nil {
+			return fmt.Errorf("git checkout %s: %w: %s", opts.Branch, err, strings.TrimSpace(string(out)))
+		}
 	}
 
 	// Submodules are best-effort: a plugin whose submodule references an

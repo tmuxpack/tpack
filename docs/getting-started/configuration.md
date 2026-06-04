@@ -61,11 +61,13 @@ Press ++prefix+shift+i++ to fetch and install all declared plugins.
 | Format | Example | Description |
 |---|---|---|
 | `user/repo` | `tmux-plugins/tmux-sensible` | GitHub shorthand |
-| `user/repo#branch` | `tmux-plugins/tmux-sensible#main` | Specific branch or tag |
+| `user/repo#ref` | `tmux-plugins/tmux-sensible#main` | Branch, tag, or commit SHA |
 | `https://github.com/user/repo.git` | `https://github.com/user/tmux-sensible.git` | Full HTTPS URL |
 | `git@github.com:user/plugin` | `git@github.com:tmux-plugins/tmux-sensible` | Full git SSH URL (GitHub) |
 | `git@bitbucket.com:user/plugin` | `git@bitbucket.com:user/tmux-plugin` | Non-GitHub git hosts |
 | `user/plugin alias=name` | `tmux-plugins/tmux-sensible alias=sensible` | Custom directory name |
+
+Branches track upstream and fast-forward on update. Tags and commit SHAs are pinned (detached HEAD; no automatic updates).
 
 For a list of compatible plugins, see the [tmux-plugins list](https://github.com/tmux-plugins/list).
 

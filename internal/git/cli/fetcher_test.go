@@ -8,6 +8,29 @@ import (
 	gitcli "github.com/tmuxpack/tpack/internal/git/cli"
 )
 
+func TestFetcher_IsOutdatedDetachedHEAD(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping git CLI test in short mode")
+	}
+
+	bare := initBareRepo(t)
+	clone := cloneLocal(t, bare)
+	sha := revParse(t, clone, "HEAD")
+	runGit(t, clone, "checkout", sha)
+
+	// Upstream moves forward; pinned plugin must still report not outdated.
+	addCommitToBare(t, bare, "after-pin.txt")
+
+	fetcher := gitcli.NewFetcher()
+	outdated, err := fetcher.IsOutdated(context.Background(), clone)
+	if err != nil {
+		t.Fatalf("IsOutdated returned error: %v", err)
+	}
+	if outdated {
+		t.Fatal("expected pinned (detached HEAD) repo to report not outdated")
+	}
+}
+
 func TestFetcher_IsOutdatedUpToDate(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping git CLI test in short mode")
