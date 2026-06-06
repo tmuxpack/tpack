@@ -68,6 +68,52 @@ func TestCloner_CloneWithBranch(t *testing.T) {
 	}
 }
 
+// A tag whose name looks like a commit SHA (all hex, 7-40 chars) must still be
+// treated as a tag: cloned via `git clone -b` (honoring Depth), not via the
+// full-clone SHA fallback that ignores Depth.
+func TestCloner_CloneWithHexNamedTag(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping git CLI test in short mode")
+	}
+
+	bare := initBareRepo(t)
+
+	// Add a second commit so a shallow (depth 1) clone is observable, then tag
+	// the tip with a hex-looking name that matches looksLikeCommitSHA.
+	work := cloneLocal(t, bare)
+	writeFile(t, filepath.Join(work, "second.txt"), "second")
+	runGit(t, work, "add", ".")
+	runGit(t, work, "commit", "-m", "second commit")
+	runGit(t, work, "push", "origin", "HEAD")
+	runGit(t, work, "tag", "abc1234")
+	runGit(t, work, "push", "origin", "abc1234")
+
+	dst := filepath.Join(t.TempDir(), "cloned-hextag")
+	cloner := gitcli.NewCloner()
+	err := cloner.Clone(context.Background(), git.CloneOptions{
+		// file:// so git honors --depth (it is ignored for local-path clones).
+		URL:    "file://" + bare,
+		Dir:    dst,
+		Branch: "abc1234",
+		Depth:  1,
+	})
+	if err != nil {
+		t.Fatalf("Clone with hex-named tag returned error: %v", err)
+	}
+
+	// Treated as a tag → detached HEAD.
+	symCmd := exec.CommandContext(context.Background(), "git", "-C", dst, "symbolic-ref", "-q", "HEAD")
+	if err := symCmd.Run(); err == nil {
+		t.Fatal("expected detached HEAD after cloning a hex-named tag")
+	}
+
+	// Cloned via -b with --depth → shallow. The SHA fallback would do a full
+	// clone (no .git/shallow), so its presence proves the tag path was taken.
+	if _, err := os.Stat(filepath.Join(dst, ".git", "shallow")); err != nil {
+		t.Fatalf("expected shallow clone (.git/shallow) for hex-named tag with Depth=1: %v", err)
+	}
+}
+
 func TestCloner_CloneWithTag(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping git CLI test in short mode")

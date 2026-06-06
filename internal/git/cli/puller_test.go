@@ -117,6 +117,32 @@ func revParse(t *testing.T, dir, ref string) string {
 	return strings.TrimSpace(string(out))
 }
 
+// A ref starting with "-" must be treated as a ref (and fail to resolve),
+// never interpreted as a git option. Branch values come from untrusted config.
+func TestPuller_PullRejectsOptionLikeRef(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping git CLI test in short mode")
+	}
+
+	bare := initBareRepo(t)
+	clone := cloneLocal(t, bare)
+	before := revParse(t, clone, "HEAD")
+
+	puller := gitcli.NewPuller()
+	_, err := puller.Pull(context.Background(), git.PullOptions{
+		Dir:    clone,
+		Branch: "-q", // swallowed as the `git checkout -q` flag without --end-of-options
+	})
+	if err == nil {
+		t.Fatal("expected error for option-like ref; it was likely interpreted as a git flag")
+	}
+
+	// HEAD must be untouched by the failed checkout.
+	if got := revParse(t, clone, "HEAD"); got != before {
+		t.Fatalf("HEAD moved after failed checkout: HEAD=%s, want %s", got, before)
+	}
+}
+
 func TestPuller_PullSkippedOnTag(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping git CLI test in short mode")
