@@ -2,6 +2,7 @@ package cli_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -84,5 +85,27 @@ func TestFetcher_IsOutdatedNonGitDir(t *testing.T) {
 	_, err := fetcher.IsOutdated(ctx, dir)
 	if err == nil {
 		t.Fatal("expected error when checking non-git directory")
+	}
+}
+
+// A symbolic-ref failure that is not exit 1 (detached HEAD) must be surfaced
+// rather than swallowed. A non-git directory makes symbolic-ref exit 128.
+func TestFetcher_IsOutdatedReportsSymbolicRefFailure(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping git CLI test in short mode")
+	}
+
+	dir := t.TempDir()
+
+	fetcher := gitcli.NewFetcher()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	_, err := fetcher.IsOutdated(ctx, dir)
+	if err == nil {
+		t.Fatal("expected error for non-git directory")
+	}
+	if !strings.Contains(err.Error(), "symbolic-ref") {
+		t.Fatalf("expected symbolic-ref failure to be surfaced, got: %v", err)
 	}
 }
