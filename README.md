@@ -35,8 +35,16 @@ new setups.
 <details>
 <summary><b>Homebrew (macOS / Linux)</b></summary>
 
+Custom tap repository (updated immediately after new release):
+
 ```bash
 brew install tmuxpack/tpack/tpack
+```
+
+or official formula (updated less frequently):
+
+```bash
+brew install tpack
 ```
 
 </details>
