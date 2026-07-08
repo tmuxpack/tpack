@@ -121,7 +121,6 @@ func NewTheme(primary, secondary, accent, errC, muted, text color.Color) Theme {
 			Foreground(accent),
 
 		BrowseRepoStyle: lipgloss.NewStyle().
-			Foreground(text).
 			Bold(true),
 
 		BrowseDescStyle: lipgloss.NewStyle().
