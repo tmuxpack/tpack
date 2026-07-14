@@ -27,11 +27,8 @@ func WithEnv(env Env) Option {
 	return func(o *resolveOpts) { o.env = env; o.envSet = true }
 }
 
-// Resolve builds a Config by reading tmux options and checking filesystem paths.
-// Priority for plugin path:
-//  1. TPACK_PLUGIN_PATH / TMUX_PLUGIN_MANAGER_PATH env var already set in tmux
-//  2. XDG config home (~/.config/tmux/tmux.conf exists → ~/.config/tmux/plugins/)
-//  3. Default (~/.tmux/plugins/)
+// Resolve builds a Config by reading tmux options and resolving paths.
+// Path precedence and tmux.conf discovery are documented on ResolvePaths.
 func Resolve(runner tmux.Runner, opts ...Option) (*Config, error) {
 	o := &resolveOpts{fs: RealFS{}}
 	for _, opt := range opts {
