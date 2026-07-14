@@ -54,22 +54,29 @@ func runInitCmd() error {
 	}
 
 	// Set plugin path in tmux environment (set both for compatibility).
-	if err := runner.SetEnvironment(config.PluginPathEnvVar, cfg.PluginPath); err != nil {
-		fmt.Fprintf(os.Stderr, "tpack: warning: failed to set %s: %v\n", config.PluginPathEnvVar, err)
+	if setErr := runner.SetEnvironment(config.PluginPathEnvVar, cfg.PluginPath); setErr != nil {
+		fmt.Fprintf(os.Stderr, "tpack: warning: failed to set %s: %v\n", config.PluginPathEnvVar, setErr)
 	}
-	if err := runner.SetEnvironment(config.LegacyPluginPathEnvVar, cfg.PluginPath); err != nil {
-		fmt.Fprintf(os.Stderr, "tpack: warning: failed to set %s: %v\n", config.LegacyPluginPathEnvVar, err)
+	if setErr := runner.SetEnvironment(config.LegacyPluginPathEnvVar, cfg.PluginPath); setErr != nil {
+		fmt.Fprintf(os.Stderr, "tpack: warning: failed to set %s: %v\n", config.LegacyPluginPathEnvVar, setErr)
 	}
 
 	binary := findBinary()
-	if err := bindKeys(runner, cfg, binary); err != nil {
-		fmt.Fprintf(os.Stderr, "tpack: warning: failed to bind keys: %v\n", err)
+	if bindErr := bindKeys(runner, cfg, binary); bindErr != nil {
+		fmt.Fprintf(os.Stderr, "tpack: warning: failed to bind keys: %v\n", bindErr)
 	}
 
 	// Source plugins; failures go to stderr and are persisted for the TUI.
 	output := ui.NewShellOutput()
 	mgr := newManagerDeps(cfg.PluginPath, output)
-	plugins := config.GatherPlugins(runner, config.RealFS{}, cfg.Paths)
+	plugins, err := config.GatherPlugins(runner, config.RealFS{}, cfg.Paths)
+	if err != nil {
+		// init usually runs from the tmux.conf `run` line, where stderr is
+		// invisible; display-message is the only channel the user sees.
+		fmt.Fprintln(os.Stderr, "tpack: config error:", err)
+		_ = runner.DisplayMessage("tpack: " + err.Error())
+		return errSilent
+	}
 	failures := mgr.Source(context.Background(), plugins)
 	for _, f := range failures {
 		output.Err("error loading " + f.Name + ": " + f.Message)

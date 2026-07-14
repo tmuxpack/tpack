@@ -50,7 +50,11 @@ var tuiCmd = &cobra.Command{
 		}
 		theme = tui.OverlayConfigColors(theme, cfg.Colors)
 
-		plugins := config.GatherPlugins(runner, config.RealFS{}, cfg.Paths)
+		plugins, err := config.GatherPlugins(runner, config.RealFS{}, cfg.Paths)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "tpack: config error:", err)
+			return errSilent
+		}
 
 		deps := tui.Deps{
 			Cloner:    gitcli.NewCloner(),

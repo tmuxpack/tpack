@@ -60,7 +60,11 @@ func runCheckUpdates() int {
 	_ = state.Save(cfg.StatePath, st)
 
 	// Gather plugins from config.
-	plugins := config.GatherPlugins(runner, config.RealFS{}, cfg.Paths)
+	plugins, err := config.GatherPlugins(runner, config.RealFS{}, cfg.Paths)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "tpack: config error:", err)
+		return 1
+	}
 
 	outdated := findOutdatedPlugins(plugins, cfg.PluginPath)
 	if len(outdated) == 0 {

@@ -4,9 +4,11 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
+	"github.com/tmuxpack/tpack/internal/config"
 	gitcli "github.com/tmuxpack/tpack/internal/git/cli"
 	"github.com/tmuxpack/tpack/internal/manager"
 	"github.com/tmuxpack/tpack/internal/plug"
@@ -163,7 +165,7 @@ func TestCleanRemovesUnlistedPlugins(t *testing.T) {
 	}
 }
 
-func TestCleanWithEmptyPluginListRemovesNothing(t *testing.T) {
+func TestCleanWithEmptyConfigRemovesAll(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping network test in -short mode")
 	}
@@ -175,7 +177,8 @@ func TestCleanWithEmptyPluginListRemovesNothing(t *testing.T) {
 	puller := gitcli.NewPuller()
 	validator := gitcli.NewValidator()
 
-	// Install a plugin so there is something on disk that must NOT be removed.
+	// Install a plugin; a readable-but-empty config declares nothing, so
+	// clean is expected to remove it -- matching TPM's original contract.
 	installOutput := ui.NewMockOutput()
 	mgr := manager.New(pluginDir, cloner, puller, validator, installOutput)
 	plugins := []plug.Plugin{
@@ -190,14 +193,60 @@ func TestCleanWithEmptyPluginListRemovesNothing(t *testing.T) {
 		t.Fatalf("install failed: %v", installOutput.ErrMsgs)
 	}
 
-	// Clean with an empty declared list (e.g. a missing or unreadable
-	// tmux.conf): must never treat every installed plugin as an orphan.
+	// Clean with an empty declared list (a readable config with zero
+	// @plugin lines): everything installed is now an orphan and is removed.
 	cleanOutput := ui.NewMockOutput()
 	mgr2 := manager.New(pluginDir, cloner, puller, validator, cleanOutput)
 	mgr2.Clean(context.Background(), nil)
 
 	dir := filepath.Join(pluginDir, "tmux-example-plugin")
-	if _, err := os.Stat(dir); err != nil {
-		t.Error("expected plugin to survive clean when declared list is empty")
+	if _, err := os.Stat(dir); !os.IsNotExist(err) {
+		t.Error("expected plugin to be removed when declared list is empty")
+	}
+}
+
+func TestCleanAbortsWhenConfBecomesUnreadableAfterResolve(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("chmod-based permission test not supported on windows")
+	}
+	if os.Getuid() == 0 {
+		t.Skip("skipping permission-denied test when running as root")
+	}
+
+	pluginDir, confFile := setupIntegrationDir(t)
+	writeConf(t, confFile, `set -g @plugin "tmux-plugins/tmux-example-plugin"`)
+
+	// An already-installed plugin that must survive: the command should
+	// abort before ever reaching mgr.Clean.
+	installedDir := filepath.Join(pluginDir, "tmux-example-plugin")
+	if err := os.MkdirAll(installedDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	fs := config.RealFS{}
+	paths := config.Paths{TmuxConf: confFile, Home: os.Getenv("HOME")}
+
+	// The conf exists at Resolve time (mirrors config.Resolve's FileExists
+	// check succeeding)...
+	if !fs.FileExists(confFile) {
+		t.Fatal("expected conf to exist before permission change")
+	}
+
+	// ...but becomes unreadable before GatherPlugins reads its content,
+	// simulating a permission change or TOCTOU deletion race.
+	if err := os.Chmod(confFile, 0o000); err != nil {
+		t.Fatalf("failed to chmod conf file: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(confFile, 0o644) })
+
+	_, err := config.GatherPlugins(&noopRunner{}, fs, paths)
+	if err == nil {
+		t.Fatal("expected an explicit error when tmux.conf becomes unreadable after Resolve")
+	}
+
+	// Because GatherPlugins failed, a real command would exit non-zero
+	// before calling mgr.Clean -- nothing on disk should be touched.
+	if _, statErr := os.Stat(installedDir); statErr != nil {
+		t.Errorf("expected installed plugin to survive an aborted clean, got: %v", statErr)
 	}
 }

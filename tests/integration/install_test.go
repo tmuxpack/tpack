@@ -133,7 +133,7 @@ set -g @plugin "user/repo#develop"
 `)
 
 	fs := config.RealFS{}
-	plugins := config.GatherPlugins(
+	plugins, err := config.GatherPlugins(
 		&noopRunner{},
 		fs,
 		config.Paths{
@@ -141,6 +141,9 @@ set -g @plugin "user/repo#develop"
 			Home:     os.Getenv("HOME"),
 		},
 	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 	if len(plugins) != 3 {
 		t.Fatalf("expected 3 plugins, got %d", len(plugins))
 	}

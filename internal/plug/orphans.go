@@ -13,10 +13,6 @@ type Orphan struct {
 
 // Returns directories in pluginPath that don't match any plugin name.
 func FindOrphans(plugins []Plugin, pluginPath string) []Orphan {
-	if len(plugins) == 0 {
-		return nil
-	}
-
 	nameSet := make(map[string]bool, len(plugins))
 	for _, p := range plugins {
 		nameSet[p.Name] = true

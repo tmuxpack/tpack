@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/tmuxpack/tpack/internal/plug"
@@ -10,8 +11,15 @@ import (
 // Collects all plugin definitions from:
 // 1. Legacy @tpm_plugins tmux option
 // 2. New @plugin syntax in tmux.conf + /etc/tmux.conf + sourced files (one level deep)
+//
+// Returns a non-nil error iff the resolved user tmux.conf (paths.TmuxConf)
+// cannot be read. Resolve already fails closed on a nonexistent conf, so this
+// fires only on exceptional read failures (permissions, TOCTOU deletion)
+// between resolution and gathering. Reads of /etc/tmux.conf and of sourced
+// files remain best-effort: conditional sourcing is legal, so their absence
+// or unreadability is not an error.
 // TODO: Move to a separate config structure down the line, mayybe something akin to LazyVim
-func GatherPlugins(runner tmux.Runner, fs FS, paths Paths) []plug.Plugin {
+func GatherPlugins(runner tmux.Runner, fs FS, paths Paths) ([]plug.Plugin, error) {
 	var specs []string
 
 	if legacy, err := runner.ShowOption("@tpm_plugins"); err == nil && legacy != "" {
@@ -24,7 +32,10 @@ func GatherPlugins(runner tmux.Runner, fs FS, paths Paths) []plug.Plugin {
 	}
 
 	// New syntax: read config content.
-	content := configContent(fs, paths.TmuxConf, paths.Home, paths.XDGConfigHome)
+	content, err := configContent(fs, paths.TmuxConf, paths.Home, paths.XDGConfigHome)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read %s: %w", paths.TmuxConf, err)
+	}
 	specs = append(specs, plug.ExtractPluginsFromConfig(content)...)
 
 	// Parse all specs into Plugin structs.
@@ -32,29 +43,33 @@ func GatherPlugins(runner tmux.Runner, fs FS, paths Paths) []plug.Plugin {
 	for _, raw := range specs {
 		plugins = append(plugins, plug.ParseSpec(raw))
 	}
-	return plugins
+	return plugins, nil
 }
 
 // configContent reads /etc/tmux.conf + user tmux.conf + one level of sourced files.
-func configContent(fs FS, tmuxConf, home, xdgConfigHome string) string {
+// The user tmux.conf read failure propagates as an error; /etc/tmux.conf and
+// sourced-file reads are best-effort and their failures are ignored.
+func configContent(fs FS, tmuxConf, home, xdgConfigHome string) (string, error) {
 	var b strings.Builder
 
-	// /etc/tmux.conf (system config)
+	// /etc/tmux.conf (system config) -- best-effort.
 	if data, err := fs.ReadFile("/etc/tmux.conf"); err == nil {
 		b.Write(data)
 	}
 
-	// User tmux.conf
-	if data, err := fs.ReadFile(tmuxConf); err == nil {
-		if b.Len() > 0 {
-			b.WriteByte('\n')
-		}
-		b.Write(data)
+	// User tmux.conf -- must be readable.
+	data, err := fs.ReadFile(tmuxConf)
+	if err != nil {
+		return "", err
 	}
+	if b.Len() > 0 {
+		b.WriteByte('\n')
+	}
+	b.Write(data)
 
 	base := b.String()
 
-	// Sourced files (one level deep, not recursive).
+	// Sourced files (one level deep, not recursive) -- best-effort.
 	for _, file := range plug.ExtractSourcedFiles(base) {
 		expanded := plug.ManualExpansion(file, home, xdgConfigHome)
 		if data, err := fs.ReadFile(expanded); err == nil {
@@ -63,5 +78,5 @@ func configContent(fs FS, tmuxConf, home, xdgConfigHome string) string {
 		}
 	}
 
-	return b.String()
+	return b.String(), nil
 }

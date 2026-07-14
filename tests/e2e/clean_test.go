@@ -44,7 +44,7 @@ func TestCleanViaCLI(t *testing.T) {
 	assertDirExists(t, exampleDir)
 }
 
-func TestCleanWithNoDeclaredPluginsRemovesNothing(t *testing.T) {
+func TestCleanWithEmptyConfigRemovesAll(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping E2E test in short mode")
 	}
@@ -53,9 +53,10 @@ func TestCleanWithNoDeclaredPluginsRemovesNothing(t *testing.T) {
 
 	binary := buildBinary(t)
 
-	// Empty tmux.conf: no plugins declared. Clean must never treat every
-	// installed plugin as an orphan (this is the core safety guarantee of
-	// the empty-list guard).
+	// Empty tmux.conf: no plugins declared, but the config is readable.
+	// Clean now treats every installed plugin as an orphan, matching TPM's
+	// original contract (a missing/unreadable config is a separate, explicit
+	// error case, not this one).
 	tmuxConf := fmt.Sprintf("run-shell \"%s\"\n", binary)
 	home, socket := e2eEnv(t, tmuxConf)
 	startTmux(t, home, socket)
@@ -73,8 +74,8 @@ func TestCleanWithNoDeclaredPluginsRemovesNothing(t *testing.T) {
 	if exitCode != 0 {
 		t.Fatalf("expected exit code 0, got %d\noutput: %s", exitCode, output)
 	}
-	assertDirExists(t, exampleDir)
-	assertDirExists(t, sensibleDir)
+	assertDirNotExists(t, exampleDir)
+	assertDirNotExists(t, sensibleDir)
 }
 
 func TestCleanFailsOnPermissionDenied(t *testing.T) {
