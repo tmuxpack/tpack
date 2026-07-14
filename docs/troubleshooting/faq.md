@@ -10,11 +10,11 @@ Minimum: tmux 1.9. For TUI popup support, tmux 3.2 or later is recommended. On o
 
 ## Where are plugins installed?
 
-By default, plugins are installed to `~/.tmux/plugins/`. This can be changed — see [Plugin Directory](../configuration/plugin-directory.md).
+Existing installs use `~/.tmux/plugins/` or `$XDG_CONFIG_HOME/tmux/plugins/`; fresh installs default to `~/.local/share/tmux/plugins/`. This can be changed with the `@tpack-plugin-path` option — see [Plugin Directory](../configuration/plugin-directory.md).
 
 ## How do I check which plugins are installed?
 
-Open the TUI with ++prefix+shift+t++ to see all installed plugins. Or list the plugins directory: `ls ~/.tmux/plugins/`.
+Open the TUI with ++prefix+shift+t++ to see all installed plugins. Or list your plugins directory (see [Plugin Directory](../configuration/plugin-directory.md) for where it is on your setup).
 
 ## Does tpack work with existing TPM plugins?
 
@@ -27,6 +27,10 @@ Use the `#branch` suffix: `set -g @plugin 'user/repo#branch'`
 ## How do I discover new plugins?
 
 Open the TUI with ++prefix+shift+t++ and press ++b++ to browse a curated plugin registry. You can search by name with ++slash++ and filter by category with ++tab++. Press ++i++ on any plugin to install it — the entry is added to your `tmux.conf` automatically.
+
+## Why doesn't clean remove anything when I removed all @plugin lines?
+
+tpack's clean command has a safety guard: an empty declared-plugin list usually means your config is missing or unreadable — not an intent to delete everything. This prevents accidental data loss. To remove orphaned plugins, either remove plugin lines one at a time (clean will remove the corresponding directories), or delete them manually from your plugins directory.
 
 ## How do I update tpack itself?
 

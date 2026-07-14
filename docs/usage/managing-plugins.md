@@ -18,7 +18,7 @@ See [Interactive TUI — Browse Screen](interactive-tui.md#browse-screen) for th
 
 2. Press ++prefix+shift+i++ (capital I, as in **I**nstall).
 
-3. The plugin is cloned to `~/.tmux/plugins/` and sourced automatically.
+3. The plugin is cloned to your plugin directory (see [Plugin Directory](../configuration/plugin-directory.md)) and sourced automatically.
 
 !!! tip
     You can also install plugins directly from the [browse screen](interactive-tui.md#browse-screen) without manually editing your config.
