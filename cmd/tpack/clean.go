@@ -31,7 +31,7 @@ var cleanCmd = &cobra.Command{
 
 		mgr := newManagerDeps(cfg.PluginPath, output)
 
-		plugins := config.GatherPlugins(runner, config.RealFS{}, cfg.TmuxConf, cfg.Home, xdgConfigHome(cfg.Home))
+		plugins := config.GatherPlugins(runner, config.RealFS{}, cfg.Paths)
 
 		mgr.Clean(context.Background(), plugins)
 

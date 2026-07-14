@@ -60,7 +60,7 @@ func runCheckUpdates() int {
 	_ = state.Save(cfg.StatePath, st)
 
 	// Gather plugins from config.
-	plugins := config.GatherPlugins(runner, config.RealFS{}, cfg.TmuxConf, cfg.Home, xdgConfigHome(cfg.Home))
+	plugins := config.GatherPlugins(runner, config.RealFS{}, cfg.Paths)
 
 	outdated := findOutdatedPlugins(plugins, cfg.PluginPath)
 	if len(outdated) == 0 {

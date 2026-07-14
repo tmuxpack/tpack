@@ -50,7 +50,7 @@ var tuiCmd = &cobra.Command{
 		}
 		theme = tui.OverlayConfigColors(theme, cfg.Colors)
 
-		plugins := config.GatherPlugins(runner, config.RealFS{}, cfg.TmuxConf, cfg.Home, xdgConfigHome(cfg.Home))
+		plugins := config.GatherPlugins(runner, config.RealFS{}, cfg.Paths)
 
 		deps := tui.Deps{
 			Cloner:    gitcli.NewCloner(),

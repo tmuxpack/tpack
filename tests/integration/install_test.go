@@ -136,9 +136,10 @@ set -g @plugin "user/repo#develop"
 	plugins := config.GatherPlugins(
 		&noopRunner{},
 		fs,
-		confFile,
-		os.Getenv("HOME"),
-		"",
+		config.Paths{
+			TmuxConf: confFile,
+			Home:     os.Getenv("HOME"),
+		},
 	)
 	if len(plugins) != 3 {
 		t.Fatalf("expected 3 plugins, got %d", len(plugins))

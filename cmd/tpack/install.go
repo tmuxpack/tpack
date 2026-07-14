@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -36,7 +35,7 @@ var installCmd = &cobra.Command{
 
 		mgr := newManagerDeps(cfg.PluginPath, output)
 
-		plugins := config.GatherPlugins(runner, config.RealFS{}, cfg.TmuxConf, cfg.Home, xdgConfigHome(cfg.Home))
+		plugins := config.GatherPlugins(runner, config.RealFS{}, cfg.Paths)
 
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 		defer cancel()
@@ -72,13 +71,6 @@ func exitCode(output ui.Output) int {
 	return 0
 }
 
-func xdgConfigHome(home string) string {
-	if v := os.Getenv("XDG_CONFIG_HOME"); v != "" {
-		return v
-	}
-	return filepath.Join(home, ".config")
-}
-
 func newManagerDeps(pluginPath string, output ui.Output) *manager.Manager {
 	return manager.New(pluginPath,
 		gitcli.NewCloner(),
@@ -96,7 +88,7 @@ func completePluginNames(cmd *cobra.Command, args []string, toComplete string) (
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
 
-	plugins := config.GatherPlugins(runner, config.RealFS{}, cfg.TmuxConf, cfg.Home, xdgConfigHome(cfg.Home))
+	plugins := config.GatherPlugins(runner, config.RealFS{}, cfg.Paths)
 
 	var names []string
 	for _, p := range plugins {

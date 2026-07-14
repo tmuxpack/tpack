@@ -66,7 +66,7 @@ func runInitCmd() error {
 	// Source plugins; failures go to stderr and are persisted for the TUI.
 	output := ui.NewShellOutput()
 	mgr := newManagerDeps(cfg.PluginPath, output)
-	plugins := config.GatherPlugins(runner, config.RealFS{}, cfg.TmuxConf, cfg.Home, xdgConfigHome(cfg.Home))
+	plugins := config.GatherPlugins(runner, config.RealFS{}, cfg.Paths)
 	failures := mgr.Source(context.Background(), plugins)
 	for _, f := range failures {
 		output.Err("error loading " + f.Name + ": " + f.Message)

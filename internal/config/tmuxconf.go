@@ -11,7 +11,7 @@ import (
 // 1. Legacy @tpm_plugins tmux option
 // 2. New @plugin syntax in tmux.conf + /etc/tmux.conf + sourced files (one level deep)
 // TODO: Move to a separate config structure down the line, mayybe something akin to LazyVim
-func GatherPlugins(runner tmux.Runner, fs FS, tmuxConf, home, xdgConfigHome string) []plug.Plugin {
+func GatherPlugins(runner tmux.Runner, fs FS, paths Paths) []plug.Plugin {
 	var specs []string
 
 	if legacy, err := runner.ShowOption("@tpm_plugins"); err == nil && legacy != "" {
@@ -24,7 +24,7 @@ func GatherPlugins(runner tmux.Runner, fs FS, tmuxConf, home, xdgConfigHome stri
 	}
 
 	// New syntax: read config content.
-	content := configContent(fs, tmuxConf, home, xdgConfigHome)
+	content := configContent(fs, paths.TmuxConf, paths.Home, paths.XDGConfigHome)
 	specs = append(specs, plug.ExtractPluginsFromConfig(content)...)
 
 	// Parse all specs into Plugin structs.
