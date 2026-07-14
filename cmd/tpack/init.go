@@ -46,7 +46,10 @@ func runInitCmd() error {
 	// Resolve config.
 	cfg, err := config.Resolve(runner)
 	if err != nil {
+		// init usually runs from the tmux.conf `run` line, where stderr is
+		// invisible; display-message is the only channel the user sees.
 		fmt.Fprintln(os.Stderr, "tpack: config error:", err)
+		_ = runner.DisplayMessage("tpack: " + err.Error())
 		return errSilent
 	}
 
