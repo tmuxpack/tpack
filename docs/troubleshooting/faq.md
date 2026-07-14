@@ -32,7 +32,7 @@ Open the TUI with ++prefix+shift+t++ and press ++b++ to browse a curated plugin 
 
 If your `tmux.conf` is readable and declares zero `@plugin` lines, `clean` removes every installed plugin directory (except tpm/tpack itself) — matching TPM's original behavior. A readable, empty declared-plugin list is treated as "I want nothing installed," not as a missing config.
 
-A missing or unreadable `tmux.conf` is a different, explicit case: tpack refuses to run and reports a config error instead of guessing. This distinction exists so a permissions problem or a deleted config can never be silently treated as "no plugins" and wipe your plugin directory by accident.
+A missing or unreadable `tmux.conf` is a different, explicit case: tpack refuses to run and reports a config error instead of guessing. This distinction exists so a permissions problem or a deleted `tmux.conf` can never be silently treated as "no plugins" and wipe your plugin directory by accident. Note that this guarantee covers `tmux.conf` itself: files pulled in via `source` are read best-effort (conditional sourcing is legal), so keep your `@plugin` lines in `tmux.conf` if you want the strongest protection.
 
 ## How do I update tpack itself?
 
