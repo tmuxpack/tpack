@@ -128,7 +128,54 @@ func TestCleanRemovesUnlistedPlugins(t *testing.T) {
 	puller := gitcli.NewPuller()
 	validator := gitcli.NewValidator()
 
-	// Install a plugin, then clean with empty list.
+	// Install a declared plugin plus an unlisted orphan.
+	installOutput := ui.NewMockOutput()
+	mgr := manager.New(pluginDir, cloner, puller, validator, installOutput)
+	declared := []plug.Plugin{
+		plug.ParseSpec(tmuxExamplePlugin),
+	}
+	installAll := []plug.Plugin{
+		plug.ParseSpec(tmuxExamplePlugin),
+		plug.ParseSpec("tmux-plugins/tmux-sensible"),
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	mgr.Install(ctx, installAll)
+
+	if installOutput.HasFailed() {
+		t.Fatalf("install failed: %v", installOutput.ErrMsgs)
+	}
+
+	// Clean with only tmux-example-plugin declared: tmux-sensible is now an orphan.
+	cleanOutput := ui.NewMockOutput()
+	mgr2 := manager.New(pluginDir, cloner, puller, validator, cleanOutput)
+	mgr2.Clean(context.Background(), declared)
+
+	orphanDir := filepath.Join(pluginDir, "tmux-sensible")
+	if _, err := os.Stat(orphanDir); !os.IsNotExist(err) {
+		t.Error("expected unlisted plugin to be removed after clean")
+	}
+
+	declaredDir := filepath.Join(pluginDir, "tmux-example-plugin")
+	if _, err := os.Stat(declaredDir); err != nil {
+		t.Error("expected declared plugin to survive clean")
+	}
+}
+
+func TestCleanWithEmptyPluginListRemovesNothing(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping network test in -short mode")
+	}
+	skipIfNoGit(t)
+
+	pluginDir, _ := setupIntegrationDir(t)
+
+	cloner := gitcli.NewCloner()
+	puller := gitcli.NewPuller()
+	validator := gitcli.NewValidator()
+
+	// Install a plugin so there is something on disk that must NOT be removed.
 	installOutput := ui.NewMockOutput()
 	mgr := manager.New(pluginDir, cloner, puller, validator, installOutput)
 	plugins := []plug.Plugin{
@@ -143,13 +190,14 @@ func TestCleanRemovesUnlistedPlugins(t *testing.T) {
 		t.Fatalf("install failed: %v", installOutput.ErrMsgs)
 	}
 
-	// Clean with empty plugin list (should remove the plugin).
+	// Clean with an empty declared list (e.g. a missing or unreadable
+	// tmux.conf): must never treat every installed plugin as an orphan.
 	cleanOutput := ui.NewMockOutput()
 	mgr2 := manager.New(pluginDir, cloner, puller, validator, cleanOutput)
 	mgr2.Clean(context.Background(), nil)
 
 	dir := filepath.Join(pluginDir, "tmux-example-plugin")
-	if _, err := os.Stat(dir); !os.IsNotExist(err) {
-		t.Error("expected plugin to be removed after clean")
+	if _, err := os.Stat(dir); err != nil {
+		t.Error("expected plugin to survive clean when declared list is empty")
 	}
 }

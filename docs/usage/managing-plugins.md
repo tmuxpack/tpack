@@ -50,6 +50,8 @@ To uninstall a plugin while keeping its entry in your config, select it in the T
 
 If you manually remove a plugin line from your config, the plugin directory may still exist on disk. Press ++prefix+alt+u++ or use `tpack clean` to remove these orphaned directories. In the TUI, press ++c++ to run the same cleanup.
 
+If your config declares no plugins at all, `clean` intentionally does nothing — see the FAQ entry [Why doesn't clean remove anything when I removed all @plugin lines?](../troubleshooting/faq.md#why-doesnt-clean-remove-anything-when-i-removed-all-plugin-lines).
+
 !!! note "Remove vs Uninstall vs Clean"
     | Operation | Deletes directory | Removes from config | Plugin stays in list |
     |-----------|:-:|:-:|:-:|

@@ -17,23 +17,64 @@ func TestCleanViaCLI(t *testing.T) {
 
 	binary := buildBinary(t)
 
-	// Empty tmux.conf: no plugins declared, so any installed plugin should be cleaned.
+	// One plugin declared; an additional unlisted plugin is an orphan that
+	// clean should remove while leaving the declared plugin alone.
+	tmuxConf := fmt.Sprintf(
+		"set -g @plugin \"tmux-plugins/tmux-example-plugin\"\nrun-shell \"%s\"\n",
+		binary,
+	)
+	home, socket := e2eEnv(t, tmuxConf)
+	startTmux(t, home, socket)
+
+	pluginDir := filepath.Join(home, ".tmux", "plugins")
+	installPluginManually(t, pluginDir, "tmux-plugins/tmux-example-plugin")
+	installPluginManually(t, pluginDir, "tmux-plugins/tmux-sensible")
+
+	exampleDir := filepath.Join(pluginDir, "tmux-example-plugin")
+	orphanDir := filepath.Join(pluginDir, "tmux-sensible")
+	assertDirExists(t, exampleDir)
+	assertDirExists(t, orphanDir)
+
+	output, exitCode := runInTmux(t, home, socket, binary+" clean", 30*time.Second)
+	if exitCode != 0 {
+		t.Fatalf("expected exit code 0, got %d\noutput: %s", exitCode, output)
+	}
+	assertContains(t, output, `"tmux-sensible" clean success`)
+	assertDirNotExists(t, orphanDir)
+	assertDirExists(t, exampleDir)
+}
+
+func TestCleanWithNoDeclaredPluginsRemovesNothing(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping E2E test in short mode")
+	}
+	skipIfNoTmux(t)
+	skipIfNoGit(t)
+
+	binary := buildBinary(t)
+
+	// Empty tmux.conf: no plugins declared. Clean must never treat every
+	// installed plugin as an orphan (this is the core safety guarantee of
+	// the empty-list guard).
 	tmuxConf := fmt.Sprintf("run-shell \"%s\"\n", binary)
 	home, socket := e2eEnv(t, tmuxConf)
 	startTmux(t, home, socket)
 
 	pluginDir := filepath.Join(home, ".tmux", "plugins")
 	installPluginManually(t, pluginDir, "tmux-plugins/tmux-example-plugin")
+	installPluginManually(t, pluginDir, "tmux-plugins/tmux-sensible")
 
 	exampleDir := filepath.Join(pluginDir, "tmux-example-plugin")
+	sensibleDir := filepath.Join(pluginDir, "tmux-sensible")
 	assertDirExists(t, exampleDir)
+	assertDirExists(t, sensibleDir)
 
 	output, exitCode := runInTmux(t, home, socket, binary+" clean", 30*time.Second)
 	if exitCode != 0 {
 		t.Fatalf("expected exit code 0, got %d\noutput: %s", exitCode, output)
 	}
-	assertContains(t, output, `"tmux-example-plugin" clean success`)
-	assertDirNotExists(t, exampleDir)
+	assertDirExists(t, exampleDir)
+	assertDirExists(t, sensibleDir)
 }
 
 func TestCleanFailsOnPermissionDenied(t *testing.T) {
@@ -49,28 +90,36 @@ func TestCleanFailsOnPermissionDenied(t *testing.T) {
 
 	binary := buildBinary(t)
 
-	// Empty tmux.conf: no plugins declared, so any installed plugin should be cleaned.
-	tmuxConf := fmt.Sprintf("run-shell \"%s\"\n", binary)
+	// One plugin declared; an additional unlisted plugin is the orphan that
+	// clean will attempt (and fail) to remove.
+	tmuxConf := fmt.Sprintf(
+		"set -g @plugin \"tmux-plugins/tmux-example-plugin\"\nrun-shell \"%s\"\n",
+		binary,
+	)
 	home, socket := e2eEnv(t, tmuxConf)
 	startTmux(t, home, socket)
 
 	pluginDir := filepath.Join(home, ".tmux", "plugins")
 	installPluginManually(t, pluginDir, "tmux-plugins/tmux-example-plugin")
+	installPluginManually(t, pluginDir, "tmux-plugins/tmux-sensible")
 
 	exampleDir := filepath.Join(pluginDir, "tmux-example-plugin")
+	orphanDir := filepath.Join(pluginDir, "tmux-sensible")
 	assertDirExists(t, exampleDir)
+	assertDirExists(t, orphanDir)
 
-	// Remove all permissions to prevent deletion.
-	if err := os.Chmod(exampleDir, 0o000); err != nil {
+	// Remove all permissions on the orphan to prevent deletion.
+	if err := os.Chmod(orphanDir, 0o000); err != nil {
 		t.Fatalf("failed to chmod plugin directory: %v", err)
 	}
 	t.Cleanup(func() {
-		_ = os.Chmod(exampleDir, 0o755)
+		_ = os.Chmod(orphanDir, 0o755)
 	})
 
 	output, exitCode := runInTmux(t, home, socket, binary+" clean", 30*time.Second)
 	if exitCode != 1 {
 		t.Fatalf("expected exit code 1, got %d\noutput: %s", exitCode, output)
 	}
-	assertContains(t, output, `"tmux-example-plugin" clean fail`)
+	assertContains(t, output, `"tmux-sensible" clean fail`)
+	assertDirExists(t, exampleDir)
 }
