@@ -111,7 +111,9 @@ func TestFindOrphans_WithOrphans(t *testing.T) {
 
 func TestFindOrphans_SkipsTpm(t *testing.T) {
 	pluginPath := t.TempDir() + "/"
-	plugins := []plug.Plugin{}
+	plugins := []plug.Plugin{
+		{Name: "declared", Spec: "user/declared"},
+	}
 
 	// tpm directory should always be skipped.
 	os.MkdirAll(filepath.Join(pluginPath, "tpm"), 0o755)
