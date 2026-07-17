@@ -50,7 +50,7 @@ func runCheckUpdates() int {
 	}
 
 	// Load persistent state and check interval.
-	st := state.Load(cfg.StatePath)
+	st := state.Load(cfg.StatePath, diag.Warn)
 	if !st.LastUpdateCheck.IsZero() && time.Since(st.LastUpdateCheck) < cfg.UpdateCheckInterval {
 		return 0
 	}

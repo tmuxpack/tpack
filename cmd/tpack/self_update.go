@@ -109,7 +109,7 @@ func selfUpdateCheck(p selfUpdateParams, runner tmux.Runner) selfUpdateResult {
 	status := ui.NewStatusOutput(runner)
 
 	// 1. Load state, check LastSelfUpdateCheck -- if <24h ago, skip.
-	st := state.Load(p.statePath)
+	st := state.Load(p.statePath, nil)
 	if !st.LastSelfUpdateCheck.IsZero() && time.Since(st.LastSelfUpdateCheck) < selfUpdateInterval {
 		return selfUpdateSkipped
 	}

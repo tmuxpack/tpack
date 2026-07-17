@@ -3,6 +3,7 @@ package state_test
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/tmuxpack/tpack/internal/plug"
@@ -20,7 +21,7 @@ func TestSaveAndLoadLoadErrors(t *testing.T) {
 		t.Fatalf("SaveLoadErrors failed: %v", err)
 	}
 
-	got := state.LoadLoadErrors(statePath)
+	got := state.LoadLoadErrors(statePath, nil)
 	if len(got) != 2 || got[0] != want[0] || got[1] != want[1] {
 		t.Errorf("round-trip mismatch:\n got %v\nwant %v", got, want)
 	}
@@ -31,7 +32,7 @@ func TestSaveLoadErrorsOverwrites(t *testing.T) {
 	_ = state.SaveLoadErrors(statePath, []plug.LoadFailure{{Name: "a", Message: "1"}})
 	_ = state.SaveLoadErrors(statePath, []plug.LoadFailure{{Name: "b", Message: "2"}})
 
-	got := state.LoadLoadErrors(statePath)
+	got := state.LoadLoadErrors(statePath, nil)
 	if len(got) != 1 || got[0].Name != "b" {
 		t.Errorf("expected only the second save to remain, got %v", got)
 	}
@@ -47,7 +48,7 @@ func TestSaveLoadErrorsEmptyRemovesFile(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(statePath, "load-errors.yml")); !os.IsNotExist(err) {
 		t.Error("expected load-errors.yml to be removed on empty save")
 	}
-	if got := state.LoadLoadErrors(statePath); got != nil {
+	if got := state.LoadLoadErrors(statePath, nil); got != nil {
 		t.Errorf("expected nil after empty save, got %v", got)
 	}
 }
@@ -57,13 +58,41 @@ func TestLoadLoadErrorsCorruptFile(t *testing.T) {
 	os.MkdirAll(statePath, 0o755)
 	os.WriteFile(filepath.Join(statePath, "load-errors.yml"), []byte("{{bad yaml!"), 0o644)
 
-	if got := state.LoadLoadErrors(statePath); got != nil {
+	if got := state.LoadLoadErrors(statePath, nil); got != nil {
 		t.Errorf("expected nil on corrupt file, got %v", got)
 	}
 }
 
+func TestLoadLoadErrorsCorruptFileWarns(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "load-errors.yml"), []byte("{not yaml: ["), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	var warnings []string
+	failures := state.LoadLoadErrors(dir, func(msg string) { warnings = append(warnings, msg) })
+
+	if failures != nil {
+		t.Errorf("corrupt file must yield nil failures, got %v", failures)
+	}
+	if len(warnings) != 1 {
+		t.Fatalf("expected 1 warning, got %d: %v", len(warnings), warnings)
+	}
+	if !strings.Contains(warnings[0], "corrupt load-errors file") {
+		t.Errorf("warning = %q, want it to contain %q", warnings[0], "corrupt load-errors file")
+	}
+}
+
+func TestLoadLoadErrorsCorruptFileNilWarn(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "load-errors.yml"), []byte("{not yaml: ["), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	_ = state.LoadLoadErrors(dir, nil) // must not panic
+}
+
 func TestLoadLoadErrorsMissingFile(t *testing.T) {
-	if got := state.LoadLoadErrors(filepath.Join(t.TempDir(), "tpack")); got != nil {
+	if got := state.LoadLoadErrors(filepath.Join(t.TempDir(), "tpack"), nil); got != nil {
 		t.Errorf("expected nil for missing file, got %v", got)
 	}
 }

@@ -118,7 +118,7 @@ type Model struct {
 
 // NewModel creates a new Model from the resolved config and gathered plugins.
 func NewModel(cfg *config.Config, plugins []plug.Plugin, deps Deps, opts ...ModelOption) Model {
-	items := buildPluginItems(plugins, cfg.PluginPath, deps.Validator, loadErrorMap(state.LoadLoadErrors(cfg.StatePath)))
+	items := buildPluginItems(plugins, cfg.PluginPath, deps.Validator, loadErrorMap(state.LoadLoadErrors(cfg.StatePath, nil)))
 	orphans := findOrphans(plugins, cfg.PluginPath)
 
 	s := spinner.New()

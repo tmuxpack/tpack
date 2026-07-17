@@ -443,7 +443,7 @@ func TestSelfUpdateTimestampSavedBeforeCheck(t *testing.T) {
 	selfUpdateCheck(p, runner)
 
 	// Verify the timestamp was saved.
-	st := state.Load(statePath)
+	st := state.Load(statePath, nil)
 	if st.LastSelfUpdateCheck.IsZero() {
 		t.Error("expected LastSelfUpdateCheck to be set")
 	}
@@ -557,7 +557,7 @@ func TestSelfUpdateIntegration(t *testing.T) {
 	}
 
 	// Verify state was saved.
-	st := state.Load(statePath)
+	st := state.Load(statePath, nil)
 	if st.LastSelfUpdateCheck.IsZero() {
 		t.Error("expected LastSelfUpdateCheck to be set")
 	}

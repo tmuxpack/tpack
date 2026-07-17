@@ -3,6 +3,7 @@ package state_test
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -10,7 +11,7 @@ import (
 )
 
 func TestLoadMissingFile(t *testing.T) {
-	s := state.Load(filepath.Join(t.TempDir(), "nonexistent"))
+	s := state.Load(filepath.Join(t.TempDir(), "nonexistent"), nil)
 	if !s.LastUpdateCheck.IsZero() {
 		t.Errorf("expected zero time, got %v", s.LastUpdateCheck)
 	}
@@ -22,7 +23,7 @@ func TestLoadCorruptFile(t *testing.T) {
 	os.MkdirAll(statePath, 0o755)
 	os.WriteFile(filepath.Join(statePath, "state.yml"), []byte("{{bad yaml!"), 0o644)
 
-	s := state.Load(statePath)
+	s := state.Load(statePath, nil)
 	if !s.LastUpdateCheck.IsZero() {
 		t.Errorf("expected zero time on corrupt file, got %v", s.LastUpdateCheck)
 	}
@@ -39,7 +40,7 @@ func TestSaveAndLoad(t *testing.T) {
 		t.Fatalf("Save failed: %v", err)
 	}
 
-	loaded := state.Load(statePath)
+	loaded := state.Load(statePath, nil)
 	if !loaded.LastUpdateCheck.Equal(now) {
 		t.Errorf("LastUpdateCheck = %v, want %v", loaded.LastUpdateCheck, now)
 	}
@@ -71,7 +72,7 @@ func TestSaveAndLoadSelfUpdateCheck(t *testing.T) {
 		t.Fatalf("Save failed: %v", err)
 	}
 
-	loaded := state.Load(statePath)
+	loaded := state.Load(statePath, nil)
 	if !loaded.LastSelfUpdateCheck.Equal(now) {
 		t.Errorf("LastSelfUpdateCheck = %v, want %v", loaded.LastSelfUpdateCheck, now)
 	}
@@ -86,13 +87,41 @@ func TestLoadExistingStateWithoutSelfUpdateCheck(t *testing.T) {
 	content := "last_update_check: 2026-01-01T00:00:00Z\n"
 	os.WriteFile(filepath.Join(statePath, "state.yml"), []byte(content), 0o644)
 
-	loaded := state.Load(statePath)
+	loaded := state.Load(statePath, nil)
 	if loaded.LastUpdateCheck.IsZero() {
 		t.Error("expected LastUpdateCheck to be set")
 	}
 	if !loaded.LastSelfUpdateCheck.IsZero() {
 		t.Errorf("expected LastSelfUpdateCheck to be zero, got %v", loaded.LastSelfUpdateCheck)
 	}
+}
+
+func TestLoadCorruptFileWarns(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "state.yml"), []byte("{not yaml: ["), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	var warnings []string
+	s := state.Load(dir, func(msg string) { warnings = append(warnings, msg) })
+
+	if !s.LastUpdateCheck.IsZero() {
+		t.Error("corrupt file must yield zero-value State")
+	}
+	if len(warnings) != 1 {
+		t.Fatalf("expected 1 warning, got %d: %v", len(warnings), warnings)
+	}
+	if !strings.Contains(warnings[0], "corrupt state file") {
+		t.Errorf("warning = %q, want it to contain %q", warnings[0], "corrupt state file")
+	}
+}
+
+func TestLoadCorruptFileNilWarn(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "state.yml"), []byte("{not yaml: ["), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	_ = state.Load(dir, nil) // must not panic
 }
 
 func TestSaveOverwritesExisting(t *testing.T) {
@@ -105,7 +134,7 @@ func TestSaveOverwritesExisting(t *testing.T) {
 	state.Save(statePath, state.State{LastUpdateCheck: first})
 	state.Save(statePath, state.State{LastUpdateCheck: second})
 
-	loaded := state.Load(statePath)
+	loaded := state.Load(statePath, nil)
 	if !loaded.LastUpdateCheck.Equal(second) {
 		t.Errorf("LastUpdateCheck = %v, want %v", loaded.LastUpdateCheck, second)
 	}
