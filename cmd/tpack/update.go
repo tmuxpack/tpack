@@ -2,8 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
-	"os"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -22,9 +20,10 @@ var updateCmd = &cobra.Command{
 		tmuxEcho, _ := cmd.Flags().GetBool("tmux-echo")
 
 		runner := tmux.NewRealRunner()
+		diag := ui.NewShellOutput()
 		cfg, err := config.Resolve(runner)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "tpack: config error:", err)
+			diag.Err("config: " + err.Error())
 			return errSilent
 		}
 
@@ -45,7 +44,7 @@ var updateCmd = &cobra.Command{
 
 		plugins, err := config.GatherPlugins(runner, config.RealFS{}, cfg.Paths)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "tpack: config error:", err)
+			diag.Err("config: " + err.Error())
 			return errSilent
 		}
 
@@ -93,7 +92,7 @@ func runUpdatePrompt(runner *tmux.RealRunner, cfg *config.Config) {
 func listInstalledPlugins(runner *tmux.RealRunner, cfg *config.Config, output ui.Output) {
 	plugins, err := config.GatherPlugins(runner, config.RealFS{}, cfg.Paths)
 	if err != nil {
-		output.Err("tpack: config error: " + err.Error())
+		output.Err("config: " + err.Error())
 		return
 	}
 

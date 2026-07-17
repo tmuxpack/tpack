@@ -2,8 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
-	"os"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -21,9 +19,10 @@ var installCmd = &cobra.Command{
 		tmuxEcho, _ := cmd.Flags().GetBool("tmux-echo")
 
 		runner := tmux.NewRealRunner()
+		diag := ui.NewShellOutput()
 		cfg, err := config.Resolve(runner)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "tpack: config error:", err)
+			diag.Err("config: " + err.Error())
 			return errSilent
 		}
 
@@ -37,7 +36,7 @@ var installCmd = &cobra.Command{
 
 		plugins, err := config.GatherPlugins(runner, config.RealFS{}, cfg.Paths)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "tpack: config error:", err)
+			diag.Err("config: " + err.Error())
 			return errSilent
 		}
 

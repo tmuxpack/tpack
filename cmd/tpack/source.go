@@ -2,8 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/tmuxpack/tpack/internal/config"
@@ -19,18 +17,18 @@ var sourceCmd = &cobra.Command{
 	Short: "Source all plugins without installing",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		runner := tmux.NewRealRunner()
+		output := ui.NewShellOutput()
 		cfg, err := config.Resolve(runner)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "tpack: config error:", err)
+			output.Err("config: " + err.Error())
 			return errSilent
 		}
 
-		output := ui.NewShellOutput()
 		mgr := newManagerDeps(cfg.PluginPath, output)
 
 		plugins, err := config.GatherPlugins(runner, config.RealFS{}, cfg.Paths)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "tpack: config error:", err)
+			output.Err("config: " + err.Error())
 			return errSilent
 		}
 
@@ -39,7 +37,7 @@ var sourceCmd = &cobra.Command{
 			output.Err("error loading " + f.Name + ": " + f.Message)
 		}
 		if err := state.SaveLoadErrors(cfg.StatePath, failures); err != nil {
-			fmt.Fprintf(os.Stderr, "tpack: warning: failed to save load errors: %v\n", err)
+			output.Warn("failed to save load errors: " + err.Error())
 		}
 		return nil
 	},

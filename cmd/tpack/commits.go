@@ -2,13 +2,12 @@ package main
 
 import (
 	"context"
-	"fmt"
-	"os"
 	"time"
 
 	"github.com/spf13/cobra"
 	gitcli "github.com/tmuxpack/tpack/internal/git/cli"
 	"github.com/tmuxpack/tpack/internal/tui"
+	"github.com/tmuxpack/tpack/internal/ui"
 )
 
 var commitsCmd = &cobra.Command{
@@ -24,10 +23,12 @@ var commitsCmd = &cobra.Command{
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
+		out := ui.NewShellOutput()
+
 		logger := gitcli.NewLogger()
 		commits, err := logger.Log(ctx, dir, from, to)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "tpack commits: git log failed:", err)
+			out.Err("git log failed: " + err.Error())
 			return errSilent
 		}
 
@@ -36,7 +37,7 @@ var commitsCmd = &cobra.Command{
 		}
 
 		if err := tui.RunCommitViewer(name, commits, tui.DefaultTheme()); err != nil {
-			fmt.Fprintln(os.Stderr, "tpack:", err)
+			out.Err(err.Error())
 			return errSilent
 		}
 		return nil

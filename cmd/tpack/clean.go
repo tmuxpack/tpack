@@ -2,12 +2,11 @@ package main
 
 import (
 	"context"
-	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/tmuxpack/tpack/internal/config"
 	"github.com/tmuxpack/tpack/internal/tmux"
+	"github.com/tmuxpack/tpack/internal/ui"
 )
 
 var cleanCmd = &cobra.Command{
@@ -17,9 +16,10 @@ var cleanCmd = &cobra.Command{
 		tmuxEcho, _ := cmd.Flags().GetBool("tmux-echo")
 
 		runner := tmux.NewRealRunner()
+		diag := ui.NewShellOutput()
 		cfg, err := config.Resolve(runner)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "tpack: config error:", err)
+			diag.Err("config: " + err.Error())
 			return errSilent
 		}
 
@@ -33,7 +33,7 @@ var cleanCmd = &cobra.Command{
 
 		plugins, err := config.GatherPlugins(runner, config.RealFS{}, cfg.Paths)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "tpack: config error:", err)
+			diag.Err("config: " + err.Error())
 			return errSilent
 		}
 

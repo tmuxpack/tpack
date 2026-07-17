@@ -14,6 +14,7 @@ import (
 	"github.com/tmuxpack/tpack/internal/shell"
 	"github.com/tmuxpack/tpack/internal/tmux"
 	"github.com/tmuxpack/tpack/internal/tui"
+	"github.com/tmuxpack/tpack/internal/ui"
 )
 
 var tuiCmd = &cobra.Command{
@@ -34,6 +35,7 @@ var tuiCmd = &cobra.Command{
 		}
 
 		runner := tmux.NewRealRunner()
+		out := ui.NewShellOutput()
 
 		// Fall back to inline TUI if tmux doesn't support display-popup (< 3.2).
 		if popup {
@@ -45,14 +47,14 @@ var tuiCmd = &cobra.Command{
 		theme := tui.BuildTheme(runner)
 		cfg, err := config.Resolve(runner)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "tpack: config error:", err)
+			out.Err("config: " + err.Error())
 			return errSilent
 		}
 		theme = tui.OverlayConfigColors(theme, cfg.Colors)
 
 		plugins, err := config.GatherPlugins(runner, config.RealFS{}, cfg.Paths)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "tpack: config error:", err)
+			out.Err("config: " + err.Error())
 			return errSilent
 		}
 
@@ -75,7 +77,7 @@ var tuiCmd = &cobra.Command{
 		}
 
 		if popup {
-			code := launchPopup(cfg, plugins, deps, opts, autoOp)
+			code := launchPopup(cfg, plugins, deps, opts, autoOp, out)
 			if code != 0 {
 				return errSilent
 			}
@@ -83,7 +85,7 @@ var tuiCmd = &cobra.Command{
 		}
 
 		if err := tui.Run(cfg, plugins, deps, opts...); err != nil {
-			fmt.Fprintln(os.Stderr, "tpack:", err)
+			out.Err(err.Error())
 			return errSilent
 		}
 		return nil
@@ -109,12 +111,13 @@ func launchPopup(
 	deps tui.Deps,
 	opts []tui.ModelOption,
 	autoOp tui.Operation,
+	out ui.Output,
 ) int {
 	w, h := tui.IdealSize(cfg, plugins, deps, opts...)
 
 	binary, err := os.Executable()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "tpack: cannot find executable:", err)
+		out.Err("cannot find executable: " + err.Error())
 		return 1
 	}
 
@@ -140,11 +143,11 @@ func launchPopup(
 		// Popup failed (e.g. terminal too small); fall back to inline TUI
 		// only if a TTY is available (run-shell has no controlling terminal).
 		if !hasTTY() {
-			fmt.Fprintln(os.Stderr, "tpack: popup failed:", err)
+			out.Err("popup failed: " + err.Error())
 			return 1
 		}
 		if err := tui.Run(cfg, plugins, deps, opts...); err != nil {
-			fmt.Fprintln(os.Stderr, "tpack:", err)
+			out.Err(err.Error())
 			return 1
 		}
 	}
