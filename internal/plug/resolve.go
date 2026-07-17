@@ -2,7 +2,6 @@ package plug
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 )
@@ -16,12 +15,6 @@ import (
 func PluginName(raw string) string {
 	base := filepath.Base(raw)
 	return strings.TrimSuffix(base, ".git")
-}
-
-// warnExtraTokens logs a warning when a plugin spec contains unexpected extra tokens.
-func warnExtraTokens(raw string, extra []string) {
-	fmt.Fprintf(os.Stderr, "tpack: warning: plugin spec %q has unexpected extra tokens: %s\n",
-		raw, strings.Join(extra, " "))
 }
 
 // PluginPath returns the directory path for a plugin.
@@ -46,7 +39,9 @@ func NormalizeURL(shorthand string) string {
 // An optional "alias=X" token may follow the spec to override the plugin name.
 // The branch suffix "#branch" may appear on either the spec or the alias token.
 // Example: "catppuccin/tmux alias=catppuccin-tmux#v2"
-func ParseSpec(raw string) Plugin {
+// warn, if non-nil, receives a message for unexpected extra tokens; a nil
+// warn silently drops it.
+func ParseSpec(raw string, warn func(string)) Plugin {
 	raw = strings.TrimSpace(raw)
 	original := raw
 
@@ -69,8 +64,9 @@ func ParseSpec(raw string) Plugin {
 	if len(specTokens) > 0 {
 		spec = specTokens[0]
 	}
-	if len(specTokens) > 1 {
-		warnExtraTokens(raw, specTokens[1:])
+	if len(specTokens) > 1 && warn != nil {
+		warn(fmt.Sprintf("plugin spec %q has unexpected extra tokens: %s",
+			raw, strings.Join(specTokens[1:], " ")))
 	}
 
 	// Extract branch from spec if present.

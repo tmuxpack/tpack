@@ -34,7 +34,7 @@ var installCmd = &cobra.Command{
 
 		mgr := newManagerDeps(cfg.PluginPath, output)
 
-		plugins, err := config.GatherPlugins(runner, config.RealFS{}, cfg.Paths)
+		plugins, err := config.GatherPlugins(runner, config.RealFS{}, cfg.Paths, output.Warn)
 		if err != nil {
 			diag.Err("config: " + err.Error())
 			return errSilent
@@ -91,7 +91,7 @@ func completePluginNames(cmd *cobra.Command, args []string, toComplete string) (
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
 
-	plugins, err := config.GatherPlugins(runner, config.RealFS{}, cfg.Paths)
+	plugins, err := config.GatherPlugins(runner, config.RealFS{}, cfg.Paths, nil)
 	if err != nil {
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}

@@ -26,7 +26,7 @@ var sourceCmd = &cobra.Command{
 
 		mgr := newManagerDeps(cfg.PluginPath, output)
 
-		plugins, err := config.GatherPlugins(runner, config.RealFS{}, cfg.Paths)
+		plugins, err := config.GatherPlugins(runner, config.RealFS{}, cfg.Paths, output.Warn)
 		if err != nil {
 			output.Err("config: " + err.Error())
 			return errSilent

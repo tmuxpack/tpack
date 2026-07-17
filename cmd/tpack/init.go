@@ -69,7 +69,7 @@ func runInitCmd() error {
 
 	// Source plugins; failures go to stderr and are persisted for the TUI.
 	mgr := newManagerDeps(cfg.PluginPath, shellOut)
-	plugins, err := config.GatherPlugins(runner, config.RealFS{}, cfg.Paths)
+	plugins, err := config.GatherPlugins(runner, config.RealFS{}, cfg.Paths, shellOut.Warn)
 	if err != nil {
 		both.Err("config: " + err.Error())
 		return errSilent

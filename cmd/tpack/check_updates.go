@@ -60,7 +60,7 @@ func runCheckUpdates() int {
 	_ = state.Save(cfg.StatePath, st)
 
 	// Gather plugins from config.
-	plugins, err := config.GatherPlugins(runner, config.RealFS{}, cfg.Paths)
+	plugins, err := config.GatherPlugins(runner, config.RealFS{}, cfg.Paths, diag.Warn)
 	if err != nil {
 		diag.Err("config: " + err.Error())
 		return 1

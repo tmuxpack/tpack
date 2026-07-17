@@ -31,7 +31,7 @@ func TestUpdateInstalledPlugin(t *testing.T) {
 	installOutput := ui.NewMockOutput()
 	mgr := manager.New(pluginDir, cloner, puller, validator, installOutput)
 	plugins := []plug.Plugin{
-		plug.ParseSpec(tmuxExamplePlugin),
+		plug.ParseSpec(tmuxExamplePlugin, nil),
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
@@ -78,7 +78,7 @@ func TestUpdateSpecificPlugin(t *testing.T) {
 
 	mgr := manager.New(pluginDir, cloner, puller, validator, installOutput)
 	plugins := []plug.Plugin{
-		plug.ParseSpec(tmuxExamplePlugin),
+		plug.ParseSpec(tmuxExamplePlugin, nil),
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
@@ -134,11 +134,11 @@ func TestCleanRemovesUnlistedPlugins(t *testing.T) {
 	installOutput := ui.NewMockOutput()
 	mgr := manager.New(pluginDir, cloner, puller, validator, installOutput)
 	declared := []plug.Plugin{
-		plug.ParseSpec(tmuxExamplePlugin),
+		plug.ParseSpec(tmuxExamplePlugin, nil),
 	}
 	installAll := []plug.Plugin{
-		plug.ParseSpec(tmuxExamplePlugin),
-		plug.ParseSpec("tmux-plugins/tmux-sensible"),
+		plug.ParseSpec(tmuxExamplePlugin, nil),
+		plug.ParseSpec("tmux-plugins/tmux-sensible", nil),
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
@@ -182,7 +182,7 @@ func TestCleanWithEmptyConfigRemovesAll(t *testing.T) {
 	installOutput := ui.NewMockOutput()
 	mgr := manager.New(pluginDir, cloner, puller, validator, installOutput)
 	plugins := []plug.Plugin{
-		plug.ParseSpec(tmuxExamplePlugin),
+		plug.ParseSpec(tmuxExamplePlugin, nil),
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
@@ -239,7 +239,7 @@ func TestCleanAbortsWhenConfBecomesUnreadableAfterResolve(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = os.Chmod(confFile, 0o644) })
 
-	_, err := config.GatherPlugins(&noopRunner{}, fs, paths)
+	_, err := config.GatherPlugins(&noopRunner{}, fs, paths, nil)
 	if err == nil {
 		t.Fatal("expected an explicit error when tmux.conf becomes unreadable after Resolve")
 	}

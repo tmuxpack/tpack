@@ -30,7 +30,7 @@ func TestInstallRealPlugin(t *testing.T) {
 	mgr := manager.New(pluginDir, cloner, puller, validator, output)
 
 	plugins := []plug.Plugin{
-		plug.ParseSpec(tmuxExamplePlugin),
+		plug.ParseSpec(tmuxExamplePlugin, nil),
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
@@ -79,8 +79,8 @@ func TestInstallMultiplePlugins(t *testing.T) {
 	mgr := manager.New(pluginDir, cloner, puller, validator, output)
 
 	plugins := []plug.Plugin{
-		plug.ParseSpec(tmuxExamplePlugin),
-		plug.ParseSpec("tmux-plugins/tmux-sensible"),
+		plug.ParseSpec(tmuxExamplePlugin, nil),
+		plug.ParseSpec("tmux-plugins/tmux-sensible", nil),
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
@@ -111,7 +111,7 @@ func TestInstallNonexistentPlugin(t *testing.T) {
 	mgr := manager.New(pluginDir, cloner, puller, validator, output)
 
 	plugins := []plug.Plugin{
-		plug.ParseSpec("nonexistent-user/nonexistent-plugin-xyz-abc-123"),
+		plug.ParseSpec("nonexistent-user/nonexistent-plugin-xyz-abc-123", nil),
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -140,6 +140,7 @@ set -g @plugin "user/repo#develop"
 			TmuxConf: confFile,
 			Home:     os.Getenv("HOME"),
 		},
+		nil,
 	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)

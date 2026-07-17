@@ -90,7 +90,7 @@ func TestParseSpec(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.raw, func(t *testing.T) {
-			p := plug.ParseSpec(tt.raw)
+			p := plug.ParseSpec(tt.raw, nil)
 			if p.Name != tt.name {
 				t.Errorf("Name = %q, want %q", p.Name, tt.name)
 			}
@@ -104,5 +104,28 @@ func TestParseSpec(t *testing.T) {
 				t.Errorf("Alias = %q, want %q", p.Alias, tt.alias)
 			}
 		})
+	}
+}
+
+func TestParseSpecWarnsOnExtraTokens(t *testing.T) {
+	var warnings []string
+	p := plug.ParseSpec("user/repo extra junk", func(msg string) { warnings = append(warnings, msg) })
+
+	if p.Name != "repo" {
+		t.Errorf("Name = %q, want %q", p.Name, "repo")
+	}
+	if len(warnings) != 1 {
+		t.Fatalf("expected 1 warning, got %d: %v", len(warnings), warnings)
+	}
+	want := `plugin spec "user/repo extra junk" has unexpected extra tokens: extra junk`
+	if warnings[0] != want {
+		t.Errorf("warning = %q, want %q", warnings[0], want)
+	}
+}
+
+func TestParseSpecNilWarnDoesNotPanic(t *testing.T) {
+	p := plug.ParseSpec("user/repo extra", nil)
+	if p.Name != "repo" {
+		t.Errorf("Name = %q, want %q", p.Name, "repo")
 	}
 }

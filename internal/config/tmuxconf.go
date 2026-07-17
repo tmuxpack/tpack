@@ -19,7 +19,8 @@ import (
 // files remain best-effort: conditional sourcing is legal, so their absence
 // or unreadability is not an error.
 // TODO: Move to a separate config structure down the line, mayybe something akin to LazyVim
-func GatherPlugins(runner tmux.Runner, fs FS, paths Paths) ([]plug.Plugin, error) {
+// warn, if non-nil, receives non-fatal parse warnings; a nil warn drops them.
+func GatherPlugins(runner tmux.Runner, fs FS, paths Paths, warn func(string)) ([]plug.Plugin, error) {
 	var specs []string
 
 	if legacy, err := runner.ShowOption("@tpm_plugins"); err == nil && legacy != "" {
@@ -41,7 +42,7 @@ func GatherPlugins(runner tmux.Runner, fs FS, paths Paths) ([]plug.Plugin, error
 	// Parse all specs into Plugin structs.
 	var plugins []plug.Plugin
 	for _, raw := range specs {
-		plugins = append(plugins, plug.ParseSpec(raw))
+		plugins = append(plugins, plug.ParseSpec(raw, warn))
 	}
 	return plugins, nil
 }
