@@ -233,6 +233,58 @@ func TestSelfUpdateDownloadsNewVersion(t *testing.T) {
 	}
 }
 
+func TestSelfUpdateRepoSyncFailureWarns(t *testing.T) {
+	dir := t.TempDir()
+	statePath := filepath.Join(dir, "state")
+
+	// Create the existing binary file.
+	binaryPath := filepath.Join(dir, "tpack")
+	if err := os.WriteFile(binaryPath, []byte("old-binary"), 0o755); err != nil {
+		t.Fatalf("failed to create binary: %v", err)
+	}
+
+	archive := createTestArchive(t, "new-binary-v2.0.0")
+
+	// Mock GitHub API returning newer version.
+	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		release := githubRelease{TagName: "v2.0.0"}
+		json.NewEncoder(w).Encode(release)
+	}))
+	defer apiServer.Close()
+
+	downloadServer := newDownloadServer(t, "2.0.0", archive)
+	defer downloadServer.Close()
+
+	runner := tmux.NewMockRunner()
+
+	p := selfUpdateParams{
+		statePath:   statePath,
+		version:     "1.0.0",
+		binaryPath:  binaryPath,
+		apiURL:      apiServer.URL,
+		downloadURL: downloadServer.URL,
+		repoDir:     t.TempDir(), // not a git repo, so the tag checkout fails
+	}
+
+	result := selfUpdateCheck(p, runner)
+	if result != selfUpdateSuccess {
+		t.Errorf("expected selfUpdateSuccess, got %d", result)
+	}
+
+	// The update succeeded but the repo sync failed: expect the warning form.
+	want := "tpack: warning: updated to v2.0.0 (repo sync failed)"
+	found := false
+	for _, call := range runner.Calls {
+		if call.Method == "DisplayMessage" && len(call.Args) > 0 && call.Args[0] == want {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("expected DisplayMessage %q", want)
+	}
+}
+
 func TestFetchLatestVersion(t *testing.T) {
 	tests := []struct {
 		name       string
