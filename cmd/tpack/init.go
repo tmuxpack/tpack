@@ -28,69 +28,66 @@ var initCmd = &cobra.Command{
 
 func runInitCmd() error {
 	runner := tmux.NewRealRunner()
+	shellOut := ui.NewShellOutput()
+	status := ui.NewStatusOutput(runner)
+	// init usually runs from the tmux.conf `run` line, where stderr is
+	// invisible; the status line is the only channel the user sees.
+	both := ui.NewMultiOutput(shellOut, status)
 
 	// Check tmux version.
 	verStr, err := runner.Version()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "tpack: failed to get tmux version")
+		shellOut.Err("failed to get tmux version")
 		return errSilent
 	}
 	current := tmux.ParseVersionDigits(verStr)
 	if !tmux.IsVersionSupported(current, config.SupportedTmuxVersion) {
 		// TODO: add e2e tests with version 1.9
-		msg := "Error, Tmux version unsupported! Please install Tmux version 1.9 or greater!"
-		_ = runner.DisplayMessage(msg)
+		status.Err("Tmux version unsupported! Please install Tmux version 1.9 or greater!")
 		return errSilent
 	}
 
 	// Resolve config.
 	cfg, err := config.Resolve(runner)
 	if err != nil {
-		// init usually runs from the tmux.conf `run` line, where stderr is
-		// invisible; display-message is the only channel the user sees.
-		fmt.Fprintln(os.Stderr, "tpack: config error:", err)
-		_ = runner.DisplayMessage("tpack: " + err.Error())
+		both.Err("config: " + err.Error())
 		return errSilent
 	}
 
 	// Set plugin path in tmux environment (set both for compatibility).
 	if setErr := runner.SetEnvironment(config.PluginPathEnvVar, cfg.PluginPath); setErr != nil {
-		fmt.Fprintf(os.Stderr, "tpack: warning: failed to set %s: %v\n", config.PluginPathEnvVar, setErr)
+		shellOut.Warn("failed to set " + config.PluginPathEnvVar + ": " + setErr.Error())
 	}
 	if setErr := runner.SetEnvironment(config.LegacyPluginPathEnvVar, cfg.PluginPath); setErr != nil {
-		fmt.Fprintf(os.Stderr, "tpack: warning: failed to set %s: %v\n", config.LegacyPluginPathEnvVar, setErr)
+		shellOut.Warn("failed to set " + config.LegacyPluginPathEnvVar + ": " + setErr.Error())
 	}
 
 	binary := findBinary()
 	if bindErr := bindKeys(runner, cfg, binary); bindErr != nil {
-		fmt.Fprintf(os.Stderr, "tpack: warning: failed to bind keys: %v\n", bindErr)
+		shellOut.Warn("failed to bind keys: " + bindErr.Error())
 	}
 
 	// Source plugins; failures go to stderr and are persisted for the TUI.
-	output := ui.NewShellOutput()
-	mgr := newManagerDeps(cfg.PluginPath, output)
+	mgr := newManagerDeps(cfg.PluginPath, shellOut)
 	plugins, err := config.GatherPlugins(runner, config.RealFS{}, cfg.Paths)
 	if err != nil {
-		// init usually runs from the tmux.conf `run` line, where stderr is
-		// invisible; display-message is the only channel the user sees.
-		fmt.Fprintln(os.Stderr, "tpack: config error:", err)
-		_ = runner.DisplayMessage("tpack: " + err.Error())
+		both.Err("config: " + err.Error())
 		return errSilent
 	}
 	failures := mgr.Source(context.Background(), plugins)
 	for _, f := range failures {
-		output.Err("error loading " + f.Name + ": " + f.Message)
+		shellOut.Err("error loading " + f.Name + ": " + f.Message)
 	}
 	if err := state.SaveLoadErrors(cfg.StatePath, failures); err != nil {
-		fmt.Fprintf(os.Stderr, "tpack: warning: failed to save load errors: %v\n", err)
+		shellOut.Warn("failed to save load errors: " + err.Error())
 	}
 
 	if shouldSpawnUpdateCheck(cfg) {
-		spawnUpdateCheck(binary)
+		spawnUpdateCheck(binary, shellOut)
 	}
 
 	if shouldSpawnSelfUpdate(binary, cfg.PluginPath, cfg.PinnedVersion) {
-		spawnSelfUpdate(binary)
+		spawnSelfUpdate(binary, shellOut)
 	}
 
 	return nil
@@ -160,13 +157,13 @@ func shouldSpawnSelfUpdate(binary, pluginPath, pinnedVersion string) bool {
 }
 
 // Launches `tpack self-update` as a detached background process.
-func spawnSelfUpdate(binary string) {
+func spawnSelfUpdate(binary string, out ui.Output) {
 	cmd := exec.Command(binary, "self-update") //nolint:noctx // intentionally detached, no cancellation
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	cmd.Stdout = nil
 	cmd.Stderr = nil
 	if err := cmd.Start(); err != nil {
-		fmt.Fprintf(os.Stderr, "tpack: failed to spawn self-update: %v\n", err)
+		out.Warn("failed to spawn self-update: " + err.Error())
 	}
 }
 
@@ -176,13 +173,13 @@ func shouldSpawnUpdateCheck(cfg *config.Config) bool {
 }
 
 // Launches `tpack check-updates` as a detached background process.
-func spawnUpdateCheck(binary string) {
+func spawnUpdateCheck(binary string, out ui.Output) {
 	cmd := exec.Command(binary, "check-updates") //nolint:noctx // intentionally detached, no cancellation
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	cmd.Stdout = nil
 	cmd.Stderr = nil
 	if err := cmd.Start(); err != nil {
-		fmt.Fprintf(os.Stderr, "tpack: failed to spawn update check: %v\n", err)
+		out.Warn("failed to spawn update check: " + err.Error())
 	}
 }
 
