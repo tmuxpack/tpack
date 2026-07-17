@@ -253,3 +253,45 @@ func TestStatusOutputEndMessageNoop(t *testing.T) {
 		t.Errorf("EndMessage must not call tmux, got %+v", m.Calls)
 	}
 }
+
+func TestMultiOutputImplementsOutput(t *testing.T) {
+	var _ ui.Output = (*ui.MultiOutput)(nil)
+}
+
+func TestMultiOutputFansOut(t *testing.T) {
+	a, b := ui.NewMockOutput(), ui.NewMockOutput()
+	out := ui.NewMultiOutput(a, b)
+
+	out.Ok("o")
+	out.Warn("w")
+	out.Err("e")
+	out.EndMessage()
+
+	for i, m := range []*ui.MockOutput{a, b} {
+		if len(m.OkMsgs) != 1 || m.OkMsgs[0] != "o" {
+			t.Errorf("child %d OkMsgs = %v, want [o]", i, m.OkMsgs)
+		}
+		if len(m.WarnMsgs) != 1 || m.WarnMsgs[0] != "w" {
+			t.Errorf("child %d WarnMsgs = %v, want [w]", i, m.WarnMsgs)
+		}
+		if len(m.ErrMsgs) != 1 || m.ErrMsgs[0] != "e" {
+			t.Errorf("child %d ErrMsgs = %v, want [e]", i, m.ErrMsgs)
+		}
+		if m.EndCalls != 1 {
+			t.Errorf("child %d EndCalls = %d, want 1", i, m.EndCalls)
+		}
+	}
+}
+
+func TestMultiOutputHasFailed(t *testing.T) {
+	healthy := ui.NewMockOutput()
+	failed := ui.NewMockOutput()
+	failed.Err("already broken")
+
+	if ui.NewMultiOutput(healthy).HasFailed() {
+		t.Error("HasFailed should be false with healthy children")
+	}
+	if !ui.NewMultiOutput(healthy, failed).HasFailed() {
+		t.Error("HasFailed should be true if any child failed")
+	}
+}
