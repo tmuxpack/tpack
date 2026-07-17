@@ -30,14 +30,14 @@ func (t *TmuxOutput) Ok(msg string) {
 func (t *TmuxOutput) Warn(msg string) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	_ = t.runner.RunShell("echo '" + shell.EscapeInSingleQuotes(msg) + "'")
+	_ = t.runner.RunShell("echo '" + shell.EscapeInSingleQuotes("warning: "+msg) + "'")
 }
 
 func (t *TmuxOutput) Err(msg string) {
 	t.failed.Store(true)
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	_ = t.runner.RunShell("echo '" + shell.EscapeInSingleQuotes(msg) + "'")
+	_ = t.runner.RunShell("echo '" + shell.EscapeInSingleQuotes("error: "+msg) + "'")
 }
 
 func (t *TmuxOutput) EndMessage() {

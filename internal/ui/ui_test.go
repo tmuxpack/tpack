@@ -143,6 +143,37 @@ func TestTmuxOutputEndMessageEmacs(t *testing.T) {
 	}
 }
 
+func TestTmuxOutputWarnPrefix(t *testing.T) {
+	m := tmux.NewMockRunner()
+	out := ui.NewTmuxOutput(m)
+
+	out.Warn("thing looks off")
+
+	if len(m.Calls) != 1 || m.Calls[0].Method != "RunShell" {
+		t.Fatalf("expected 1 RunShell call, got %+v", m.Calls)
+	}
+	if want := "echo 'warning: thing looks off'"; m.Calls[0].Args[0] != want {
+		t.Errorf("arg = %q, want %q", m.Calls[0].Args[0], want)
+	}
+	if out.HasFailed() {
+		t.Error("Warn must not mark output as failed")
+	}
+}
+
+func TestTmuxOutputErrPrefix(t *testing.T) {
+	m := tmux.NewMockRunner()
+	out := ui.NewTmuxOutput(m)
+
+	out.Err("fail")
+
+	if len(m.Calls) != 1 || m.Calls[0].Method != "RunShell" {
+		t.Fatalf("expected 1 RunShell call, got %+v", m.Calls)
+	}
+	if want := "echo 'error: fail'"; m.Calls[0].Args[0] != want {
+		t.Errorf("arg = %q, want %q", m.Calls[0].Args[0], want)
+	}
+}
+
 func TestMockOutputImplementsOutput(t *testing.T) {
 	var _ ui.Output = (*ui.MockOutput)(nil)
 }
