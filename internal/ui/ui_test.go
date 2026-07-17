@@ -198,3 +198,58 @@ func TestMockOutput(t *testing.T) {
 		t.Error("HasFailed should be true")
 	}
 }
+
+func TestStatusOutputImplementsOutput(t *testing.T) {
+	var _ ui.Output = (*ui.StatusOutput)(nil)
+}
+
+func TestStatusOutputLevels(t *testing.T) {
+	tests := []struct {
+		name string
+		call func(o *ui.StatusOutput)
+		want string
+	}{
+		{"ok", func(o *ui.StatusOutput) { o.Ok("3 updates available") }, "tpack: 3 updates available"},
+		{"warn", func(o *ui.StatusOutput) { o.Warn("repo sync failed") }, "tpack: warning: repo sync failed"},
+		{"err", func(o *ui.StatusOutput) { o.Err("self-update failed") }, "tpack: error: self-update failed"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := tmux.NewMockRunner()
+			out := ui.NewStatusOutput(m)
+			tt.call(out)
+			if len(m.Calls) != 1 || m.Calls[0].Method != "DisplayMessage" {
+				t.Fatalf("expected 1 DisplayMessage call, got %+v", m.Calls)
+			}
+			if m.Calls[0].Args[0] != tt.want {
+				t.Errorf("msg = %q, want %q", m.Calls[0].Args[0], tt.want)
+			}
+		})
+	}
+}
+
+func TestStatusOutputHasFailed(t *testing.T) {
+	m := tmux.NewMockRunner()
+	out := ui.NewStatusOutput(m)
+
+	out.Ok("fine")
+	out.Warn("meh")
+	if out.HasFailed() {
+		t.Error("Ok/Warn must not mark output as failed")
+	}
+	out.Err("boom")
+	if !out.HasFailed() {
+		t.Error("Err must mark output as failed")
+	}
+}
+
+func TestStatusOutputEndMessageNoop(t *testing.T) {
+	m := tmux.NewMockRunner()
+	out := ui.NewStatusOutput(m)
+
+	out.EndMessage()
+
+	if len(m.Calls) != 0 {
+		t.Errorf("EndMessage must not call tmux, got %+v", m.Calls)
+	}
+}
