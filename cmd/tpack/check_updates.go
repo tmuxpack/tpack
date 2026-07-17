@@ -38,7 +38,9 @@ var checkUpdatesCmd = &cobra.Command{
 
 func runCheckUpdates() int {
 	runner := tmux.NewRealRunner()
-	diag := ui.NewShellOutput()
+	// check-updates usually runs detached from `tpack init` with stderr
+	// discarded; the status line is the only channel the user sees.
+	diag := ui.NewMultiOutput(ui.NewShellOutput(), ui.NewStatusOutput(runner))
 	cfg, err := config.Resolve(runner)
 	if err != nil {
 		diag.Err("config: " + err.Error())
