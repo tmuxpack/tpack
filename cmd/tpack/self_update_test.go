@@ -317,12 +317,12 @@ func TestSelfUpdateDisplaysDownloadError(t *testing.T) {
 	// Verify the download error message was displayed.
 	found := false
 	for _, call := range runner.Calls {
-		if call.Method == "DisplayMessage" && len(call.Args) > 0 && call.Args[0] == "tpack: self-update failed (download error)" {
+		if call.Method == "DisplayMessage" && len(call.Args) > 0 && call.Args[0] == "tpack: error: self-update failed (download error)" {
 			found = true
 		}
 	}
 	if !found {
-		t.Error("expected DisplayMessage 'tpack: self-update failed (download error)'")
+		t.Error("expected DisplayMessage 'tpack: error: self-update failed (download error)'")
 	}
 }
 
@@ -362,12 +362,12 @@ func TestSelfUpdateDisplaysExtractError(t *testing.T) {
 	// Verify the extract error message was displayed.
 	found := false
 	for _, call := range runner.Calls {
-		if call.Method == "DisplayMessage" && len(call.Args) > 0 && call.Args[0] == "tpack: self-update failed (extract error)" {
+		if call.Method == "DisplayMessage" && len(call.Args) > 0 && call.Args[0] == "tpack: error: self-update failed (extract error)" {
 			found = true
 		}
 	}
 	if !found {
-		t.Error("expected DisplayMessage 'tpack: self-update failed (extract error)'")
+		t.Error("expected DisplayMessage 'tpack: error: self-update failed (extract error)'")
 	}
 }
 
@@ -409,12 +409,12 @@ func TestSelfUpdateDisplaysPermissionError(t *testing.T) {
 	// Verify the permission error message was displayed.
 	found := false
 	for _, call := range runner.Calls {
-		if call.Method == "DisplayMessage" && len(call.Args) > 0 && call.Args[0] == "tpack: self-update failed (permission error)" {
+		if call.Method == "DisplayMessage" && len(call.Args) > 0 && call.Args[0] == "tpack: error: self-update failed (permission error)" {
 			found = true
 		}
 	}
 	if !found {
-		t.Error("expected DisplayMessage 'tpack: self-update failed (permission error)'")
+		t.Error("expected DisplayMessage 'tpack: error: self-update failed (permission error)'")
 	}
 }
 
@@ -863,12 +863,12 @@ func TestSelfUpdateChecksumFetchError(t *testing.T) {
 
 	found := false
 	for _, call := range runner.Calls {
-		if call.Method == "DisplayMessage" && len(call.Args) > 0 && call.Args[0] == "tpack: self-update failed (checksum fetch error)" {
+		if call.Method == "DisplayMessage" && len(call.Args) > 0 && call.Args[0] == "tpack: error: self-update failed (checksum fetch error)" {
 			found = true
 		}
 	}
 	if !found {
-		t.Error("expected DisplayMessage 'tpack: self-update failed (checksum fetch error)'")
+		t.Error("expected DisplayMessage 'tpack: error: self-update failed (checksum fetch error)'")
 	}
 }
 
@@ -910,12 +910,12 @@ func TestSelfUpdateNoChecksumForArchive(t *testing.T) {
 
 	found := false
 	for _, call := range runner.Calls {
-		if call.Method == "DisplayMessage" && len(call.Args) > 0 && call.Args[0] == "tpack: self-update failed (no checksum for archive)" {
+		if call.Method == "DisplayMessage" && len(call.Args) > 0 && call.Args[0] == "tpack: error: self-update failed (no checksum for archive)" {
 			found = true
 		}
 	}
 	if !found {
-		t.Error("expected DisplayMessage 'tpack: self-update failed (no checksum for archive)'")
+		t.Error("expected DisplayMessage 'tpack: error: self-update failed (no checksum for archive)'")
 	}
 }
 

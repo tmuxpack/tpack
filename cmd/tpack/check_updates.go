@@ -2,8 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
-	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -16,6 +14,7 @@ import (
 	"github.com/tmuxpack/tpack/internal/plug"
 	"github.com/tmuxpack/tpack/internal/state"
 	"github.com/tmuxpack/tpack/internal/tmux"
+	"github.com/tmuxpack/tpack/internal/ui"
 )
 
 // Update modes for the UpdateMode config setting.
@@ -39,9 +38,10 @@ var checkUpdatesCmd = &cobra.Command{
 
 func runCheckUpdates() int {
 	runner := tmux.NewRealRunner()
+	diag := ui.NewShellOutput()
 	cfg, err := config.Resolve(runner)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "tpack: config error:", err)
+		diag.Err("config: " + err.Error())
 		return 1
 	}
 
@@ -62,7 +62,7 @@ func runCheckUpdates() int {
 	// Gather plugins from config.
 	plugins, err := config.GatherPlugins(runner, config.RealFS{}, cfg.Paths)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "tpack: config error:", err)
+		diag.Err("config: " + err.Error())
 		return 1
 	}
 
@@ -128,8 +128,8 @@ func findOutdatedPlugins(plugins []plug.Plugin, pluginPath string) []string {
 func handleOutdated(runner tmux.Runner, cfg *config.Config, plugins []plug.Plugin, outdated []string) int {
 	switch cfg.UpdateMode {
 	case updateModePrompt:
-		msg := "tpack: " + strconv.Itoa(len(outdated)) + " plugin update(s) available. Press prefix+U to update."
-		_ = runner.DisplayMessage(msg)
+		status := ui.NewStatusOutput(runner)
+		status.Ok(strconv.Itoa(len(outdated)) + " plugin update(s) available. Press prefix+U to update.")
 
 	case updateModeAuto:
 		return autoUpdatePlugins(runner, cfg, plugins, outdated)
@@ -147,10 +147,11 @@ func autoUpdatePlugins(runner tmux.Runner, cfg *config.Config, plugins []plug.Pl
 	defer cancel()
 	mgr.Update(ctx, plugins, outdated)
 
+	status := ui.NewStatusOutput(runner)
 	if output.HasFailed() {
-		_ = runner.DisplayMessage("tpack: auto-update failed for some plugins: " + strings.Join(outdated, ", "))
+		status.Err("auto-update failed for some plugins: " + strings.Join(outdated, ", "))
 		return 1
 	}
-	_ = runner.DisplayMessage("tpack: " + strconv.Itoa(len(outdated)) + " plugin(s) updated successfully.")
+	status.Ok(strconv.Itoa(len(outdated)) + " plugin(s) updated successfully.")
 	return 0
 }
