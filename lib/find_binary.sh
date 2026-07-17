@@ -21,5 +21,7 @@ _find_tpack() {
 	fi
 
 	# Auto-download from GitHub Releases
-	_download_tpack "$root_dir"
+	if _download_tpack "$root_dir"; then
+		echo "$root_dir/tpack"
+	fi
 }
