@@ -35,11 +35,28 @@ func TestShellOutputErr(t *testing.T) {
 	if stdout.Len() != 0 {
 		t.Errorf("stdout should be empty, got %q", stdout.String())
 	}
-	if got := stderr.String(); got != "fail msg\n" {
-		t.Errorf("stderr = %q, want %q", got, "fail msg\n")
+	if got := stderr.String(); got != "tpack: error: fail msg\n" {
+		t.Errorf("stderr = %q, want %q", got, "tpack: error: fail msg\n")
 	}
 	if !out.HasFailed() {
 		t.Error("HasFailed should be true")
+	}
+}
+
+func TestShellOutputWarn(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	out := ui.NewShellOutputWithWriters(&stdout, &stderr)
+
+	out.Warn("disk almost full")
+
+	if stdout.Len() != 0 {
+		t.Errorf("stdout should be empty, got %q", stdout.String())
+	}
+	if got := stderr.String(); got != "tpack: warning: disk almost full\n" {
+		t.Errorf("stderr = %q, want %q", got, "tpack: warning: disk almost full\n")
+	}
+	if out.HasFailed() {
+		t.Error("Warn must not mark output as failed")
 	}
 }
 

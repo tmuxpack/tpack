@@ -41,14 +41,14 @@ func (s *ShellOutput) Ok(msg string) {
 func (s *ShellOutput) Warn(msg string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	fmt.Fprintln(s.stderr, msg)
+	fmt.Fprintln(s.stderr, "tpack: warning: "+msg)
 }
 
 func (s *ShellOutput) Err(msg string) {
 	s.failed.Store(true)
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	fmt.Fprintln(s.stderr, msg)
+	fmt.Fprintln(s.stderr, "tpack: error: "+msg)
 }
 
 func (s *ShellOutput) EndMessage() {
