@@ -6,7 +6,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/tmuxpack/tpack/internal/config"
 	"github.com/tmuxpack/tpack/internal/tmux"
-	"github.com/tmuxpack/tpack/internal/ui"
 )
 
 var cleanCmd = &cobra.Command{
@@ -14,16 +13,13 @@ var cleanCmd = &cobra.Command{
 	Short: "Remove plugin directories not declared in tmux.conf",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		tmuxEcho, _ := cmd.Flags().GetBool("tmux-echo")
-
 		runner := tmux.NewRealRunner()
-		diag := ui.NewShellOutput()
+		output := newCommandOutput(tmuxEcho, runner)
 		cfg, err := config.Resolve(runner)
 		if err != nil {
-			diag.Err("config: " + err.Error())
-			return errSilent
+			output.Err("config: " + err.Error())
+			return outputResult(output)
 		}
-
-		output := newOutput(tmuxEcho, runner)
 
 		if tmuxEcho {
 			_ = runner.SourceFile(cfg.TmuxConf)
@@ -33,8 +29,8 @@ var cleanCmd = &cobra.Command{
 
 		plugins, err := config.GatherPlugins(runner, config.RealFS{}, cfg.Paths, output.Warn)
 		if err != nil {
-			diag.Err("config: " + err.Error())
-			return errSilent
+			output.Err("config: " + err.Error())
+			return outputResult(output)
 		}
 
 		mgr.Clean(context.Background(), plugins)
@@ -44,10 +40,7 @@ var cleanCmd = &cobra.Command{
 			output.EndMessage()
 		}
 
-		if err := output.Result(); err != nil {
-			return errSilent
-		}
-		return nil
+		return outputResult(output)
 	},
 }
 

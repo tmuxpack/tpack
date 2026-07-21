@@ -21,7 +21,7 @@ var sourceCmd = &cobra.Command{
 		cfg, err := config.Resolve(runner)
 		if err != nil {
 			output.Err("config: " + err.Error())
-			return errSilent
+			return outputResult(output)
 		}
 
 		mgr := newManagerDeps(cfg.PluginPath, output)
@@ -29,7 +29,7 @@ var sourceCmd = &cobra.Command{
 		plugins, err := config.GatherPlugins(runner, config.RealFS{}, cfg.Paths, output.Warn)
 		if err != nil {
 			output.Err("config: " + err.Error())
-			return errSilent
+			return outputResult(output)
 		}
 
 		failures := mgr.Source(context.Background(), plugins)
@@ -39,6 +39,6 @@ var sourceCmd = &cobra.Command{
 		if err := state.SaveLoadErrors(cfg.StatePath, failures); err != nil {
 			output.Warn("failed to save load errors: " + err.Error())
 		}
-		return nil
+		return outputResult(output)
 	},
 }

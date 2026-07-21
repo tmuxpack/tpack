@@ -4,13 +4,30 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/tmuxpack/tpack/internal/config"
 	"github.com/tmuxpack/tpack/internal/tmux"
+	"github.com/tmuxpack/tpack/internal/ui"
 )
+
+func TestInitOutputRoutesBySeverity(t *testing.T) {
+	shell := ui.NewMockSink()
+	status := ui.NewMockSink()
+	out := newInitOutput(shell, status)
+	out.Ok("info")
+	out.Warn("warn")
+	out.Err("error")
+	if got := shell.Texts(); !reflect.DeepEqual(got, []string{"info", "warn", "error"}) {
+		t.Errorf("shell = %v", got)
+	}
+	if got := status.Texts(); !reflect.DeepEqual(got, []string{"warn", "error"}) {
+		t.Errorf("status = %v", got)
+	}
+}
 
 func TestFindBinary(t *testing.T) {
 	t.Run("returns non-empty string", func(t *testing.T) {

@@ -73,10 +73,11 @@ type githubRelease struct {
 // Entry point for the `tpack self-update` command.
 func runSelfUpdate() int {
 	runner := tmux.NewRealRunner()
+	output := ui.NewStatusOutput(runner)
 
 	cfg, err := config.Resolve(runner)
 	if err != nil {
-		ui.NewShellOutput().Err("config: " + err.Error())
+		output.Err("config: " + err.Error())
 		return 1
 	}
 
@@ -92,7 +93,10 @@ func runSelfUpdate() int {
 		repoDir:     repoDir,
 	}
 
-	result := selfUpdateCheck(p, runner)
+	result := selfUpdateCheck(p, output)
+	if output.Result() != nil {
+		return 1
+	}
 
 	switch result {
 	case selfUpdateSuccess, selfUpdateSkipped:
@@ -105,9 +109,7 @@ func runSelfUpdate() int {
 }
 
 // Orchestrates the self-update flow.
-func selfUpdateCheck(p selfUpdateParams, runner tmux.Runner) selfUpdateResult {
-	status := ui.NewStatusOutput(runner)
-
+func selfUpdateCheck(p selfUpdateParams, output ui.Output) selfUpdateResult {
 	// 1. Load state, check LastSelfUpdateCheck -- if <24h ago, skip.
 	st := state.Load(p.statePath, nil)
 	if !st.LastSelfUpdateCheck.IsZero() && time.Since(st.LastSelfUpdateCheck) < selfUpdateInterval {
@@ -121,7 +123,7 @@ func selfUpdateCheck(p selfUpdateParams, runner tmux.Runner) selfUpdateResult {
 	// 3. Fetch latest release version from GitHub API.
 	latest, err := fetchLatestVersion(p.apiURL)
 	if err != nil {
-		status.Err("self-update failed (download error)")
+		output.Err("self-update failed (download error)")
 		return selfUpdateFailed
 	}
 
@@ -137,27 +139,27 @@ func selfUpdateCheck(p selfUpdateParams, runner tmux.Runner) selfUpdateResult {
 
 	checksums, err := fetchChecksums(p.downloadURL, latest)
 	if err != nil {
-		status.Err("self-update failed (checksum fetch error)")
+		output.Err("self-update failed (checksum fetch error)")
 		return selfUpdateFailed
 	}
 
 	expectedHash, ok := checksums[archiveName]
 	if !ok {
-		status.Err("self-update failed (no checksum for archive)")
+		output.Err("self-update failed (no checksum for archive)")
 		return selfUpdateFailed
 	}
 
 	// 6. Download, verify integrity, and extract the new binary.
 	newBinaryPath, cleanup, err := downloadVerifyExtract(archiveURL, expectedHash)
 	if err != nil {
-		status.Err("self-update failed (extract error)")
+		output.Err("self-update failed (extract error)")
 		return selfUpdateFailed
 	}
 	defer cleanup()
 
 	// 7. Atomic replace: rename temp binary over current binary.
 	if err := os.Rename(newBinaryPath, p.binaryPath); err != nil {
-		status.Err("self-update failed (permission error)")
+		output.Err("self-update failed (permission error)")
 		return selfUpdateFailed
 	}
 
@@ -165,13 +167,13 @@ func selfUpdateCheck(p selfUpdateParams, runner tmux.Runner) selfUpdateResult {
 	tag := "v" + latest
 	if !p.skipGitSync {
 		if err := syncGitRepo(p.repoDir, tag); err != nil {
-			status.Warn("updated to " + tag + " (repo sync failed)")
+			output.Warn("updated to " + tag + " (repo sync failed)")
 			return selfUpdateSuccess
 		}
 	}
 
 	// 9. Display success message.
-	status.Ok("updated to " + tag)
+	output.Ok("updated to " + tag)
 	return selfUpdateSuccess
 }
 

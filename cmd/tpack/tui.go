@@ -35,7 +35,7 @@ var tuiCmd = &cobra.Command{
 		}
 
 		runner := tmux.NewRealRunner()
-		out := ui.NewShellOutput()
+		output := ui.NewShellOutput()
 
 		// Fall back to inline TUI if tmux doesn't support display-popup (< 3.2).
 		if popup {
@@ -47,15 +47,15 @@ var tuiCmd = &cobra.Command{
 		theme := tui.BuildTheme(runner)
 		cfg, err := config.Resolve(runner)
 		if err != nil {
-			out.Err("config: " + err.Error())
-			return errSilent
+			output.Err("config: " + err.Error())
+			return outputResult(output)
 		}
 		theme = tui.OverlayConfigColors(theme, cfg.Colors)
 
-		plugins, err := config.GatherPlugins(runner, config.RealFS{}, cfg.Paths, out.Warn)
+		plugins, err := config.GatherPlugins(runner, config.RealFS{}, cfg.Paths, output.Warn)
 		if err != nil {
-			out.Err("config: " + err.Error())
-			return errSilent
+			output.Err("config: " + err.Error())
+			return outputResult(output)
 		}
 
 		deps := tui.Deps{
@@ -77,18 +77,18 @@ var tuiCmd = &cobra.Command{
 		}
 
 		if popup {
-			code := launchPopup(cfg, plugins, deps, opts, autoOp, out)
+			code := launchPopup(cfg, plugins, deps, opts, autoOp, output)
 			if code != 0 {
-				return errSilent
+				return outputResult(output)
 			}
-			return nil
+			return outputResult(output)
 		}
 
 		if err := tui.Run(cfg, plugins, deps, opts...); err != nil {
-			out.Err(err.Error())
-			return errSilent
+			output.Err(err.Error())
+			return outputResult(output)
 		}
-		return nil
+		return outputResult(output)
 	},
 }
 

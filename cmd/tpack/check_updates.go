@@ -36,11 +36,16 @@ var checkUpdatesCmd = &cobra.Command{
 	},
 }
 
-func runCheckUpdates() int {
+func runCheckUpdates() (code int) {
 	runner := tmux.NewRealRunner()
 	// check-updates usually runs detached from `tpack init` with stderr
 	// discarded; the status line is the only channel the user sees.
 	diag := ui.NewMultiOutput(ui.NewShellOutput(), ui.NewStatusOutput(runner))
+	defer func() {
+		if diag.Result() != nil {
+			code = 1
+		}
+	}()
 	cfg, err := config.Resolve(runner)
 	if err != nil {
 		diag.Err("config: " + err.Error())
@@ -145,7 +150,7 @@ func handleOutdated(runner tmux.Runner, cfg *config.Config, plugins []plug.Plugi
 
 // autoUpdatePlugins performs automatic updates for the given outdated plugins.
 func autoUpdatePlugins(runner tmux.Runner, cfg *config.Config, plugins []plug.Plugin, outdated []string) int {
-	output := newOutput(false, runner)
+	output := newCommandOutput(false, runner)
 	mgr := newManagerDeps(cfg.PluginPath, output)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)

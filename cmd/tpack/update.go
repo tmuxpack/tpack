@@ -18,13 +18,12 @@ var updateCmd = &cobra.Command{
 	ValidArgsFunction: completePluginNames,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		tmuxEcho, _ := cmd.Flags().GetBool("tmux-echo")
-
 		runner := tmux.NewRealRunner()
-		diag := ui.NewShellOutput()
+		output := newCommandOutput(tmuxEcho, runner)
 		cfg, err := config.Resolve(runner)
 		if err != nil {
-			diag.Err("config: " + err.Error())
-			return errSilent
+			output.Err("config: " + err.Error())
+			return outputResult(output)
 		}
 
 		names := args
@@ -33,19 +32,17 @@ var updateCmd = &cobra.Command{
 		if len(names) == 0 {
 			if tmuxEcho {
 				runUpdatePrompt(runner, cfg)
-				return nil
+				return outputResult(output)
 			}
 			names = []string{"all"}
 		}
-
-		output := newOutput(tmuxEcho, runner)
 
 		mgr := newManagerDeps(cfg.PluginPath, output)
 
 		plugins, err := config.GatherPlugins(runner, config.RealFS{}, cfg.Paths, output.Warn)
 		if err != nil {
-			diag.Err("config: " + err.Error())
-			return errSilent
+			output.Err("config: " + err.Error())
+			return outputResult(output)
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
@@ -57,10 +54,7 @@ var updateCmd = &cobra.Command{
 			output.EndMessage()
 		}
 
-		if err := output.Result(); err != nil {
-			return errSilent
-		}
-		return nil
+		return outputResult(output)
 	},
 }
 

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/tmuxpack/tpack/internal/tmux"
@@ -27,26 +28,46 @@ func TestExitCode(t *testing.T) {
 	})
 }
 
-func TestNewOutput(t *testing.T) {
+func TestNewCommandOutput(t *testing.T) {
 	t.Run("tmuxEcho false does not use RunShell", func(t *testing.T) {
 		runner := tmux.NewMockRunner()
-		out := newOutput(false, runner)
+		out := newCommandOutput(false, runner)
 		out.Ok("probe")
 
 		for _, call := range runner.Calls {
 			if call.Method == "RunShell" {
-				t.Errorf("newOutput(false, ...) made RunShell call: %+v", call)
+				t.Errorf("newCommandOutput(false, ...) made RunShell call: %+v", call)
 			}
 		}
 	})
 
 	t.Run("tmuxEcho true uses RunShell", func(t *testing.T) {
 		runner := tmux.NewMockRunner()
-		out := newOutput(true, runner)
+		out := newCommandOutput(true, runner)
 		out.Ok("probe")
 
 		if len(runner.Calls) != 1 || runner.Calls[0].Method != "RunShell" {
-			t.Errorf("newOutput(true, ...) calls = %+v, want one RunShell", runner.Calls)
+			t.Errorf("newCommandOutput(true, ...) calls = %+v, want one RunShell", runner.Calls)
 		}
 	})
+}
+
+func TestOutputResultReturnsTransportFailure(t *testing.T) {
+	sink := ui.NewMockSink()
+	sink.Err = errors.New("tmux unavailable")
+	out := ui.NewReporter(sink)
+	out.Err("already reported")
+	err := outputResult(out)
+	var transport *ui.TransportError
+	if !errors.As(err, &transport) {
+		t.Fatalf("outputResult = %v, want transport error", err)
+	}
+}
+
+func TestOutputResultUsesErrSilentWhenDelivered(t *testing.T) {
+	out := ui.NewReporter(ui.NewMockSink())
+	out.Err("already reported")
+	if err := outputResult(out); !errors.Is(err, errSilent) {
+		t.Fatalf("outputResult = %v, want errSilent", err)
+	}
 }

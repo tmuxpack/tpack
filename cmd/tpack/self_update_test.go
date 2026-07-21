@@ -21,6 +21,7 @@ import (
 
 	"github.com/tmuxpack/tpack/internal/state"
 	"github.com/tmuxpack/tpack/internal/tmux"
+	"github.com/tmuxpack/tpack/internal/ui"
 )
 
 // sha256Hex returns the hex-encoded SHA-256 digest of data.
@@ -102,7 +103,7 @@ func TestSelfUpdateSkipsWhenRecent(t *testing.T) {
 		skipGitSync: true,
 	}
 
-	result := selfUpdateCheck(p, runner)
+	result := selfUpdateCheck(p, ui.NewStatusOutput(runner))
 	if result != selfUpdateSkipped {
 		t.Errorf("expected selfUpdateSkipped, got %d", result)
 	}
@@ -138,7 +139,7 @@ func TestSelfUpdateSkipsWhenAlreadyLatest(t *testing.T) {
 		skipGitSync: true,
 	}
 
-	result := selfUpdateCheck(p, runner)
+	result := selfUpdateCheck(p, ui.NewStatusOutput(runner))
 	if result != selfUpdateSkipped {
 		t.Errorf("expected selfUpdateSkipped, got %d", result)
 	}
@@ -166,7 +167,7 @@ func TestSelfUpdateSkipsDevVersion(t *testing.T) {
 		skipGitSync: true,
 	}
 
-	result := selfUpdateCheck(p, runner)
+	result := selfUpdateCheck(p, ui.NewStatusOutput(runner))
 	if result != selfUpdateSkipped {
 		t.Errorf("expected selfUpdateSkipped for dev version, got %d", result)
 	}
@@ -207,7 +208,7 @@ func TestSelfUpdateDownloadsNewVersion(t *testing.T) {
 		skipGitSync: true,
 	}
 
-	result := selfUpdateCheck(p, runner)
+	result := selfUpdateCheck(p, ui.NewStatusOutput(runner))
 	if result != selfUpdateSuccess {
 		t.Errorf("expected selfUpdateSuccess, got %d", result)
 	}
@@ -267,7 +268,7 @@ func TestSelfUpdateRepoSyncFailureWarns(t *testing.T) {
 		repoDir:     t.TempDir(), // not a git repo, so the tag checkout fails
 	}
 
-	result := selfUpdateCheck(p, runner)
+	result := selfUpdateCheck(p, ui.NewStatusOutput(runner))
 	if result != selfUpdateSuccess {
 		t.Errorf("expected selfUpdateSuccess, got %d", result)
 	}
@@ -361,7 +362,7 @@ func TestSelfUpdateDisplaysDownloadError(t *testing.T) {
 		skipGitSync: true,
 	}
 
-	result := selfUpdateCheck(p, runner)
+	result := selfUpdateCheck(p, ui.NewStatusOutput(runner))
 	if result != selfUpdateFailed {
 		t.Errorf("expected selfUpdateFailed, got %d", result)
 	}
@@ -406,7 +407,7 @@ func TestSelfUpdateDisplaysExtractError(t *testing.T) {
 		skipGitSync: true,
 	}
 
-	result := selfUpdateCheck(p, runner)
+	result := selfUpdateCheck(p, ui.NewStatusOutput(runner))
 	if result != selfUpdateFailed {
 		t.Errorf("expected selfUpdateFailed, got %d", result)
 	}
@@ -453,7 +454,7 @@ func TestSelfUpdateDisplaysPermissionError(t *testing.T) {
 		skipGitSync: true,
 	}
 
-	result := selfUpdateCheck(p, runner)
+	result := selfUpdateCheck(p, ui.NewStatusOutput(runner))
 	if result != selfUpdateFailed {
 		t.Errorf("expected selfUpdateFailed, got %d", result)
 	}
@@ -492,7 +493,7 @@ func TestSelfUpdateTimestampSavedBeforeCheck(t *testing.T) {
 	}
 
 	before := time.Now()
-	selfUpdateCheck(p, runner)
+	selfUpdateCheck(p, ui.NewStatusOutput(runner))
 
 	// Verify the timestamp was saved.
 	st := state.Load(statePath, nil)
@@ -528,7 +529,7 @@ func TestSelfUpdateVersionWithVPrefix(t *testing.T) {
 		skipGitSync: true,
 	}
 
-	result := selfUpdateCheck(p, runner)
+	result := selfUpdateCheck(p, ui.NewStatusOutput(runner))
 	if result != selfUpdateSkipped {
 		t.Errorf("expected selfUpdateSkipped, got %d", result)
 	}
@@ -574,7 +575,7 @@ func TestSelfUpdateIntegration(t *testing.T) {
 	}
 
 	// Run the self-update.
-	result := selfUpdateCheck(p, runner)
+	result := selfUpdateCheck(p, ui.NewStatusOutput(runner))
 	if result != selfUpdateSuccess {
 		t.Fatalf("expected selfUpdateSuccess, got %d", result)
 	}
@@ -616,7 +617,7 @@ func TestSelfUpdateIntegration(t *testing.T) {
 
 	// Run again -- should skip because timestamp was saved recently.
 	runner2 := tmux.NewMockRunner()
-	result2 := selfUpdateCheck(p, runner2)
+	result2 := selfUpdateCheck(p, ui.NewStatusOutput(runner2))
 	if result2 != selfUpdateSkipped {
 		t.Errorf("second run: expected selfUpdateSkipped, got %d", result2)
 	}
@@ -908,7 +909,7 @@ func TestSelfUpdateChecksumFetchError(t *testing.T) {
 		skipGitSync: true,
 	}
 
-	result := selfUpdateCheck(p, runner)
+	result := selfUpdateCheck(p, ui.NewStatusOutput(runner))
 	if result != selfUpdateFailed {
 		t.Errorf("expected selfUpdateFailed, got %d", result)
 	}
@@ -955,7 +956,7 @@ func TestSelfUpdateNoChecksumForArchive(t *testing.T) {
 		skipGitSync: true,
 	}
 
-	result := selfUpdateCheck(p, runner)
+	result := selfUpdateCheck(p, ui.NewStatusOutput(runner))
 	if result != selfUpdateFailed {
 		t.Errorf("expected selfUpdateFailed, got %d", result)
 	}

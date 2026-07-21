@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"errors"
+	"os"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -18,16 +20,13 @@ var installCmd = &cobra.Command{
 	Short: "Install all plugins declared in tmux.conf",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		tmuxEcho, _ := cmd.Flags().GetBool("tmux-echo")
-
 		runner := tmux.NewRealRunner()
-		diag := ui.NewShellOutput()
+		output := newCommandOutput(tmuxEcho, runner)
 		cfg, err := config.Resolve(runner)
 		if err != nil {
-			diag.Err("config: " + err.Error())
-			return errSilent
+			output.Err("config: " + err.Error())
+			return outputResult(output)
 		}
-
-		output := newOutput(tmuxEcho, runner)
 
 		if tmuxEcho {
 			_ = runner.SourceFile(cfg.TmuxConf)
@@ -37,8 +36,8 @@ var installCmd = &cobra.Command{
 
 		plugins, err := config.GatherPlugins(runner, config.RealFS{}, cfg.Paths, output.Warn)
 		if err != nil {
-			diag.Err("config: " + err.Error())
-			return errSilent
+			output.Err("config: " + err.Error())
+			return outputResult(output)
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
@@ -50,10 +49,7 @@ var installCmd = &cobra.Command{
 			output.EndMessage()
 		}
 
-		if err := output.Result(); err != nil {
-			return errSilent
-		}
-		return nil
+		return outputResult(output)
 	},
 }
 
@@ -61,11 +57,23 @@ func init() {
 	installCmd.Flags().Bool("tmux-echo", false, "output via tmux display-message")
 }
 
-func newOutput(tmuxEcho bool, runner tmux.Runner) ui.Output {
+func newCommandOutput(tmuxEcho bool, runner tmux.Runner) ui.Output {
 	if tmuxEcho {
-		return ui.NewTmuxOutput(runner)
+		return ui.NewReporter(ui.NewTmuxSink(runner))
 	}
-	return ui.NewShellOutput()
+	return ui.NewReporter(ui.NewShellSink(os.Stdout, os.Stderr))
+}
+
+func outputResult(output ui.Output) error {
+	result := output.Result()
+	if result == nil {
+		return nil
+	}
+	var transport *ui.TransportError
+	if errors.As(result, &transport) {
+		return result
+	}
+	return errSilent
 }
 
 func exitCode(output ui.Output) int {

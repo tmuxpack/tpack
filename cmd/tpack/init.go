@@ -28,69 +28,74 @@ var initCmd = &cobra.Command{
 
 func runInitCmd() error {
 	runner := tmux.NewRealRunner()
-	shellOut := ui.NewShellOutput()
-	status := ui.NewStatusOutput(runner)
+	shell := ui.NewShellSink(os.Stdout, os.Stderr)
+	status := ui.NewStatusSink(runner)
 	// init usually runs from the tmux.conf `run` line, where stderr is
 	// invisible; the status line is the only channel the user sees.
-	both := ui.NewMultiOutput(shellOut, status)
+	output := newInitOutput(shell, status)
 
 	// Check tmux version.
 	verStr, err := runner.Version()
 	if err != nil {
-		shellOut.Err("failed to get tmux version")
-		return errSilent
+		output.Err("failed to get tmux version")
+		return outputResult(output)
 	}
 	current := tmux.ParseVersionDigits(verStr)
 	if !tmux.IsVersionSupported(current, config.SupportedTmuxVersion) {
 		// TODO: add e2e tests with version 1.9
-		status.Err("Tmux version unsupported! Please install Tmux version 1.9 or greater!")
-		return errSilent
+		output.Err("Tmux version unsupported! Please install Tmux version 1.9 or greater!")
+		return outputResult(output)
 	}
 
 	// Resolve config.
 	cfg, err := config.Resolve(runner)
 	if err != nil {
-		both.Err("config: " + err.Error())
-		return errSilent
+		output.Err("config: " + err.Error())
+		return outputResult(output)
 	}
 
 	// Set plugin path in tmux environment (set both for compatibility).
 	if setErr := runner.SetEnvironment(config.PluginPathEnvVar, cfg.PluginPath.String()); setErr != nil {
-		shellOut.Warn("failed to set " + config.PluginPathEnvVar + ": " + setErr.Error())
+		output.Warn("failed to set " + config.PluginPathEnvVar + ": " + setErr.Error())
 	}
 	if setErr := runner.SetEnvironment(config.LegacyPluginPathEnvVar, cfg.PluginPath.String()); setErr != nil {
-		shellOut.Warn("failed to set " + config.LegacyPluginPathEnvVar + ": " + setErr.Error())
+		output.Warn("failed to set " + config.LegacyPluginPathEnvVar + ": " + setErr.Error())
 	}
 
 	binary := findBinary()
 	if bindErr := bindKeys(runner, cfg, binary); bindErr != nil {
-		shellOut.Warn("failed to bind keys: " + bindErr.Error())
+		output.Warn("failed to bind keys: " + bindErr.Error())
 	}
 
 	// Source plugins; failures go to stderr and are persisted for the TUI.
-	mgr := newManagerDeps(cfg.PluginPath, shellOut)
-	plugins, err := config.GatherPlugins(runner, config.RealFS{}, cfg.Paths, shellOut.Warn)
+	mgr := newManagerDeps(cfg.PluginPath, output)
+	plugins, err := config.GatherPlugins(runner, config.RealFS{}, cfg.Paths, output.Warn)
 	if err != nil {
-		both.Err("config: " + err.Error())
-		return errSilent
+		output.Err("config: " + err.Error())
+		return outputResult(output)
 	}
 	failures := mgr.Source(context.Background(), plugins)
 	for _, f := range failures {
-		shellOut.Err("error loading " + f.Name + ": " + f.Message)
+		output.Err("error loading " + f.Name + ": " + f.Message)
 	}
 	if err := state.SaveLoadErrors(cfg.StatePath, failures); err != nil {
-		shellOut.Warn("failed to save load errors: " + err.Error())
+		output.Warn("failed to save load errors: " + err.Error())
 	}
 
 	if shouldSpawnUpdateCheck(cfg) {
-		spawnUpdateCheck(binary, shellOut)
+		spawnUpdateCheck(binary, output)
 	}
 
 	if shouldSpawnSelfUpdate(binary, cfg.PluginPath.String(), cfg.PinnedVersion) {
-		spawnSelfUpdate(binary, shellOut)
+		spawnSelfUpdate(binary, output)
 	}
 
-	return nil
+	return outputResult(output)
+}
+
+func newInitOutput(shell, status ui.Sink) ui.Output {
+	warnAndError := ui.NewMultiSink(shell, status)
+	return ui.NewReporter(ui.NewSeveritySink(shell, warnAndError, warnAndError))
 }
 
 func bindKeys(runner tmux.Runner, cfg *config.Config, binary string) error {
