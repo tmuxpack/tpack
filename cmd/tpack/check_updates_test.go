@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"strconv"
 	"testing"
 	"time"
@@ -8,6 +9,7 @@ import (
 	"github.com/tmuxpack/tpack/internal/config"
 	"github.com/tmuxpack/tpack/internal/plug"
 	"github.com/tmuxpack/tpack/internal/tmux"
+	"github.com/tmuxpack/tpack/internal/ui"
 )
 
 func mustRoot(t *testing.T, path string) plug.Root {
@@ -117,12 +119,13 @@ func TestHandleOutdated_PromptMode(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			runner := tmux.NewMockRunner()
+			status := ui.NewStatusOutput(runner)
 			cfg := &config.Config{
 				UpdateMode: "prompt",
 				PluginPath: mustRoot(t, "/tmp/plugins"),
 			}
 
-			result := handleOutdated(runner, cfg, nil, tt.outdated)
+			result := handleOutdated(cfg, nil, tt.outdated, ui.NewMockOutput(), status)
 			if result != 0 {
 				t.Errorf("handleOutdated() = %d, want 0", result)
 			}
@@ -150,12 +153,13 @@ func TestHandleOutdated_PromptMode(t *testing.T) {
 
 func TestHandleOutdated_UnknownMode(t *testing.T) {
 	runner := tmux.NewMockRunner()
+	status := ui.NewStatusOutput(runner)
 	cfg := &config.Config{
 		UpdateMode: "unknown",
 		PluginPath: mustRoot(t, "/tmp/plugins"),
 	}
 
-	result := handleOutdated(runner, cfg, nil, []string{"tmux-sensible"})
+	result := handleOutdated(cfg, nil, []string{"tmux-sensible"}, ui.NewMockOutput(), status)
 	if result != 0 {
 		t.Errorf("handleOutdated() = %d, want 0 for unrecognized mode", result)
 	}
@@ -173,6 +177,7 @@ func TestHandleOutdated_AutoMode(t *testing.T) {
 	// and creates a Manager. We verify the function is invoked by checking
 	// that a DisplayMessage is produced (either success or failure message).
 	runner := tmux.NewMockRunner()
+	status := ui.NewStatusOutput(runner)
 	cfg := &config.Config{
 		UpdateMode: "auto",
 		PluginPath: mustRoot(t, t.TempDir()),
@@ -186,7 +191,7 @@ func TestHandleOutdated_AutoMode(t *testing.T) {
 	// autoUpdatePlugins will attempt to update but the plugin dir doesn't
 	// exist, so the manager will report nothing updated. The function should
 	// still produce a DisplayMessage with either success or failure status.
-	result := handleOutdated(runner, cfg, plugins, outdated)
+	result := handleOutdated(cfg, plugins, outdated, ui.NewMockOutput(), status)
 
 	var displayCalls []tmux.Call
 	for _, call := range runner.Calls {
@@ -203,5 +208,60 @@ func TestHandleOutdated_AutoMode(t *testing.T) {
 	// the update succeeded. Either way, a message should have been displayed.
 	if result != 0 && result != 1 {
 		t.Errorf("handleOutdated() = %d, want 0 or 1", result)
+	}
+}
+
+func TestHandleOutdated_PromptTransportFailure(t *testing.T) {
+	runner := tmux.NewMockRunner()
+	runner.Errors["DisplayMessage"] = errors.New("tmux unavailable")
+	status := ui.NewStatusOutput(runner)
+	cfg := &config.Config{UpdateMode: updateModePrompt}
+
+	if got := handleOutdated(cfg, nil, []string{"tmux-sensible"}, ui.NewMockOutput(), status); got != 1 {
+		t.Fatalf("handleOutdated() = %d, want 1", got)
+	}
+	var transport *ui.TransportError
+	if !errors.As(status.Result(), &transport) {
+		t.Fatalf("status result = %v, want transport error", status.Result())
+	}
+}
+
+func TestHandleOutdated_AutoTransportFailure(t *testing.T) {
+	runner := tmux.NewMockRunner()
+	runner.Errors["DisplayMessage"] = errors.New("tmux unavailable")
+	status := ui.NewStatusOutput(runner)
+	cfg := &config.Config{
+		UpdateMode: updateModeAuto,
+		PluginPath: mustRoot(t, t.TempDir()),
+	}
+
+	if got := handleOutdated(cfg, nil, []string{"all"}, ui.NewMockOutput(), status); got != 1 {
+		t.Fatalf("handleOutdated() = %d, want 1", got)
+	}
+	var transport *ui.TransportError
+	if !errors.As(status.Result(), &transport) {
+		t.Fatalf("status result = %v, want transport error", status.Result())
+	}
+}
+
+func TestCheckUpdatesResultReturnsTransportFailure(t *testing.T) {
+	sink := ui.NewMockSink()
+	sink.Err = errors.New("tmux unavailable")
+	output := ui.NewReporter(sink)
+	output.Ok("updates available")
+
+	err := checkUpdatesResult(0, output)
+	var transport *ui.TransportError
+	if !errors.As(err, &transport) {
+		t.Fatalf("checkUpdatesResult() = %v, want transport error", err)
+	}
+}
+
+func TestCheckUpdatesResultUsesErrSilentForDeliveredFailure(t *testing.T) {
+	output := ui.NewReporter(ui.NewMockSink())
+	output.Err("config failed")
+
+	if err := checkUpdatesResult(1, output); !errors.Is(err, errSilent) {
+		t.Fatalf("checkUpdatesResult() = %v, want errSilent", err)
 	}
 }

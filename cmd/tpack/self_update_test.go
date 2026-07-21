@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -113,6 +114,28 @@ func TestSelfUpdateSkipsWhenRecent(t *testing.T) {
 		if call.Method == "DisplayMessage" {
 			t.Errorf("unexpected DisplayMessage call: %v", call.Args)
 		}
+	}
+}
+
+func TestSelfUpdateResultReturnsTransportFailure(t *testing.T) {
+	sink := ui.NewMockSink()
+	sink.Err = errors.New("tmux unavailable")
+	output := ui.NewReporter(sink)
+	output.Ok("updated")
+
+	err := selfUpdateCommandResult(selfUpdateSuccess, output)
+	var transport *ui.TransportError
+	if !errors.As(err, &transport) {
+		t.Fatalf("selfUpdateCommandResult() = %v, want transport error", err)
+	}
+}
+
+func TestSelfUpdateResultUsesErrSilentForDeliveredFailure(t *testing.T) {
+	output := ui.NewReporter(ui.NewMockSink())
+	output.Err("self-update failed")
+
+	if err := selfUpdateCommandResult(selfUpdateFailed, output); !errors.Is(err, errSilent) {
+		t.Fatalf("selfUpdateCommandResult() = %v, want errSilent", err)
 	}
 }
 

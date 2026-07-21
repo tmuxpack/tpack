@@ -28,24 +28,23 @@ var checkUpdatesCmd = &cobra.Command{
 	Use:   "check-updates",
 	Short: "Check if any plugins have updates available",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		code := runCheckUpdates()
-		if code != 0 {
-			return errSilent
-		}
-		return nil
+		return runCheckUpdates()
 	},
 }
 
-func runCheckUpdates() (code int) {
+func runCheckUpdates() error {
 	runner := tmux.NewRealRunner()
 	// check-updates usually runs detached from `tpack init` with stderr
 	// discarded; the status line is the only channel the user sees.
-	diag := ui.NewMultiOutput(ui.NewShellOutput(), ui.NewStatusOutput(runner))
-	defer func() {
-		if diag.Result() != nil {
-			code = 1
-		}
-	}()
+	shell := ui.NewShellOutput()
+	status := ui.NewStatusOutput(runner)
+	diag := ui.NewMultiOutput(shell, status)
+
+	code := checkUpdates(runner, diag, shell, status)
+	return checkUpdatesResult(code, diag)
+}
+
+func checkUpdates(runner tmux.Runner, diag, operation, status ui.Output) int {
 	cfg, err := config.Resolve(runner)
 	if err != nil {
 		diag.Err("config: " + err.Error())
@@ -78,7 +77,17 @@ func runCheckUpdates() (code int) {
 		return 0
 	}
 
-	return handleOutdated(runner, cfg, plugins, outdated)
+	return handleOutdated(cfg, plugins, outdated, operation, status)
+}
+
+func checkUpdatesResult(code int, output ui.Output) error {
+	if err := outputResult(output); err != nil {
+		return err
+	}
+	if code != 0 {
+		return errSilent
+	}
+	return nil
 }
 
 // updateChecksEnabled reports whether the update check feature is active.
@@ -135,33 +144,31 @@ func findOutdatedPlugins(plugins []plug.Plugin, pluginPath plug.Root) []string {
 }
 
 // handleOutdated acts on the list of outdated plugins based on the configured update mode.
-func handleOutdated(runner tmux.Runner, cfg *config.Config, plugins []plug.Plugin, outdated []string) int {
+func handleOutdated(cfg *config.Config, plugins []plug.Plugin, outdated []string, operation, status ui.Output) int {
 	switch cfg.UpdateMode {
 	case updateModePrompt:
-		status := ui.NewStatusOutput(runner)
 		status.Ok(strconv.Itoa(len(outdated)) + " plugin update(s) available. Press prefix+U to update.")
+		return exitCode(status)
 
 	case updateModeAuto:
-		return autoUpdatePlugins(runner, cfg, plugins, outdated)
+		return autoUpdatePlugins(cfg, plugins, outdated, operation, status)
 	}
 
 	return 0
 }
 
 // autoUpdatePlugins performs automatic updates for the given outdated plugins.
-func autoUpdatePlugins(runner tmux.Runner, cfg *config.Config, plugins []plug.Plugin, outdated []string) int {
-	output := newCommandOutput(false, runner)
-	mgr := newManagerDeps(cfg.PluginPath, output)
+func autoUpdatePlugins(cfg *config.Config, plugins []plug.Plugin, outdated []string, operation, status ui.Output) int {
+	mgr := newManagerDeps(cfg.PluginPath, operation)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 	mgr.Update(ctx, plugins, outdated)
 
-	status := ui.NewStatusOutput(runner)
-	if output.Result() != nil {
+	if operation.Result() != nil {
 		status.Err("auto-update failed for some plugins: " + strings.Join(outdated, ", "))
 		return 1
 	}
 	status.Ok(strconv.Itoa(len(outdated)) + " plugin(s) updated successfully.")
-	return 0
+	return exitCode(status)
 }

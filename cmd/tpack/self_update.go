@@ -29,11 +29,7 @@ var selfUpdateCmd = &cobra.Command{
 	Use:   "self-update",
 	Short: "Update the tpack binary to the latest release",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		code := runSelfUpdate()
-		if code != 0 {
-			return errSilent
-		}
-		return nil
+		return runSelfUpdate()
 	},
 }
 
@@ -71,14 +67,14 @@ type githubRelease struct {
 }
 
 // Entry point for the `tpack self-update` command.
-func runSelfUpdate() int {
+func runSelfUpdate() error {
 	runner := tmux.NewRealRunner()
 	output := ui.NewStatusOutput(runner)
 
 	cfg, err := config.Resolve(runner)
 	if err != nil {
 		output.Err("config: " + err.Error())
-		return 1
+		return selfUpdateCommandResult(selfUpdateFailed, output)
 	}
 
 	binary := findBinary()
@@ -94,18 +90,21 @@ func runSelfUpdate() int {
 	}
 
 	result := selfUpdateCheck(p, output)
-	if output.Result() != nil {
-		return 1
-	}
+	return selfUpdateCommandResult(result, output)
+}
 
+func selfUpdateCommandResult(result selfUpdateResult, output ui.Output) error {
+	if err := outputResult(output); err != nil {
+		return err
+	}
 	switch result {
 	case selfUpdateSuccess, selfUpdateSkipped:
-		return 0
+		return nil
 	case selfUpdateFailed:
-		return 1
+		return errSilent
 	}
 
-	return 1
+	return errSilent
 }
 
 // Orchestrates the self-update flow.
