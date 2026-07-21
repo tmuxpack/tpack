@@ -66,7 +66,7 @@ func TestSourceSkipsNonExistentPluginDir(t *testing.T) {
 	// Should not panic or error.
 	mgr.Source(context.Background(), plugins)
 
-	if output.HasFailed() {
+	if output.Result() != nil {
 		t.Errorf("expected no errors for non-existent plugin dir, got: %v", output.ErrMsgs)
 	}
 }

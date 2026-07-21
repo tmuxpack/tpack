@@ -2,6 +2,7 @@ package manager_test
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -113,7 +114,7 @@ func TestCleanRejectsZeroRootBeforeEnumeration(t *testing.T) {
 	out := ui.NewMockOutput()
 	mgr := manager.New(plug.Root{}, git.NewMockCloner(), git.NewMockPuller(), git.NewMockValidator(), out)
 	mgr.Clean(context.Background(), nil)
-	if !out.HasFailed() {
+	if !errors.Is(out.Result(), ui.ErrReported) {
 		t.Fatal("clean did not report the invalid root")
 	}
 }

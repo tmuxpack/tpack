@@ -57,7 +57,7 @@ var updateCmd = &cobra.Command{
 			output.EndMessage()
 		}
 
-		if output.HasFailed() {
+		if err := output.Result(); err != nil {
 			return errSilent
 		}
 		return nil

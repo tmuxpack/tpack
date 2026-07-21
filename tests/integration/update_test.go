@@ -38,7 +38,7 @@ func TestUpdateInstalledPlugin(t *testing.T) {
 	defer cancel()
 	mgr.Install(ctx, plugins)
 
-	if installOutput.HasFailed() {
+	if installOutput.Result() != nil {
 		t.Fatalf("install failed: %v", installOutput.ErrMsgs)
 	}
 
@@ -47,7 +47,7 @@ func TestUpdateInstalledPlugin(t *testing.T) {
 	mgr2 := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, updateOutput)
 	mgr2.Update(ctx, plugins, []string{"all"})
 
-	if updateOutput.HasFailed() {
+	if updateOutput.Result() != nil {
 		t.Errorf("update reported failure: %v", updateOutput.ErrMsgs)
 	}
 
@@ -90,7 +90,7 @@ func TestUpdateSpecificPlugin(t *testing.T) {
 	mgr2 := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, updateOutput)
 	mgr2.Update(ctx, plugins, []string{"tmux-example-plugin"})
 
-	if updateOutput.HasFailed() {
+	if updateOutput.Result() != nil {
 		t.Errorf("update reported failure: %v", updateOutput.ErrMsgs)
 	}
 }
@@ -145,7 +145,7 @@ func TestCleanRemovesUnlistedPlugins(t *testing.T) {
 	defer cancel()
 	mgr.Install(ctx, installAll)
 
-	if installOutput.HasFailed() {
+	if installOutput.Result() != nil {
 		t.Fatalf("install failed: %v", installOutput.ErrMsgs)
 	}
 
@@ -189,7 +189,7 @@ func TestCleanWithEmptyConfigRemovesAll(t *testing.T) {
 	defer cancel()
 	mgr.Install(ctx, plugins)
 
-	if installOutput.HasFailed() {
+	if installOutput.Result() != nil {
 		t.Fatalf("install failed: %v", installOutput.ErrMsgs)
 	}
 

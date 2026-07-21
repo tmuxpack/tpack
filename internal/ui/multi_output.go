@@ -1,5 +1,28 @@
 package ui
 
+import "errors"
+
+type multiSink struct{ sinks []Sink }
+
+// NewMultiSink returns a sink that delivers every call to every child sink.
+func NewMultiSink(sinks ...Sink) Sink { return &multiSink{sinks: sinks} }
+
+func (s *multiSink) Write(message Message) error {
+	var errs []error
+	for _, sink := range s.sinks {
+		errs = append(errs, sink.Write(message))
+	}
+	return errors.Join(errs...)
+}
+
+func (s *multiSink) EndMessage() error {
+	var errs []error
+	for _, sink := range s.sinks {
+		errs = append(errs, sink.EndMessage())
+	}
+	return errors.Join(errs...)
+}
+
 // MultiOutput fans every call out to all child outputs. It exists for
 // contexts like `tpack init`, where stderr is invisible (run line in
 // tmux.conf) and messages must also reach the tmux status line.
@@ -36,12 +59,11 @@ func (m *MultiOutput) EndMessage() {
 	}
 }
 
-// HasFailed reports whether any child output has failed.
-func (m *MultiOutput) HasFailed() bool {
-	for _, o := range m.outputs {
-		if o.HasFailed() {
-			return true
-		}
+// Result returns all failures recorded by the child outputs.
+func (m *MultiOutput) Result() error {
+	var errs []error
+	for _, output := range m.outputs {
+		errs = append(errs, output.Result())
 	}
-	return false
+	return errors.Join(errs...)
 }

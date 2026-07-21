@@ -153,7 +153,7 @@ func autoUpdatePlugins(runner tmux.Runner, cfg *config.Config, plugins []plug.Pl
 	mgr.Update(ctx, plugins, outdated)
 
 	status := ui.NewStatusOutput(runner)
-	if output.HasFailed() {
+	if output.Result() != nil {
 		status.Err("auto-update failed for some plugins: " + strings.Join(outdated, ", "))
 		return 1
 	}

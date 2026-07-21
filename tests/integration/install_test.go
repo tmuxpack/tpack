@@ -2,6 +2,7 @@ package integration_test
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -43,7 +44,7 @@ func TestInstallRealPlugin(t *testing.T) {
 		t.Errorf("plugin directory not created: %v", err)
 	}
 
-	if output.HasFailed() {
+	if output.Result() != nil {
 		t.Errorf("install reported failure: %v", output.ErrMsgs)
 	}
 
@@ -118,7 +119,7 @@ func TestInstallNonexistentPlugin(t *testing.T) {
 	defer cancel()
 	mgr.Install(ctx, plugins)
 
-	if !output.HasFailed() {
+	if !errors.Is(output.Result(), ui.ErrReported) {
 		t.Error("expected failure for nonexistent plugin")
 	}
 }

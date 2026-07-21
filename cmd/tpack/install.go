@@ -50,7 +50,7 @@ var installCmd = &cobra.Command{
 			output.EndMessage()
 		}
 
-		if output.HasFailed() {
+		if err := output.Result(); err != nil {
 			return errSilent
 		}
 		return nil
@@ -69,7 +69,7 @@ func newOutput(tmuxEcho bool, runner tmux.Runner) ui.Output {
 }
 
 func exitCode(output ui.Output) int {
-	if output.HasFailed() {
+	if output.Result() != nil {
 		return 1
 	}
 	return 0

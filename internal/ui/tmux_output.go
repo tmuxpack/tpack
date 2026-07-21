@@ -1,59 +1,60 @@
 package ui
 
 import (
+	"errors"
 	"strings"
 	"sync"
-	"sync/atomic"
 
 	"github.com/tmuxpack/tpack/internal/shell"
-	"github.com/tmuxpack/tpack/internal/tmux"
 )
 
-// TmuxOutput displays messages via tmux run-shell echo.
-type TmuxOutput struct {
+func tmuxLiteral(text string) string { return strings.ReplaceAll(text, "#", "##") }
+
+type tmuxPaneRunner interface {
+	RunShell(string) error
+	ShowWindowOption(string) (string, error)
+}
+
+type tmuxSink struct {
 	mu     sync.Mutex
-	runner tmux.Runner
-	failed atomic.Bool
+	runner tmuxPaneRunner
 }
 
-// NewTmuxOutput returns a TmuxOutput using the given tmux runner.
-func NewTmuxOutput(runner tmux.Runner) *TmuxOutput {
-	return &TmuxOutput{runner: runner}
+// NewTmuxSink returns a sink that writes literal messages to a tmux pane.
+func NewTmuxSink(runner tmuxPaneRunner) Sink {
+	return &tmuxSink{runner: runner}
 }
 
-func (t *TmuxOutput) Ok(msg string) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	_ = t.runner.RunShell("echo '" + shell.EscapeInSingleQuotes(msg) + "'")
+func (s *tmuxSink) Write(message Message) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	prefix := ""
+	switch message.Level {
+	case LevelWarning:
+		prefix = "warning: "
+	case LevelError:
+		prefix = "error: "
+	case LevelInfo:
+	default:
+	}
+	text := tmuxLiteral(prefix + message.Text)
+	return s.runner.RunShell("printf '%s\\n' " + shell.Quote(text))
 }
 
-func (t *TmuxOutput) Warn(msg string) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	_ = t.runner.RunShell("echo '" + shell.EscapeInSingleQuotes("warning: "+msg) + "'")
-}
-
-func (t *TmuxOutput) Err(msg string) {
-	t.failed.Store(true)
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	_ = t.runner.RunShell("echo '" + shell.EscapeInSingleQuotes("error: "+msg) + "'")
-}
-
-func (t *TmuxOutput) EndMessage() {
+func (s *tmuxSink) EndMessage() error {
 	continueKey := "ENTER"
-
-	modeKeys, err := t.runner.ShowWindowOption("mode-keys")
-	if err == nil && strings.Contains(modeKeys, "emacs") {
+	if modeKeys, err := s.runner.ShowWindowOption("mode-keys"); err == nil && strings.Contains(modeKeys, "emacs") {
 		continueKey = "ESCAPE"
 	}
-
-	t.Ok("")
-	t.Ok("TMUX environment reloaded.")
-	t.Ok("")
-	t.Ok("Done, press " + continueKey + " to continue.")
+	return errors.Join(
+		s.Write(Message{Level: LevelInfo, Text: ""}),
+		s.Write(Message{Level: LevelInfo, Text: "TMUX environment reloaded."}),
+		s.Write(Message{Level: LevelInfo, Text: ""}),
+		s.Write(Message{Level: LevelInfo, Text: "Done, press " + continueKey + " to continue."}),
+	)
 }
 
-func (t *TmuxOutput) HasFailed() bool {
-	return t.failed.Load()
+// NewTmuxOutput returns a Reporter using the given tmux pane runner.
+func NewTmuxOutput(runner tmuxPaneRunner) *Reporter {
+	return NewReporter(NewTmuxSink(runner))
 }

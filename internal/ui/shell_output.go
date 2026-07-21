@@ -5,56 +5,47 @@ import (
 	"io"
 	"os"
 	"sync"
-	"sync/atomic"
 )
 
-// ShellOutput writes messages to stdout/stderr for CLI usage.
-type ShellOutput struct {
+type shellSink struct {
 	mu     sync.Mutex
 	stdout io.Writer
 	stderr io.Writer
-	failed atomic.Bool
 }
 
-// NewShellOutput returns a ShellOutput writing to os.Stdout/os.Stderr.
-func NewShellOutput() *ShellOutput {
-	return &ShellOutput{
-		stdout: os.Stdout,
-		stderr: os.Stderr,
+// NewShellSink returns a sink that writes informational messages to stdout and
+// warnings and errors to stderr.
+func NewShellSink(stdout, stderr io.Writer) Sink {
+	return &shellSink{stdout: stdout, stderr: stderr}
+}
+
+func (s *shellSink) Write(message Message) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	switch message.Level {
+	case LevelWarning:
+		_, err := fmt.Fprintln(s.stderr, "tpack: warning: "+message.Text)
+		return err
+	case LevelError:
+		_, err := fmt.Fprintln(s.stderr, "tpack: error: "+message.Text)
+		return err
+	case LevelInfo:
+		_, err := fmt.Fprintln(s.stdout, message.Text)
+		return err
+	default:
+		_, err := fmt.Fprintln(s.stdout, message.Text)
+		return err
 	}
 }
 
-// NewShellOutputWithWriters creates a ShellOutput with custom writers (for testing).
-func NewShellOutputWithWriters(stdout, stderr io.Writer) *ShellOutput {
-	return &ShellOutput{
-		stdout: stdout,
-		stderr: stderr,
-	}
+func (s *shellSink) EndMessage() error { return nil }
+
+// NewShellOutput returns a Reporter writing to os.Stdout and os.Stderr.
+func NewShellOutput() *Reporter {
+	return NewReporter(NewShellSink(os.Stdout, os.Stderr))
 }
 
-func (s *ShellOutput) Ok(msg string) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	fmt.Fprintln(s.stdout, msg)
-}
-
-func (s *ShellOutput) Warn(msg string) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	fmt.Fprintln(s.stderr, "tpack: warning: "+msg)
-}
-
-func (s *ShellOutput) Err(msg string) {
-	s.failed.Store(true)
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	fmt.Fprintln(s.stderr, "tpack: error: "+msg)
-}
-
-func (s *ShellOutput) EndMessage() {
-	// Shell output mode does not display an end message.
-}
-
-func (s *ShellOutput) HasFailed() bool {
-	return s.failed.Load()
+// NewShellOutputWithWriters returns a Reporter with custom writers.
+func NewShellOutputWithWriters(stdout, stderr io.Writer) *Reporter {
+	return NewReporter(NewShellSink(stdout, stderr))
 }

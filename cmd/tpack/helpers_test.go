@@ -28,21 +28,25 @@ func TestExitCode(t *testing.T) {
 }
 
 func TestNewOutput(t *testing.T) {
-	t.Run("tmuxEcho false returns ShellOutput", func(t *testing.T) {
+	t.Run("tmuxEcho false does not use RunShell", func(t *testing.T) {
 		runner := tmux.NewMockRunner()
 		out := newOutput(false, runner)
+		out.Ok("probe")
 
-		if _, ok := out.(*ui.ShellOutput); !ok {
-			t.Errorf("newOutput(false, ...) returned %T, want *ui.ShellOutput", out)
+		for _, call := range runner.Calls {
+			if call.Method == "RunShell" {
+				t.Errorf("newOutput(false, ...) made RunShell call: %+v", call)
+			}
 		}
 	})
 
-	t.Run("tmuxEcho true returns TmuxOutput", func(t *testing.T) {
+	t.Run("tmuxEcho true uses RunShell", func(t *testing.T) {
 		runner := tmux.NewMockRunner()
 		out := newOutput(true, runner)
+		out.Ok("probe")
 
-		if _, ok := out.(*ui.TmuxOutput); !ok {
-			t.Errorf("newOutput(true, ...) returned %T, want *ui.TmuxOutput", out)
+		if len(runner.Calls) != 1 || runner.Calls[0].Method != "RunShell" {
+			t.Errorf("newOutput(true, ...) calls = %+v, want one RunShell", runner.Calls)
 		}
 	})
 }

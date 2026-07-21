@@ -1,40 +1,32 @@
 package ui
 
-import (
-	"sync/atomic"
-
-	"github.com/tmuxpack/tpack/internal/tmux"
-)
-
-// StatusOutput displays messages in the tmux status line via display-message.
-// Every message is prefixed with "tpack:" (plus a level for Warn/Err) because
-// the status line mixes output from many programs.
-type StatusOutput struct {
-	runner tmux.Runner
-	failed atomic.Bool
+type displayMessenger interface {
+	DisplayMessage(string) error
 }
 
-// NewStatusOutput returns a StatusOutput using the given tmux runner.
-func NewStatusOutput(runner tmux.Runner) *StatusOutput {
-	return &StatusOutput{runner: runner}
+type statusSink struct{ runner displayMessenger }
+
+// NewStatusSink returns a sink that displays messages in the tmux status line.
+func NewStatusSink(runner displayMessenger) Sink {
+	return &statusSink{runner: runner}
 }
 
-func (s *StatusOutput) Ok(msg string) {
-	_ = s.runner.DisplayMessage("tpack: " + msg)
+func (s *statusSink) Write(message Message) error {
+	prefix := "tpack: "
+	switch message.Level {
+	case LevelWarning:
+		prefix = "tpack: warning: "
+	case LevelError:
+		prefix = "tpack: error: "
+	case LevelInfo:
+	default:
+	}
+	return s.runner.DisplayMessage(tmuxLiteral(prefix + message.Text))
 }
 
-func (s *StatusOutput) Warn(msg string) {
-	_ = s.runner.DisplayMessage("tpack: warning: " + msg)
-}
+func (s *statusSink) EndMessage() error { return nil }
 
-func (s *StatusOutput) Err(msg string) {
-	s.failed.Store(true)
-	_ = s.runner.DisplayMessage("tpack: error: " + msg)
-}
-
-// EndMessage is a no-op; the status line has no completion message.
-func (s *StatusOutput) EndMessage() {}
-
-func (s *StatusOutput) HasFailed() bool {
-	return s.failed.Load()
+// NewStatusOutput returns a Reporter using the given tmux runner.
+func NewStatusOutput(runner displayMessenger) *Reporter {
+	return NewReporter(NewStatusSink(runner))
 }
