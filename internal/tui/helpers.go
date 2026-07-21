@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/tmuxpack/tpack/internal/git"
@@ -53,15 +54,19 @@ func loadErrorMap(failures []plug.LoadFailure) map[string]string {
 	return m
 }
 
-// findOrphans returns orphan items for the TUI.
-func findOrphans(plugins []plug.Plugin, pluginPath plug.Root) []OrphanItem {
-	shared, err := plug.FindOrphans(plugins, pluginPath)
+// findOrphans resolves the plugin root before returning orphan items for the TUI.
+func findOrphans(plugins []plug.Plugin, pluginPath plug.Root) ([]OrphanItem, error) {
+	resolved, err := pluginPath.Resolved()
 	if err != nil {
-		return nil
+		return nil, fmt.Errorf("unsafe plugin directory: %w", err)
+	}
+	shared, err := plug.FindOrphans(plugins, resolved)
+	if err != nil {
+		return nil, fmt.Errorf("failed to inspect plugin directory: %w", err)
 	}
 	items := make([]OrphanItem, len(shared))
 	for i, o := range shared {
 		items[i] = OrphanItem{Name: o.Name, Path: o.Path}
 	}
-	return items
+	return items, nil
 }

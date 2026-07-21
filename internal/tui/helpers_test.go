@@ -93,7 +93,10 @@ func TestFindOrphans_NoOrphans(t *testing.T) {
 	// Create only the listed plugin directory.
 	os.MkdirAll(filepath.Join(pluginPath, "tmux-sensible"), 0o755)
 
-	orphans := findOrphans(plugins, mustRoot(t, pluginPath))
+	orphans, err := findOrphans(plugins, mustRoot(t, pluginPath))
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(orphans) != 0 {
 		t.Errorf("expected 0 orphans, got %d", len(orphans))
 	}
@@ -109,7 +112,10 @@ func TestFindOrphans_WithOrphans(t *testing.T) {
 	os.MkdirAll(filepath.Join(pluginPath, "tmux-sensible"), 0o755)
 	os.MkdirAll(filepath.Join(pluginPath, "tmux-old"), 0o755)
 
-	orphans := findOrphans(plugins, mustRoot(t, pluginPath))
+	orphans, err := findOrphans(plugins, mustRoot(t, pluginPath))
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(orphans) != 1 {
 		t.Fatalf("expected 1 orphan, got %d", len(orphans))
 	}
@@ -128,7 +134,10 @@ func TestFindOrphans_SkipsTpm(t *testing.T) {
 	os.MkdirAll(filepath.Join(pluginPath, "tpm"), 0o755)
 	os.MkdirAll(filepath.Join(pluginPath, "orphan"), 0o755)
 
-	orphans := findOrphans(plugins, mustRoot(t, pluginPath))
+	orphans, err := findOrphans(plugins, mustRoot(t, pluginPath))
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(orphans) != 1 {
 		t.Fatalf("expected 1 orphan (tpm skipped), got %d", len(orphans))
 	}
@@ -143,9 +152,35 @@ func TestFindOrphans_EmptyDir(t *testing.T) {
 		{Name: "test", Spec: "user/test"},
 	}
 
-	orphans := findOrphans(plugins, mustRoot(t, pluginPath))
+	orphans, err := findOrphans(plugins, mustRoot(t, pluginPath))
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(orphans) != 0 {
 		t.Errorf("expected 0 orphans for empty dir, got %d", len(orphans))
+	}
+}
+
+func TestFindOrphansResolvesRootBeforeEnumeration(t *testing.T) {
+	target := t.TempDir()
+	if err := os.Mkdir(filepath.Join(target, "orphan"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(t.TempDir(), "plugins")
+	if err := os.Symlink(target, link); err != nil {
+		t.Fatal(err)
+	}
+
+	orphans, err := findOrphans(nil, mustRoot(t, link))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(orphans) != 1 {
+		t.Fatalf("orphans = %v, want one", orphans)
+	}
+	want := filepath.Join(target, "orphan")
+	if orphans[0].Path != want {
+		t.Errorf("orphan path = %q, want resolved path %q", orphans[0].Path, want)
 	}
 }
 
