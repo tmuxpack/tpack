@@ -50,6 +50,20 @@ func TestPluginPath(t *testing.T) {
 	}
 }
 
+func TestRootChildUsesPluginName(t *testing.T) {
+	root, err := plug.NewRoot("test", "/tmp/plugins", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := root.Child("https://github.com/user/repo.git")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "/tmp/plugins/repo" {
+		t.Errorf("Child() = %q, want /tmp/plugins/repo", got)
+	}
+}
+
 func TestNormalizeURL(t *testing.T) {
 	tests := []struct {
 		input string
