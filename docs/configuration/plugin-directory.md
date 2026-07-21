@@ -36,6 +36,13 @@ set-environment -g TMUX_PLUGIN_MANAGER_PATH '/some/other/path/'
 
 `@tpack-plugin-path` takes priority over both environment variables.
 
+## Invalid paths
+
+- Plugin paths and HOME/XDG roots must be absolute.
+- Filesystem roots and paths resolving to a filesystem root are rejected.
+- Invalid explicit values fail the command and do not fall through precedence.
+- Existing valid precedence remains unchanged.
+
 When changing the path with a git-clone install, update the initialization line
 at the bottom of your config to match:
 

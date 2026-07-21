@@ -30,9 +30,15 @@ Open the TUI with ++prefix+shift+t++ and press ++b++ to browse a curated plugin 
 
 ## Why does clean remove everything when I removed all @plugin lines?
 
-If your `tmux.conf` is readable and declares zero `@plugin` lines, `clean` removes every installed plugin directory (except tpm/tpack itself) — matching TPM's original behavior. A readable, empty declared-plugin list is treated as "I want nothing installed," not as a missing config.
+If the complete configuration is readable and declares zero `@plugin` lines, `clean` removes every non-protected installed plugin directory. The `tpm` and `tpack` directories remain protected. This matches TPM's original behavior: a readable, empty declared-plugin list means "I want nothing installed," not a missing config.
 
-A missing or unreadable `tmux.conf` is a different, explicit case: tpack refuses to run and reports a config error instead of guessing. This distinction exists so a permissions problem or a deleted `tmux.conf` can never be silently treated as "no plugins" and wipe your plugin directory by accident. Note that this guarantee covers `tmux.conf` itself: files pulled in via `source` are read best-effort (conditional sourcing is legal), so keep your `@plugin` lines in `tmux.conf` if you want the strongest protection.
+A missing or unreadable `tmux.conf`, or an unreadable required source in its source graph, is a different, explicit case: tpack aborts before cleanup and reports a config error instead of guessing.
+
+## What happens when a sourced configuration file is missing?
+
+A missing required `source` or `source-file` aborts plugin operations. This prevents an incomplete plugin declaration graph from being mistaken for an intentionally empty configuration.
+
+Use `source-file -q` for intentionally optional configuration. If that file is missing or unreadable, tpack continues without it; a non-quiet `source` or `source-file` remains required.
 
 ## How do I update tpack itself?
 
