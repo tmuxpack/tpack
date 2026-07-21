@@ -1,6 +1,8 @@
 package config_test
 
 import (
+	"errors"
+	"reflect"
 	"testing"
 
 	"github.com/tmuxpack/tpack/internal/config"
@@ -118,6 +120,51 @@ set -g @plugin "tmux-plugins/tpm"
 	}
 }
 
+func TestGatherPluginsFromRecursiveSources(t *testing.T) {
+	fs := config.NewMockFS()
+	fs.Files["/home/user/.tmux.conf"] = "set -g @plugin owner/root\nsource ~/.tmux/one.conf"
+	fs.Files["/home/user/.tmux/one.conf"] = "set -g @plugin owner/one\nsource ~/.tmux/two.conf"
+	fs.Files["/home/user/.tmux/two.conf"] = "set -g @plugin owner/two"
+	plugins, err := config.GatherPlugins(tmux.NewMockRunner(), fs, testPaths(t), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var names []string
+	for _, plugin := range plugins {
+		names = append(names, plugin.Name)
+	}
+	if want := []string{"root", "one", "two"}; !reflect.DeepEqual(names, want) {
+		t.Errorf("names = %v, want %v", names, want)
+	}
+}
+
+func TestGatherPluginsErrorsWhenRequiredSourceUnreadable(t *testing.T) {
+	fs := config.NewMockFS()
+	fs.Files["/home/user/.tmux.conf"] = "source ~/.tmux/missing.conf"
+
+	plugins, err := config.GatherPlugins(tmux.NewMockRunner(), fs, testPaths(t), nil)
+	var sourceErr *config.SourceReadError
+	if !errors.As(err, &sourceErr) {
+		t.Fatalf("error = %v, want SourceReadError", err)
+	}
+	if plugins != nil {
+		t.Fatalf("plugins = %v, want nil", plugins)
+	}
+}
+
+func TestGatherPluginsAllowsMissingQuietSource(t *testing.T) {
+	fs := config.NewMockFS()
+	fs.Files["/home/user/.tmux.conf"] = "source-file -q ~/.tmux/missing.conf"
+
+	plugins, err := config.GatherPlugins(tmux.NewMockRunner(), fs, testPaths(t), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(plugins) != 0 {
+		t.Fatalf("plugins = %v, want none", plugins)
+	}
+}
+
 func TestGatherPluginsIncludesEtcTmuxConf(t *testing.T) {
 	m := tmux.NewMockRunner()
 	fs := config.NewMockFS()
@@ -174,6 +221,10 @@ func TestGatherPluginsErrorsWhenTmuxConfUnreadable(t *testing.T) {
 	plugins, err := config.GatherPlugins(m, fs, testPaths(t), nil)
 	if err == nil {
 		t.Fatal("expected an error when the user tmux.conf cannot be read")
+	}
+	var sourceErr *config.SourceReadError
+	if !errors.As(err, &sourceErr) {
+		t.Fatalf("error = %v, want SourceReadError", err)
 	}
 	if plugins != nil {
 		t.Errorf("expected nil plugins on error, got %v", plugins)

@@ -124,3 +124,49 @@ func TestCleanFailsOnPermissionDenied(t *testing.T) {
 	assertContains(t, output, `"tmux-sensible" clean fail`)
 	assertDirExists(t, exampleDir)
 }
+
+func TestCleanPreservesPluginsWhenRequiredSourceIsMissing(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping E2E test in short mode")
+	}
+	skipIfNoTmux(t)
+	skipIfNoGit(t)
+	binary := buildBinary(t)
+	home, socket := e2eEnv(t, "")
+	startTmux(t, home, socket)
+	confPath := filepath.Join(home, ".tmux.conf")
+	if err := os.WriteFile(confPath, []byte("source ~/.tmux/plugins.conf\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	pluginDir := filepath.Join(home, ".tmux", "plugins")
+	installPluginManually(t, pluginDir, "tmux-plugins/tmux-example-plugin")
+	installPluginManually(t, pluginDir, "tmux-plugins/tmux-sensible")
+	exampleDir := filepath.Join(pluginDir, "tmux-example-plugin")
+	sensibleDir := filepath.Join(pluginDir, "tmux-sensible")
+	output, exitCode := runInTmux(t, home, socket, binary+" clean", 30*time.Second)
+	if exitCode != 1 {
+		t.Fatalf("expected exit code 1, got %d\noutput: %s", exitCode, output)
+	}
+	assertContains(t, output, "cannot read required source")
+	assertDirExists(t, exampleDir)
+	assertDirExists(t, sensibleDir)
+}
+
+func TestCleanAllowsMissingQuietSource(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping E2E test in short mode")
+	}
+	skipIfNoTmux(t)
+	skipIfNoGit(t)
+	binary := buildBinary(t)
+	home, socket := e2eEnv(t, "source-file -q ~/.tmux/plugins.conf\n")
+	startTmux(t, home, socket)
+	pluginDir := filepath.Join(home, ".tmux", "plugins")
+	installPluginManually(t, pluginDir, "tmux-plugins/tmux-sensible")
+	orphanDir := filepath.Join(pluginDir, "tmux-sensible")
+	output, exitCode := runInTmux(t, home, socket, binary+" clean", 30*time.Second)
+	if exitCode != 0 {
+		t.Fatalf("expected exit code 0, got %d\noutput: %s", exitCode, output)
+	}
+	assertDirNotExists(t, orphanDir)
+}
