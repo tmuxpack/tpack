@@ -158,7 +158,12 @@ func (m Model) Init() tea.Cmd {
 	cmds = append(cmds, tea.RequestBackgroundColor)
 	for _, p := range m.plugins {
 		if p.Status == StatusChecking {
-			dir := plug.PluginPath(p.Name, m.cfg.PluginPath)
+			dir, err := m.cfg.PluginPath.Child(p.Name)
+			if err != nil {
+				name := p.Name
+				cmds = append(cmds, func() tea.Msg { return pluginCheckResultMsg{Name: name, Err: err} })
+				continue
+			}
 			cmds = append(cmds, checkPluginCmd(m.deps.Fetcher, p.Name, dir))
 		}
 	}

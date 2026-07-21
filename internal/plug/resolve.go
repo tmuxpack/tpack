@@ -17,11 +17,6 @@ func PluginName(raw string) string {
 	return strings.TrimSuffix(base, ".git")
 }
 
-// PluginPath returns the directory path for a plugin.
-func PluginPath(raw, tpmPath string) string {
-	return filepath.Join(tpmPath, PluginName(raw))
-}
-
 // NormalizeURL converts a shorthand plugin name to a full git URL.
 // If the input already has a protocol prefix or contains ":", it is returned as-is.
 // Otherwise it is expanded to a GitHub HTTPS URL.

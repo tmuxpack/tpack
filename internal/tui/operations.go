@@ -263,11 +263,17 @@ func (m *Model) buildOpsFromTargeted(filter func(PluginItem) bool) []pendingOp {
 		if filter != nil && !filter(p) {
 			continue
 		}
+		path, err := m.cfg.PluginPath.Child(p.Name)
+		if err != nil {
+			m.plugins[i].Status = StatusLoadFailed
+			m.plugins[i].LoadErr = err.Error()
+			continue
+		}
 		ops = append(ops, pendingOp{
 			Name:   p.Name,
 			Spec:   p.Spec,
 			Branch: p.Branch,
-			Path:   plug.PluginPath(p.Name, m.cfg.PluginPath),
+			Path:   path,
 		})
 	}
 	return ops
@@ -276,15 +282,21 @@ func (m *Model) buildOpsFromTargeted(filter func(PluginItem) bool) []pendingOp {
 // buildOpsFromAll builds pending operations from all plugins matching the given predicate.
 func (m *Model) buildOpsFromAll(filter func(PluginItem) bool) []pendingOp {
 	var ops []pendingOp
-	for _, p := range m.plugins {
+	for i, p := range m.plugins {
 		if !filter(p) {
+			continue
+		}
+		path, err := m.cfg.PluginPath.Child(p.Name)
+		if err != nil {
+			m.plugins[i].Status = StatusLoadFailed
+			m.plugins[i].LoadErr = err.Error()
 			continue
 		}
 		ops = append(ops, pendingOp{
 			Name:   p.Name,
 			Spec:   p.Spec,
 			Branch: p.Branch,
-			Path:   plug.PluginPath(p.Name, m.cfg.PluginPath),
+			Path:   path,
 		})
 	}
 	return ops

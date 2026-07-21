@@ -478,7 +478,7 @@ func TestBuildAutoUpdateOps_NoneInstalled(t *testing.T) {
 
 func TestDispatchNext_WithRunner_SourcesOnInstall(t *testing.T) {
 	runner := tmux.NewMockRunner()
-	cfg := &config.Config{PluginPath: t.TempDir() + "/", TmuxConf: "/tmp/test.conf"}
+	cfg := &config.Config{PluginPath: mustRoot(t, t.TempDir()), TmuxConf: "/tmp/test.conf"}
 	deps := Deps{
 		Cloner:    git.NewMockCloner(),
 		Puller:    git.NewMockPuller(),
@@ -515,7 +515,7 @@ func TestDispatchNext_WithRunner_SourcesOnInstall(t *testing.T) {
 
 func TestDispatchNext_WithRunner_SourcesOnUpdate(t *testing.T) {
 	runner := tmux.NewMockRunner()
-	cfg := &config.Config{PluginPath: t.TempDir() + "/", TmuxConf: "/tmp/test.conf"}
+	cfg := &config.Config{PluginPath: mustRoot(t, t.TempDir()), TmuxConf: "/tmp/test.conf"}
 	deps := Deps{
 		Cloner:    git.NewMockCloner(),
 		Puller:    git.NewMockPuller(),
@@ -535,7 +535,7 @@ func TestDispatchNext_WithRunner_SourcesOnUpdate(t *testing.T) {
 
 func TestDispatchNext_WithRunner_NoSourceOnClean(t *testing.T) {
 	runner := tmux.NewMockRunner()
-	cfg := &config.Config{PluginPath: t.TempDir() + "/", TmuxConf: "/tmp/test.conf"}
+	cfg := &config.Config{PluginPath: mustRoot(t, t.TempDir()), TmuxConf: "/tmp/test.conf"}
 	deps := Deps{
 		Cloner:    git.NewMockCloner(),
 		Puller:    git.NewMockPuller(),

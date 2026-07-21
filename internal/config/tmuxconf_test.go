@@ -4,15 +4,41 @@ import (
 	"testing"
 
 	"github.com/tmuxpack/tpack/internal/config"
+	"github.com/tmuxpack/tpack/internal/plug"
 	"github.com/tmuxpack/tpack/internal/tmux"
 )
 
-func testPaths() config.Paths {
+func testPaths(t *testing.T) config.Paths {
 	return config.Paths{
 		TmuxConf:      "/home/user/.tmux.conf",
+		PluginPath:    mustRoot(t, "/home/user/.local/share/tmux/plugins"),
 		Home:          "/home/user",
 		XDGConfigHome: "/home/user/.config",
 	}
+}
+
+func TestGatherPluginsRejectsUnsafeAlias(t *testing.T) {
+	m := tmux.NewMockRunner()
+	fs := config.NewMockFS()
+	fs.Files["/home/user/.tmux.conf"] = `set -g @plugin "owner/repo alias=.."`
+	paths := testPaths(t)
+
+	plugins, err := config.GatherPlugins(m, fs, paths, nil)
+	if err == nil {
+		t.Fatal("GatherPlugins returned no error")
+	}
+	if plugins != nil {
+		t.Fatalf("plugins = %v, want nil", plugins)
+	}
+}
+
+func mustRoot(t *testing.T, path string) plug.Root {
+	t.Helper()
+	root, err := plug.NewRoot("test", path, "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return root
 }
 
 func TestGatherPluginsNewSyntax(t *testing.T) {
@@ -23,7 +49,7 @@ set -g @plugin "tmux-plugins/tpm"
 set -g @plugin "tmux-plugins/tmux-sensible"
 `
 
-	plugins, err := config.GatherPlugins(m, fs, testPaths(), nil)
+	plugins, err := config.GatherPlugins(m, fs, testPaths(t), nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -44,7 +70,7 @@ func TestGatherPluginsLegacySyntax(t *testing.T) {
 	fs := config.NewMockFS()
 	fs.Files["/home/user/.tmux.conf"] = ""
 
-	plugins, err := config.GatherPlugins(m, fs, testPaths(), nil)
+	plugins, err := config.GatherPlugins(m, fs, testPaths(t), nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -65,7 +91,7 @@ func TestGatherPluginsMixed(t *testing.T) {
 	fs := config.NewMockFS()
 	fs.Files["/home/user/.tmux.conf"] = `set -g @plugin "tmux-plugins/tmux-sensible"`
 
-	plugins, err := config.GatherPlugins(m, fs, testPaths(), nil)
+	plugins, err := config.GatherPlugins(m, fs, testPaths(t), nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -83,7 +109,7 @@ set -g @plugin "tmux-plugins/tpm"
 `
 	fs.Files["/home/user/.tmux/plugins.conf"] = `set -g @plugin "tmux-plugins/tmux-yank"`
 
-	plugins, err := config.GatherPlugins(m, fs, testPaths(), nil)
+	plugins, err := config.GatherPlugins(m, fs, testPaths(t), nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -98,7 +124,7 @@ func TestGatherPluginsIncludesEtcTmuxConf(t *testing.T) {
 	fs.Files["/etc/tmux.conf"] = `set -g @plugin "tmux-plugins/tmux-sensible"`
 	fs.Files["/home/user/.tmux.conf"] = `set -g @plugin "tmux-plugins/tpm"`
 
-	plugins, err := config.GatherPlugins(m, fs, testPaths(), nil)
+	plugins, err := config.GatherPlugins(m, fs, testPaths(t), nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -112,7 +138,7 @@ func TestGatherPluginsEmpty(t *testing.T) {
 	fs := config.NewMockFS()
 	fs.Files["/home/user/.tmux.conf"] = ""
 
-	plugins, err := config.GatherPlugins(m, fs, testPaths(), nil)
+	plugins, err := config.GatherPlugins(m, fs, testPaths(t), nil)
 	if err != nil {
 		t.Fatalf("unexpected error for a readable-but-empty conf: %v", err)
 	}
@@ -126,7 +152,7 @@ func TestGatherPluginsWithBranch(t *testing.T) {
 	fs := config.NewMockFS()
 	fs.Files["/home/user/.tmux.conf"] = `set -g @plugin "user/repo#develop"`
 
-	plugins, err := config.GatherPlugins(m, fs, testPaths(), nil)
+	plugins, err := config.GatherPlugins(m, fs, testPaths(t), nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -145,7 +171,7 @@ func TestGatherPluginsErrorsWhenTmuxConfUnreadable(t *testing.T) {
 	m := tmux.NewMockRunner()
 	fs := config.NewMockFS()
 
-	plugins, err := config.GatherPlugins(m, fs, testPaths(), nil)
+	plugins, err := config.GatherPlugins(m, fs, testPaths(t), nil)
 	if err == nil {
 		t.Fatal("expected an error when the user tmux.conf cannot be read")
 	}

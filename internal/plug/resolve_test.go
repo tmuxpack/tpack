@@ -29,27 +29,6 @@ func TestPluginName(t *testing.T) {
 	}
 }
 
-func TestPluginPath(t *testing.T) {
-	tests := []struct {
-		raw     string
-		tpmPath string
-		want    string
-	}{
-		{"user/repo", "/home/user/.tmux/plugins/", "/home/user/.tmux/plugins/repo"},
-		{"user/repo", "/home/user/.tmux/plugins", "/home/user/.tmux/plugins/repo"},
-		{"https://github.com/user/plugin.git", "/opt/plugins/", "/opt/plugins/plugin"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.raw, func(t *testing.T) {
-			got := plug.PluginPath(tt.raw, tt.tpmPath)
-			if got != tt.want {
-				t.Errorf("PluginPath(%q, %q) = %q, want %q", tt.raw, tt.tpmPath, got, tt.want)
-			}
-		})
-	}
-}
-
 func TestRootChildUsesPluginName(t *testing.T) {
 	root, err := plug.NewRoot("test", "/tmp/plugins", "", "")
 	if err != nil {

@@ -22,7 +22,7 @@ func TestSourceExecutesTmuxFiles(t *testing.T) {
 	script := filepath.Join(pDir, "test.tmux")
 	os.WriteFile(script, []byte("#!/bin/sh\ntouch "+marker+"\n"), 0o755)
 
-	mgr := manager.New(pluginDir, git.NewMockCloner(), git.NewMockPuller(), git.NewMockValidator(), ui.NewMockOutput())
+	mgr := manager.New(mustRoot(t, pluginDir), git.NewMockCloner(), git.NewMockPuller(), git.NewMockValidator(), ui.NewMockOutput())
 	failures := mgr.Source(context.Background(), []plug.Plugin{{Name: "tmux-test"}})
 
 	if _, err := os.Stat(marker); err != nil {
@@ -41,7 +41,7 @@ func TestSourceReportsPluginErrorOutput(t *testing.T) {
 	script := filepath.Join(pDir, "test.tmux")
 	os.WriteFile(script, []byte("#!/bin/sh\necho 'boom: missing dependency' >&2\nexit 1\n"), 0o755)
 
-	mgr := manager.New(pluginDir, git.NewMockCloner(), git.NewMockPuller(), git.NewMockValidator(), ui.NewMockOutput())
+	mgr := manager.New(mustRoot(t, pluginDir), git.NewMockCloner(), git.NewMockPuller(), git.NewMockValidator(), ui.NewMockOutput())
 	failures := mgr.Source(context.Background(), []plug.Plugin{{Name: "tmux-test"}})
 
 	if len(failures) != 1 {
@@ -77,7 +77,7 @@ func TestSourceFallsBackToShebangInterpreter(t *testing.T) {
 			script := filepath.Join(pDir, "test.tmux")
 			os.WriteFile(script, []byte(tc.shebang+"\ntouch "+marker+"\n"), 0o755)
 
-			mgr := manager.New(pluginDir, git.NewMockCloner(), git.NewMockPuller(), git.NewMockValidator(), ui.NewMockOutput())
+			mgr := manager.New(mustRoot(t, pluginDir), git.NewMockCloner(), git.NewMockPuller(), git.NewMockValidator(), ui.NewMockOutput())
 			failures := mgr.Source(context.Background(), []plug.Plugin{{Name: "tmux-test"}})
 
 			if _, err := os.Stat(marker); err != nil {
@@ -102,7 +102,7 @@ func TestSourceFallsBackToShellForShebanglessScript(t *testing.T) {
 	script := filepath.Join(pDir, "test.tmux")
 	os.WriteFile(script, []byte("touch "+marker+"\n"), 0o755)
 
-	mgr := manager.New(pluginDir, git.NewMockCloner(), git.NewMockPuller(), git.NewMockValidator(), ui.NewMockOutput())
+	mgr := manager.New(mustRoot(t, pluginDir), git.NewMockCloner(), git.NewMockPuller(), git.NewMockValidator(), ui.NewMockOutput())
 	failures := mgr.Source(context.Background(), []plug.Plugin{{Name: "tmux-test"}})
 
 	if _, err := os.Stat(marker); err != nil {
@@ -115,7 +115,7 @@ func TestSourceFallsBackToShellForShebanglessScript(t *testing.T) {
 
 func TestSourceSkipsNonExistentDir(t *testing.T) {
 	pluginDir := setupTestDir(t)
-	mgr := manager.New(pluginDir, git.NewMockCloner(), git.NewMockPuller(), git.NewMockValidator(), ui.NewMockOutput())
+	mgr := manager.New(mustRoot(t, pluginDir), git.NewMockCloner(), git.NewMockPuller(), git.NewMockValidator(), ui.NewMockOutput())
 
 	failures := mgr.Source(context.Background(), []plug.Plugin{{Name: "nonexistent"}})
 	if len(failures) != 0 {

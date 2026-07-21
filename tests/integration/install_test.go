@@ -27,7 +27,7 @@ func TestInstallRealPlugin(t *testing.T) {
 	validator := gitcli.NewValidator()
 	output := ui.NewMockOutput()
 
-	mgr := manager.New(pluginDir, cloner, puller, validator, output)
+	mgr := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, output)
 
 	plugins := []plug.Plugin{
 		plug.ParseSpec(tmuxExamplePlugin, nil),
@@ -49,7 +49,7 @@ func TestInstallRealPlugin(t *testing.T) {
 
 	// Install again should say "already installed".
 	output2 := ui.NewMockOutput()
-	mgr2 := manager.New(pluginDir, cloner, puller, validator, output2)
+	mgr2 := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, output2)
 	mgr2.Install(ctx, plugins)
 
 	found := false
@@ -76,7 +76,7 @@ func TestInstallMultiplePlugins(t *testing.T) {
 	validator := gitcli.NewValidator()
 	output := ui.NewMockOutput()
 
-	mgr := manager.New(pluginDir, cloner, puller, validator, output)
+	mgr := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, output)
 
 	plugins := []plug.Plugin{
 		plug.ParseSpec(tmuxExamplePlugin, nil),
@@ -108,7 +108,7 @@ func TestInstallNonexistentPlugin(t *testing.T) {
 	validator := gitcli.NewValidator()
 	output := ui.NewMockOutput()
 
-	mgr := manager.New(pluginDir, cloner, puller, validator, output)
+	mgr := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, output)
 
 	plugins := []plug.Plugin{
 		plug.ParseSpec("nonexistent-user/nonexistent-plugin-xyz-abc-123", nil),
@@ -124,7 +124,7 @@ func TestInstallNonexistentPlugin(t *testing.T) {
 }
 
 func TestConfigGatherPluginsFromFile(t *testing.T) {
-	_, confFile := setupIntegrationDir(t)
+	pluginDir, confFile := setupIntegrationDir(t)
 
 	writeConf(t, confFile, `
 set -g @plugin "tmux-plugins/tpm"
@@ -137,8 +137,9 @@ set -g @plugin "user/repo#develop"
 		&noopRunner{},
 		fs,
 		config.Paths{
-			TmuxConf: confFile,
-			Home:     os.Getenv("HOME"),
+			TmuxConf:   confFile,
+			PluginPath: mustRoot(t, pluginDir),
+			Home:       os.Getenv("HOME"),
 		},
 		nil,
 	)

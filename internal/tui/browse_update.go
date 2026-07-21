@@ -6,7 +6,6 @@ import (
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"github.com/tmuxpack/tpack/internal/config"
-	"github.com/tmuxpack/tpack/internal/plug"
 	"github.com/tmuxpack/tpack/internal/registry"
 )
 
@@ -187,11 +186,16 @@ func (m Model) installFromBrowse() (tea.Model, tea.Cmd) {
 		}
 	}
 
+	name := pluginNameFromRepo(selected.Repo)
+	path, err := m.cfg.PluginPath.Child(name)
+	if err != nil {
+		m.browseStatus = "Failed to install: " + err.Error()
+		return m, nil
+	}
+
 	if m.cfg.TmuxConf != "" {
 		_ = config.AppendPlugin(m.cfg.TmuxConf, spec)
 	}
-
-	name := pluginNameFromRepo(selected.Repo)
 	m.plugins = append(m.plugins, PluginItem{
 		Name:   name,
 		Spec:   spec,
@@ -201,7 +205,7 @@ func (m Model) installFromBrowse() (tea.Model, tea.Cmd) {
 	ops := []pendingOp{{
 		Name: name,
 		Spec: spec,
-		Path: plug.PluginPath(name, m.cfg.PluginPath),
+		Path: path,
 	}}
 	cmd := m.initProgress(OpInstall, ops)
 	return m, cmd

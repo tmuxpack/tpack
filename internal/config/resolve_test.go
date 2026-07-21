@@ -58,7 +58,7 @@ func TestResolveDefaults(t *testing.T) {
 	if cfg.TmuxConf != "/home/user/.tmux.conf" {
 		t.Errorf("TmuxConf = %q, want default", cfg.TmuxConf)
 	}
-	if cfg.PluginPath != "/home/user/.local/share/tmux/plugins/" {
+	if cfg.PluginPath.String() != "/home/user/.local/share/tmux/plugins/" {
 		t.Errorf("PluginPath = %q, want XDG data default", cfg.PluginPath)
 	}
 	if cfg.Paths.PluginPathSource != config.SourceDefaultXDGData {
@@ -163,7 +163,7 @@ func TestResolveXDGTmuxConf(t *testing.T) {
 	if cfg.TmuxConf != "/home/user/.config/tmux/tmux.conf" {
 		t.Errorf("TmuxConf = %q, want XDG path", cfg.TmuxConf)
 	}
-	if cfg.PluginPath != "/home/user/.config/tmux/plugins/" {
+	if cfg.PluginPath.String() != "/home/user/.config/tmux/plugins/" {
 		t.Errorf("PluginPath = %q, want XDG plugins path", cfg.PluginPath)
 	}
 }
@@ -178,7 +178,7 @@ func TestResolvePluginPathFromEnv(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if cfg.PluginPath != "/custom/path/" {
+	if cfg.PluginPath.String() != "/custom/path/" {
 		t.Errorf("PluginPath = %q, want %q", cfg.PluginPath, "/custom/path/")
 	}
 }
@@ -193,7 +193,7 @@ func TestResolvePluginPathTrailingSlash(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if cfg.PluginPath != "/custom/path/" {
+	if cfg.PluginPath.String() != "/custom/path/" {
 		t.Errorf("PluginPath = %q, want trailing slash", cfg.PluginPath)
 	}
 }
@@ -505,7 +505,7 @@ func TestResolvePluginPathOption(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if cfg.PluginPath != "/opt/plugins/" {
+	if cfg.PluginPath.String() != "/opt/plugins/" {
 		t.Errorf("PluginPath = %q, want option value to win", cfg.PluginPath)
 	}
 	if cfg.Paths.PluginPathSource != config.SourceOption {

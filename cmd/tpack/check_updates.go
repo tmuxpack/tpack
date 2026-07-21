@@ -87,7 +87,7 @@ func updateChecksEnabled(cfg *config.Config) bool {
 const maxConcurrentChecks = 5
 
 // findOutdatedPlugins checks each installed plugin for available updates in parallel.
-func findOutdatedPlugins(plugins []plug.Plugin, pluginPath string) []string {
+func findOutdatedPlugins(plugins []plug.Plugin, pluginPath plug.Root) []string {
 	validator := gitcli.NewValidator()
 	fetcher := gitcli.NewFetcher()
 
@@ -98,7 +98,10 @@ func findOutdatedPlugins(plugins []plug.Plugin, pluginPath string) []string {
 
 	var targets []target
 	for _, p := range plugins {
-		dir := plug.PluginPath(p.Name, pluginPath)
+		dir, err := pluginPath.Child(p.Name)
+		if err != nil {
+			continue
+		}
 		if validator.IsGitRepo(dir) {
 			targets = append(targets, target{name: p.Name, dir: dir})
 		}

@@ -19,6 +19,41 @@ func TestResolvePathsEmptyHomeFails(t *testing.T) {
 	}
 }
 
+func TestResolvePathsRejectsInvalidInputs(t *testing.T) {
+	tests := []struct {
+		name    string
+		env     config.Env
+		option  string
+		envPath string
+	}{
+		{name: "relative home", env: config.Env{Home: "relative"}},
+		{name: "relative XDG config", env: config.Env{Home: "/home/user", XDGConfigHome: "relative"}},
+		{name: "relative XDG data", env: config.Env{Home: "/home/user", XDGDataHome: "relative"}},
+		{name: "relative XDG state", env: config.Env{Home: "/home/user", XDGStateHome: "relative"}},
+		{name: "relative option", env: testEnv(), option: "."},
+		{name: "normalised root option", env: testEnv(), option: "/."},
+		{name: "relative tmux environment", env: testEnv(), envPath: "../plugins"},
+		{name: "filesystem root tmux environment", env: testEnv(), envPath: "/"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := tmux.NewMockRunner()
+			if tt.option != "" {
+				m.Options[config.PluginPathOption] = tt.option
+			}
+			if tt.envPath != "" {
+				m.Environment[config.PluginPathEnvVar] = tt.envPath
+			}
+			fs := config.NewMockFS()
+			fs.Files["/home/user/.tmux.conf"] = ""
+			if _, err := config.ResolvePaths(m, fs, tt.env); err == nil {
+				t.Fatal("ResolvePaths returned no error")
+			}
+		})
+	}
+}
+
 func TestResolvePathsConfDiscovery(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -147,13 +182,6 @@ func TestResolvePathsPluginPathPrecedence(t *testing.T) {
 			wantSource: config.SourceEnvLegacy,
 		},
 		{
-			name:       "bare slash env value is rejected",
-			envVars:    map[string]string{"TMUX_PLUGIN_MANAGER_PATH": "/"},
-			files:      []string{"/home/user/.tmux.conf"},
-			wantPath:   "/home/user/.local/share/tmux/plugins/",
-			wantSource: config.SourceDefaultXDGData,
-		},
-		{
 			name:       "legacy conf with legacy dir detected",
 			files:      []string{"/home/user/.tmux.conf", "/home/user/.tmux/plugins"},
 			wantPath:   "/home/user/.tmux/plugins/",
@@ -220,7 +248,7 @@ func TestResolvePathsPluginPathPrecedence(t *testing.T) {
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
-			if p.PluginPath != tt.wantPath {
+			if p.PluginPath.String() != tt.wantPath {
 				t.Errorf("PluginPath = %q, want %q", p.PluginPath, tt.wantPath)
 			}
 			if p.PluginPathSource != tt.wantSource {
@@ -239,7 +267,7 @@ func TestResolvePathsCustomXDGDataHome(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if p.PluginPath != "/custom/data/tmux/plugins/" {
+	if p.PluginPath.String() != "/custom/data/tmux/plugins/" {
 		t.Errorf("PluginPath = %q, want /custom/data/tmux/plugins/", p.PluginPath)
 	}
 }

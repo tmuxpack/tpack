@@ -29,7 +29,7 @@ func TestUpdateInstalledPlugin(t *testing.T) {
 
 	// First install.
 	installOutput := ui.NewMockOutput()
-	mgr := manager.New(pluginDir, cloner, puller, validator, installOutput)
+	mgr := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, installOutput)
 	plugins := []plug.Plugin{
 		plug.ParseSpec(tmuxExamplePlugin, nil),
 	}
@@ -44,7 +44,7 @@ func TestUpdateInstalledPlugin(t *testing.T) {
 
 	// Now update.
 	updateOutput := ui.NewMockOutput()
-	mgr2 := manager.New(pluginDir, cloner, puller, validator, updateOutput)
+	mgr2 := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, updateOutput)
 	mgr2.Update(ctx, plugins, []string{"all"})
 
 	if updateOutput.HasFailed() {
@@ -76,7 +76,7 @@ func TestUpdateSpecificPlugin(t *testing.T) {
 	validator := gitcli.NewValidator()
 	installOutput := ui.NewMockOutput()
 
-	mgr := manager.New(pluginDir, cloner, puller, validator, installOutput)
+	mgr := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, installOutput)
 	plugins := []plug.Plugin{
 		plug.ParseSpec(tmuxExamplePlugin, nil),
 	}
@@ -87,7 +87,7 @@ func TestUpdateSpecificPlugin(t *testing.T) {
 
 	// Update specific plugin.
 	updateOutput := ui.NewMockOutput()
-	mgr2 := manager.New(pluginDir, cloner, puller, validator, updateOutput)
+	mgr2 := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, updateOutput)
 	mgr2.Update(ctx, plugins, []string{"tmux-example-plugin"})
 
 	if updateOutput.HasFailed() {
@@ -103,7 +103,7 @@ func TestUpdateNotInstalledPlugin(t *testing.T) {
 	validator := gitcli.NewValidator()
 	output := ui.NewMockOutput()
 
-	mgr := manager.New(pluginDir, cloner, puller, validator, output)
+	mgr := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, output)
 
 	mgr.Update(context.Background(), nil, []string{"nonexistent"})
 
@@ -132,7 +132,7 @@ func TestCleanRemovesUnlistedPlugins(t *testing.T) {
 
 	// Install a declared plugin plus an unlisted orphan.
 	installOutput := ui.NewMockOutput()
-	mgr := manager.New(pluginDir, cloner, puller, validator, installOutput)
+	mgr := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, installOutput)
 	declared := []plug.Plugin{
 		plug.ParseSpec(tmuxExamplePlugin, nil),
 	}
@@ -151,7 +151,7 @@ func TestCleanRemovesUnlistedPlugins(t *testing.T) {
 
 	// Clean with only tmux-example-plugin declared: tmux-sensible is now an orphan.
 	cleanOutput := ui.NewMockOutput()
-	mgr2 := manager.New(pluginDir, cloner, puller, validator, cleanOutput)
+	mgr2 := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, cleanOutput)
 	mgr2.Clean(context.Background(), declared)
 
 	orphanDir := filepath.Join(pluginDir, "tmux-sensible")
@@ -180,7 +180,7 @@ func TestCleanWithEmptyConfigRemovesAll(t *testing.T) {
 	// Install a plugin; a readable-but-empty config declares nothing, so
 	// clean is expected to remove it -- matching TPM's original contract.
 	installOutput := ui.NewMockOutput()
-	mgr := manager.New(pluginDir, cloner, puller, validator, installOutput)
+	mgr := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, installOutput)
 	plugins := []plug.Plugin{
 		plug.ParseSpec(tmuxExamplePlugin, nil),
 	}
@@ -196,7 +196,7 @@ func TestCleanWithEmptyConfigRemovesAll(t *testing.T) {
 	// Clean with an empty declared list (a readable config with zero
 	// @plugin lines): everything installed is now an orphan and is removed.
 	cleanOutput := ui.NewMockOutput()
-	mgr2 := manager.New(pluginDir, cloner, puller, validator, cleanOutput)
+	mgr2 := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, cleanOutput)
 	mgr2.Clean(context.Background(), nil)
 
 	dir := filepath.Join(pluginDir, "tmux-example-plugin")

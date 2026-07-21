@@ -32,7 +32,7 @@ func TestUpdateAll(t *testing.T) {
 	validator.Valid[filepath.Join(pluginDir, "tmux-yank")] = true
 	output := ui.NewMockOutput()
 
-	mgr := manager.New(pluginDir, cloner, puller, validator, output)
+	mgr := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, output)
 
 	plugins := []plug.Plugin{
 		{Name: "tmux-sensible"},
@@ -67,7 +67,7 @@ func TestUpdateSpecific(t *testing.T) {
 	validator.Valid[filepath.Join(pluginDir, "tmux-sensible")] = true
 	output := ui.NewMockOutput()
 
-	mgr := manager.New(pluginDir, cloner, puller, validator, output)
+	mgr := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, output)
 
 	plugins := []plug.Plugin{
 		{Name: "tmux-sensible"},
@@ -89,7 +89,7 @@ func TestUpdateNotInstalled(t *testing.T) {
 	validator := git.NewMockValidator()
 	output := ui.NewMockOutput()
 
-	mgr := manager.New(pluginDir, cloner, puller, validator, output)
+	mgr := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, output)
 
 	mgr.Update(context.Background(), nil, []string{"tmux-foo"})
 
@@ -115,7 +115,7 @@ func TestUpdateOutputIndented(t *testing.T) {
 	validator.Valid[filepath.Join(pluginDir, "tmux-sensible")] = true
 	output := ui.NewMockOutput()
 
-	mgr := manager.New(pluginDir, cloner, puller, validator, output)
+	mgr := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, output)
 
 	mgr.Update(context.Background(), []plug.Plugin{{Name: "tmux-sensible"}}, []string{"all"})
 
@@ -142,7 +142,7 @@ func TestUpdatePullFails(t *testing.T) {
 	validator.Valid[filepath.Join(pluginDir, "tmux-sensible")] = true
 	output := ui.NewMockOutput()
 
-	mgr := manager.New(pluginDir, cloner, puller, validator, output)
+	mgr := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, output)
 
 	mgr.Update(context.Background(), []plug.Plugin{{Name: "tmux-sensible"}}, []string{"all"})
 

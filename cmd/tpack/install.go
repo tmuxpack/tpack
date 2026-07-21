@@ -8,6 +8,7 @@ import (
 	"github.com/tmuxpack/tpack/internal/config"
 	gitcli "github.com/tmuxpack/tpack/internal/git/cli"
 	"github.com/tmuxpack/tpack/internal/manager"
+	"github.com/tmuxpack/tpack/internal/plug"
 	"github.com/tmuxpack/tpack/internal/tmux"
 	"github.com/tmuxpack/tpack/internal/ui"
 )
@@ -74,7 +75,7 @@ func exitCode(output ui.Output) int {
 	return 0
 }
 
-func newManagerDeps(pluginPath string, output ui.Output) *manager.Manager {
+func newManagerDeps(pluginPath plug.Root, output ui.Output) *manager.Manager {
 	return manager.New(pluginPath,
 		gitcli.NewCloner(),
 		gitcli.NewPuller(),

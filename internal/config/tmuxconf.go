@@ -42,7 +42,11 @@ func GatherPlugins(runner tmux.Runner, fs FS, paths Paths, warn func(string)) ([
 	// Parse all specs into Plugin structs.
 	var plugins []plug.Plugin
 	for _, raw := range specs {
-		plugins = append(plugins, plug.ParseSpec(raw, warn))
+		plugin := plug.ParseSpec(raw, warn)
+		if _, err := paths.PluginPath.Child(plugin.Name); err != nil {
+			return nil, fmt.Errorf("invalid plugin %q: %w", raw, err)
+		}
+		plugins = append(plugins, plugin)
 	}
 	return plugins, nil
 }

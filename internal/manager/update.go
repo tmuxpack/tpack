@@ -54,7 +54,11 @@ func (m *Manager) updateSpecific(ctx context.Context, plugins []plug.Plugin, nam
 }
 
 func (m *Manager) updatePlugin(ctx context.Context, p plug.Plugin) {
-	dir := plug.PluginPath(p.Name, m.pluginPath)
+	dir, err := m.pluginRoot.Child(p.Name)
+	if err != nil {
+		m.output.Err("invalid plugin path for " + p.Name + ": " + err.Error())
+		return
+	}
 	output, err := m.puller.Pull(ctx, git.PullOptions{
 		Dir:    dir,
 		Branch: p.Branch,

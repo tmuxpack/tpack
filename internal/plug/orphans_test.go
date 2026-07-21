@@ -23,7 +23,10 @@ func TestFindOrphansDetectsUndeclaredDir(t *testing.T) {
 	dir := mkPluginDirs(t, "tmux-sensible", "tmux-yank")
 	declared := []plug.Plugin{plug.ParseSpec("tmux-plugins/tmux-sensible", nil)}
 
-	orphans := plug.FindOrphans(declared, dir)
+	orphans, err := plug.FindOrphans(declared, mustRoot(t, dir))
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if len(orphans) != 1 {
 		t.Fatalf("orphans = %v, want exactly one", orphans)
@@ -37,7 +40,10 @@ func TestFindOrphansIgnoresTpmAndDeclared(t *testing.T) {
 	dir := mkPluginDirs(t, "tmux-sensible", "tpm", "tpack")
 	declared := []plug.Plugin{plug.ParseSpec("tmux-plugins/tmux-sensible", nil)}
 
-	orphans := plug.FindOrphans(declared, dir)
+	orphans, err := plug.FindOrphans(declared, mustRoot(t, dir))
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if len(orphans) != 0 {
 		t.Errorf("orphans = %v, want none", orphans)
@@ -52,9 +58,21 @@ func TestFindOrphansEmptyPluginListReportsAll(t *testing.T) {
 	// not by this function.
 	dir := mkPluginDirs(t, "tmux-sensible", "tmux-yank", "tmux-resurrect")
 
-	orphans := plug.FindOrphans(nil, dir)
+	orphans, err := plug.FindOrphans(nil, mustRoot(t, dir))
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if len(orphans) != 3 {
 		t.Fatalf("orphans = %v, want all 3 dirs reported for empty plugin list", orphans)
 	}
+}
+
+func mustRoot(t *testing.T, path string) plug.Root {
+	t.Helper()
+	root, err := plug.NewRoot("test", path, "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return root
 }

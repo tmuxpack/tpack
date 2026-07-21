@@ -10,6 +10,15 @@ import (
 	"github.com/tmuxpack/tpack/internal/tmux"
 )
 
+func mustRoot(t *testing.T, path string) plug.Root {
+	t.Helper()
+	root, err := plug.NewRoot("test", path, "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return root
+}
+
 func TestUpdateChecksEnabled(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -110,7 +119,7 @@ func TestHandleOutdated_PromptMode(t *testing.T) {
 			runner := tmux.NewMockRunner()
 			cfg := &config.Config{
 				UpdateMode: "prompt",
-				PluginPath: "/tmp/plugins",
+				PluginPath: mustRoot(t, "/tmp/plugins"),
 			}
 
 			result := handleOutdated(runner, cfg, nil, tt.outdated)
@@ -143,7 +152,7 @@ func TestHandleOutdated_UnknownMode(t *testing.T) {
 	runner := tmux.NewMockRunner()
 	cfg := &config.Config{
 		UpdateMode: "unknown",
-		PluginPath: "/tmp/plugins",
+		PluginPath: mustRoot(t, "/tmp/plugins"),
 	}
 
 	result := handleOutdated(runner, cfg, nil, []string{"tmux-sensible"})
@@ -166,7 +175,7 @@ func TestHandleOutdated_AutoMode(t *testing.T) {
 	runner := tmux.NewMockRunner()
 	cfg := &config.Config{
 		UpdateMode: "auto",
-		PluginPath: t.TempDir(),
+		PluginPath: mustRoot(t, t.TempDir()),
 	}
 
 	plugins := []plug.Plugin{

@@ -68,7 +68,7 @@ func Resolve(runner tmux.Runner, opts ...Option) (*Config, error) {
 	}
 
 	cfg.HiddenCategories = resolveHiddenCategories(runner)
-	cfg.StatePath = filepath.Join(o.env.stateHome(), "tpack")
+	cfg.StatePath = filepath.Join(paths.XDGStateHome, "tpack")
 
 	return cfg, nil
 }

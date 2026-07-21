@@ -420,3 +420,31 @@ func TestInstallFromBrowse_AddsToPluginsAndStartsInstall(t *testing.T) {
 		t.Error("expected plugin line in tmux.conf")
 	}
 }
+
+func TestInstallFromBrowse_InvalidNameDoesNotChangeConfig(t *testing.T) {
+	m := newBrowseModel(t)
+	m.cfg.TmuxConf = filepath.Join(t.TempDir(), "tmux.conf")
+	const original = "# tmux config\n"
+	if err := os.WriteFile(m.cfg.TmuxConf, []byte(original), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	m.browseRegistry = &registry.Registry{Plugins: []registry.RegistryItem{{Repo: ".."}}}
+	m.browseResults = m.browseRegistry.Plugins
+
+	result, cmd := m.installFromBrowse()
+	m = result.(Model)
+
+	if cmd != nil {
+		t.Fatal("expected no install command")
+	}
+	data, err := os.ReadFile(m.cfg.TmuxConf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != original {
+		t.Fatalf("tmux.conf changed to %q", data)
+	}
+	if !strings.Contains(m.browseStatus, "Failed to install") {
+		t.Fatalf("browseStatus = %q, want install failure", m.browseStatus)
+	}
+}

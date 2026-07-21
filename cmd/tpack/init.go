@@ -55,10 +55,10 @@ func runInitCmd() error {
 	}
 
 	// Set plugin path in tmux environment (set both for compatibility).
-	if setErr := runner.SetEnvironment(config.PluginPathEnvVar, cfg.PluginPath); setErr != nil {
+	if setErr := runner.SetEnvironment(config.PluginPathEnvVar, cfg.PluginPath.String()); setErr != nil {
 		shellOut.Warn("failed to set " + config.PluginPathEnvVar + ": " + setErr.Error())
 	}
-	if setErr := runner.SetEnvironment(config.LegacyPluginPathEnvVar, cfg.PluginPath); setErr != nil {
+	if setErr := runner.SetEnvironment(config.LegacyPluginPathEnvVar, cfg.PluginPath.String()); setErr != nil {
 		shellOut.Warn("failed to set " + config.LegacyPluginPathEnvVar + ": " + setErr.Error())
 	}
 
@@ -86,7 +86,7 @@ func runInitCmd() error {
 		spawnUpdateCheck(binary, shellOut)
 	}
 
-	if shouldSpawnSelfUpdate(binary, cfg.PluginPath, cfg.PinnedVersion) {
+	if shouldSpawnSelfUpdate(binary, cfg.PluginPath.String(), cfg.PinnedVersion) {
 		spawnSelfUpdate(binary, shellOut)
 	}
 

@@ -1,6 +1,10 @@
 package config
 
-import "time"
+import (
+	"time"
+
+	"github.com/tmuxpack/tpack/internal/plug"
+)
 
 const (
 	// Default keybinds
@@ -51,7 +55,7 @@ const (
 // Config holds resolved tpack configuration.
 type Config struct {
 	// Absolute path where plugins are installed.
-	PluginPath string
+	PluginPath plug.Root
 	// User's tmux.conf.
 	TmuxConf string
 

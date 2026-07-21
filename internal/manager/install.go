@@ -9,10 +9,15 @@ import (
 )
 
 func (m *Manager) verifyPathPermissions() {
-	// Probe actual write access by attempting to create a temp file.
-	f, err := os.CreateTemp(m.pluginPath, ".tpack-probe-*")
+	pluginPath, err := m.pluginRoot.Path()
 	if err != nil {
-		m.output.Err(m.pluginPath + " is not writable!")
+		m.output.Err(err.Error())
+		return
+	}
+	// Probe actual write access by attempting to create a temp file.
+	f, err := os.CreateTemp(pluginPath, ".tpack-probe-*")
+	if err != nil {
+		m.output.Err(pluginPath + " is not writable!")
 		return
 	}
 	_ = f.Close()
@@ -29,9 +34,13 @@ func (m *Manager) installPlugin(ctx context.Context, p plug.Plugin) {
 
 	m.output.Ok("Installing \"" + name + "\"")
 
-	dir := plug.PluginPath(name, m.pluginPath)
+	dir, err := m.pluginRoot.Child(name)
+	if err != nil {
+		m.output.Err("invalid plugin path for " + name + ": " + err.Error())
+		return
+	}
 
-	err := git.CloneWithFallback(ctx, m.cloner, git.CloneOptions{
+	err = git.CloneWithFallback(ctx, m.cloner, git.CloneOptions{
 		URL:    p.Spec,
 		Dir:    dir,
 		Branch: p.Branch,

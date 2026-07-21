@@ -19,7 +19,11 @@ import (
 func (m *Manager) Source(ctx context.Context, plugins []plug.Plugin) []plug.LoadFailure {
 	var failures []plug.LoadFailure
 	for _, p := range plugins {
-		dir := plug.PluginPath(p.Name, m.pluginPath)
+		dir, err := m.pluginRoot.Child(p.Name)
+		if err != nil {
+			failures = append(failures, plug.LoadFailure{Name: p.Name, Message: err.Error()})
+			continue
+		}
 		if msg := sourcePlugin(ctx, dir); msg != "" {
 			failures = append(failures, plug.LoadFailure{Name: p.Name, Message: msg})
 		}

@@ -11,7 +11,7 @@ import (
 
 func newTestModel(t *testing.T, plugins []plug.Plugin) Model {
 	t.Helper()
-	cfg := &config.Config{PluginPath: t.TempDir() + "/"}
+	cfg := &config.Config{PluginPath: mustRoot(t, t.TempDir())}
 	deps := Deps{
 		Cloner:    git.NewMockCloner(),
 		Puller:    git.NewMockPuller(),
@@ -214,7 +214,7 @@ func TestNewModel_WithAutoOp(t *testing.T) {
 	plugins := []plug.Plugin{
 		{Name: "tmux-sensible", Spec: "tmux-plugins/tmux-sensible"},
 	}
-	cfg := &config.Config{PluginPath: t.TempDir() + "/"}
+	cfg := &config.Config{PluginPath: mustRoot(t, t.TempDir())}
 	deps := Deps{
 		Cloner:    git.NewMockCloner(),
 		Puller:    git.NewMockPuller(),
@@ -233,7 +233,7 @@ func TestNewModel_WithAutoOp(t *testing.T) {
 }
 
 func TestInit_WithAutoOp_SendsAutoStartMsg(t *testing.T) {
-	cfg := &config.Config{PluginPath: t.TempDir() + "/"}
+	cfg := &config.Config{PluginPath: mustRoot(t, t.TempDir())}
 	deps := Deps{
 		Cloner:    git.NewMockCloner(),
 		Puller:    git.NewMockPuller(),
@@ -251,7 +251,7 @@ func TestInit_WithAutoOp_SendsAutoStartMsg(t *testing.T) {
 func TestInit_WithoutAutoOp_NoAutoStartMsg(t *testing.T) {
 	// With no plugins (nothing to check), Init should still return a command
 	// (for background color detection) but no autoStartMsg.
-	cfg := &config.Config{PluginPath: t.TempDir() + "/"}
+	cfg := &config.Config{PluginPath: mustRoot(t, t.TempDir())}
 	deps := Deps{
 		Cloner:    git.NewMockCloner(),
 		Puller:    git.NewMockPuller(),

@@ -1,9 +1,6 @@
 package plug
 
-import (
-	"os"
-	"path/filepath"
-)
+import "os"
 
 // Represents a plugin directory not listed in the config.
 type Orphan struct {
@@ -11,8 +8,12 @@ type Orphan struct {
 	Path string
 }
 
-// Returns directories in pluginPath that don't match any plugin name.
-func FindOrphans(plugins []Plugin, pluginPath string) []Orphan {
+// FindOrphans returns directories in root that don't match any plugin name.
+func FindOrphans(plugins []Plugin, root Root) ([]Orphan, error) {
+	pluginPath, err := root.Path()
+	if err != nil {
+		return nil, err
+	}
 	nameSet := make(map[string]bool, len(plugins))
 	for _, p := range plugins {
 		nameSet[p.Name] = true
@@ -20,7 +21,7 @@ func FindOrphans(plugins []Plugin, pluginPath string) []Orphan {
 
 	entries, err := os.ReadDir(pluginPath)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 
 	var orphans []Orphan
@@ -32,10 +33,11 @@ func FindOrphans(plugins []Plugin, pluginPath string) []Orphan {
 		if name == "tpm" || name == "tpack" || nameSet[name] {
 			continue
 		}
-		orphans = append(orphans, Orphan{
-			Name: name,
-			Path: filepath.Join(pluginPath, entry.Name()),
-		})
+		path, err := root.Child(entry.Name())
+		if err != nil {
+			return nil, err
+		}
+		orphans = append(orphans, Orphan{Name: name, Path: path})
 	}
-	return orphans
+	return orphans, nil
 }

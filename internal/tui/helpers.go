@@ -10,11 +10,15 @@ import (
 // buildPluginItems converts raw plugins into enriched PluginItems with status.
 // loadErrors maps plugin name → load-error message; an installed plugin with an
 // entry is marked StatusLoadFailed.
-func buildPluginItems(plugins []plug.Plugin, pluginPath string, validator git.Validator, loadErrors map[string]string) []PluginItem {
+func buildPluginItems(plugins []plug.Plugin, pluginPath plug.Root, validator git.Validator, loadErrors map[string]string) []PluginItem {
 	items := make([]PluginItem, 0, len(plugins))
 	for _, p := range plugins {
 		status := StatusNotInstalled
-		dir := plug.PluginPath(p.Name, pluginPath)
+		dir, pathErr := pluginPath.Child(p.Name)
+		if pathErr != nil {
+			items = append(items, PluginItem{Name: p.Name, Spec: p.Spec, Branch: p.Branch, Status: StatusLoadFailed, LoadErr: pathErr.Error()})
+			continue
+		}
 		info, err := os.Stat(dir)
 		installed := err == nil && info.IsDir() && validator.IsGitRepo(dir)
 		if installed {
@@ -50,8 +54,11 @@ func loadErrorMap(failures []plug.LoadFailure) map[string]string {
 }
 
 // findOrphans returns orphan items for the TUI.
-func findOrphans(plugins []plug.Plugin, pluginPath string) []OrphanItem {
-	shared := plug.FindOrphans(plugins, pluginPath)
+func findOrphans(plugins []plug.Plugin, pluginPath plug.Root) []OrphanItem {
+	shared, err := plug.FindOrphans(plugins, pluginPath)
+	if err != nil {
+		return nil
+	}
 	items := make([]OrphanItem, len(shared))
 	for i, o := range shared {
 		items[i] = OrphanItem{Name: o.Name, Path: o.Path}

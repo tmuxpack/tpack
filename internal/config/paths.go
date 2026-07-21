@@ -1,7 +1,7 @@
 package config
 
 import (
-	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -53,27 +53,6 @@ func EnvFromOS() Env {
 	}
 }
 
-func (e Env) configHome() string {
-	if e.XDGConfigHome != "" {
-		return e.XDGConfigHome
-	}
-	return filepath.Join(e.Home, ".config")
-}
-
-func (e Env) dataHome() string {
-	if e.XDGDataHome != "" {
-		return e.XDGDataHome
-	}
-	return filepath.Join(e.Home, ".local", "share")
-}
-
-func (e Env) stateHome() string {
-	if e.XDGStateHome != "" {
-		return e.XDGStateHome
-	}
-	return filepath.Join(e.Home, ".local", "state")
-}
-
 // ErrNoTmuxConf reports that no tmux.conf exists at any searched location.
 type ErrNoTmuxConf struct {
 	Searched []string
@@ -89,14 +68,15 @@ type Paths struct {
 	TmuxConf string
 	// ConfSearched lists the candidates tried, deduplicated, for error messages.
 	ConfSearched []string
-	// PluginPath is the plugin directory, trailing-slash normalised.
-	PluginPath string
+	// PluginPath is the validated plugin directory.
+	PluginPath plug.Root
 	// PluginPathSource records which precedence tier produced PluginPath.
 	PluginPathSource PathSource
 
 	Home          string
 	XDGConfigHome string
 	XDGDataHome   string
+	XDGStateHome  string
 }
 
 // ResolvePaths locates the user's tmux.conf and the plugin directory.
@@ -110,14 +90,28 @@ type Paths struct {
 //  4. existing plugin directory, preferring the one adjacent to the resolved tmux.conf
 //  5. $XDG_DATA_HOME/tmux/plugins/
 func ResolvePaths(runner tmux.Runner, fs FS, env Env) (Paths, error) {
-	if env.Home == "" {
-		return Paths{}, errors.New("could not determine home directory")
+	home, err := absoluteDir("HOME", env.Home)
+	if err != nil {
+		return Paths{}, err
+	}
+	configHome, err := resolveHome("XDG_CONFIG_HOME", env.XDGConfigHome, filepath.Join(home, ".config"))
+	if err != nil {
+		return Paths{}, err
+	}
+	dataHome, err := resolveHome("XDG_DATA_HOME", env.XDGDataHome, filepath.Join(home, ".local", "share"))
+	if err != nil {
+		return Paths{}, err
+	}
+	stateHome, err := resolveHome("XDG_STATE_HOME", env.XDGStateHome, filepath.Join(home, ".local", "state"))
+	if err != nil {
+		return Paths{}, err
 	}
 
 	p := Paths{
-		Home:          env.Home,
-		XDGConfigHome: env.configHome(),
-		XDGDataHome:   env.dataHome(),
+		Home:          home,
+		XDGConfigHome: configHome,
+		XDGDataHome:   dataHome,
+		XDGStateHome:  stateHome,
 	}
 
 	conf, searched := findTmuxConf(fs, p)
@@ -127,8 +121,25 @@ func ResolvePaths(runner tmux.Runner, fs FS, env Env) (Paths, error) {
 	p.TmuxConf = conf
 	p.ConfSearched = searched
 
-	p.PluginPath, p.PluginPathSource = resolvePluginDir(runner, fs, p)
+	p.PluginPath, p.PluginPathSource, err = resolvePluginDir(runner, fs, p)
+	if err != nil {
+		return Paths{}, err
+	}
 	return p, nil
+}
+
+func absoluteDir(source, value string) (string, error) {
+	if value == "" || !filepath.IsAbs(value) {
+		return "", fmt.Errorf("%s must be an absolute path, got %q", source, value)
+	}
+	return filepath.Clean(value), nil
+}
+
+func resolveHome(source, value, fallback string) (string, error) {
+	if value == "" {
+		value = fallback
+	}
+	return absoluteDir(source, value)
 }
 
 // findTmuxConf returns the first existing candidate, mirroring tmux's order.
@@ -157,44 +168,62 @@ func findTmuxConf(fs FS, p Paths) (string, []string) {
 	return "", searched
 }
 
-func resolvePluginDir(runner tmux.Runner, fs FS, p Paths) (string, PathSource) {
-	if v, err := runner.ShowOption(PluginPathOption); err == nil && validPluginPath(v) {
-		return withTrailingSlash(plug.ManualExpansion(v, p.Home, p.XDGConfigHome)), SourceOption
+func resolvePluginDir(runner tmux.Runner, fs FS, p Paths) (plug.Root, PathSource, error) {
+	if v, err := runner.ShowOption(PluginPathOption); err == nil && strings.TrimSpace(v) != "" {
+		root, rootErr := plug.NewRoot(PluginPathOption, v, p.Home, p.XDGConfigHome)
+		return root, SourceOption, rootErr
 	}
-	if v, err := runner.ShowEnvironment(PluginPathEnvVar); err == nil && validPluginPath(v) {
-		return withTrailingSlash(v), SourceEnvTpack
+	if v, err := runner.ShowEnvironment(PluginPathEnvVar); err == nil && strings.TrimSpace(v) != "" {
+		root, rootErr := plug.NewRoot(PluginPathEnvVar, v, p.Home, p.XDGConfigHome)
+		return root, SourceEnvTpack, rootErr
 	}
-	if v, err := runner.ShowEnvironment(LegacyPluginPathEnvVar); err == nil && validPluginPath(v) {
-		return withTrailingSlash(v), SourceEnvLegacy
+	if v, err := runner.ShowEnvironment(LegacyPluginPathEnvVar); err == nil && strings.TrimSpace(v) != "" {
+		root, rootErr := plug.NewRoot(LegacyPluginPathEnvVar, v, p.Home, p.XDGConfigHome)
+		return root, SourceEnvLegacy, rootErr
 	}
 
-	ordered := []struct {
-		dir string
-		src PathSource
-	}{
-		{filepath.Join(p.XDGConfigHome, "tmux", "plugins"), SourceDetectedXDGConfig},
-		{filepath.Join(p.Home, ".tmux", "plugins"), SourceDetectedLegacy},
-	}
-	// Prefer the directory adjacent to the resolved tmux.conf.
-	if p.TmuxConf == filepath.Join(p.Home, ".tmux.conf") {
-		ordered[0], ordered[1] = ordered[1], ordered[0]
-	}
-	for _, cand := range ordered {
+	for _, cand := range orderedPluginDirs(p) {
 		if fs.FileExists(cand.dir) {
-			return withTrailingSlash(cand.dir), cand.src
+			root, err := plug.NewRoot(cand.src.String(), cand.dir, p.Home, p.XDGConfigHome)
+			return root, cand.src, err
 		}
 	}
 
-	return withTrailingSlash(filepath.Join(p.XDGDataHome, "tmux", "plugins")), SourceDefaultXDGData
+	root, err := plug.NewRoot(SourceDefaultXDGData.String(), filepath.Join(p.XDGDataHome, "tmux", "plugins"), p.Home, p.XDGConfigHome)
+	return root, SourceDefaultXDGData, err
 }
 
-func validPluginPath(v string) bool {
-	return v != "" && v != "/"
+type pluginDirCandidate struct {
+	dir string
+	src PathSource
 }
 
-func withTrailingSlash(path string) string {
-	if strings.HasSuffix(path, "/") {
-		return path
+func orderedPluginDirs(p Paths) []pluginDirCandidate {
+	ordered := []pluginDirCandidate{
+		{dir: filepath.Join(p.XDGConfigHome, "tmux", "plugins"), src: SourceDetectedXDGConfig},
+		{dir: filepath.Join(p.Home, ".tmux", "plugins"), src: SourceDetectedLegacy},
 	}
-	return path + "/"
+	if p.TmuxConf == filepath.Join(p.Home, ".tmux.conf") {
+		ordered[0], ordered[1] = ordered[1], ordered[0]
+	}
+	return ordered
+}
+
+func (s PathSource) String() string {
+	switch s {
+	case SourceOption:
+		return PluginPathOption
+	case SourceEnvTpack:
+		return PluginPathEnvVar
+	case SourceEnvLegacy:
+		return LegacyPluginPathEnvVar
+	case SourceDetectedXDGConfig:
+		return "existing XDG config plugin directory"
+	case SourceDetectedLegacy:
+		return "existing legacy plugin directory"
+	case SourceDefaultXDGData:
+		return "XDG data default"
+	default:
+		return "unknown plugin path source"
+	}
 }
