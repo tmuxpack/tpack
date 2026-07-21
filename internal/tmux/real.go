@@ -26,8 +26,16 @@ func (r *RealRunner) runTmux(args ...string) (string, error) {
 	return strings.TrimSpace(string(out)), err
 }
 
-func (r *RealRunner) ShowOption(option string) (string, error) {
-	return r.runTmux("show-option", "-gqv", option)
+func (r *RealRunner) ShowOption(option string) (string, bool, error) {
+	definition, err := r.runTmux("show-option", "-gq", option)
+	if err != nil {
+		return "", false, err
+	}
+	if definition == "" {
+		return "", false, nil
+	}
+	value, err := r.runTmux("show-option", "-gqv", option)
+	return value, true, err
 }
 
 func (r *RealRunner) ShowEnvironment(name string) (string, error) {
@@ -39,7 +47,7 @@ func (r *RealRunner) ShowEnvironment(name string) (string, error) {
 	if idx := strings.Index(out, "="); idx >= 0 {
 		return out[idx+1:], nil
 	}
-	return "", fmt.Errorf("environment variable %s not set", name)
+	return "", fmt.Errorf("environment variable %s: %w", name, ErrNotSet)
 }
 
 func (r *RealRunner) SetEnvironment(name, value string) error {

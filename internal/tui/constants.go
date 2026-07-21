@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/tmuxpack/tpack/internal/git"
+	"github.com/tmuxpack/tpack/internal/plug"
 )
 
 // Screen represents the current TUI screen.
@@ -124,6 +125,7 @@ type pendingOp struct {
 	Spec   string
 	Branch string
 	Path   string
+	Root   plug.Root
 }
 
 // loadingFailedLabel is the display label for a plugin that failed to load.

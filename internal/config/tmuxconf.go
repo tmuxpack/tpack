@@ -19,7 +19,7 @@ import (
 func GatherPlugins(runner tmux.Runner, fs FS, paths Paths, warn func(string)) ([]plug.Plugin, error) {
 	var specs []string
 
-	if legacy, err := runner.ShowOption("@tpm_plugins"); err == nil && legacy != "" {
+	if legacy, set, err := runner.ShowOption("@tpm_plugins"); err == nil && set && legacy != "" {
 		for s := range strings.FieldsSeq(legacy) {
 			s = strings.TrimSpace(s)
 			if s != "" {

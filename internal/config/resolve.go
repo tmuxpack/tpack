@@ -63,7 +63,7 @@ func Resolve(runner tmux.Runner, opts ...Option) (*Config, error) {
 	cfg.Colors = resolveColors(runner)
 	cfg.UpdateCheckInterval, cfg.UpdateMode = resolveUpdateSettings(runner)
 
-	if v, err := runner.ShowOption(VersionOption); err == nil && v != "" {
+	if v, set, err := runner.ShowOption(VersionOption); err == nil && set && v != "" {
 		cfg.PinnedVersion = v
 	}
 
@@ -88,7 +88,7 @@ func resolveColors(runner tmux.Runner) ColorConfig {
 		{ColorMutedOption, &c.Muted},
 		{ColorTextOption, &c.Text},
 	} {
-		if v, err := runner.ShowOption(entry.option); err == nil && v != "" {
+		if v, set, err := runner.ShowOption(entry.option); err == nil && set && v != "" {
 			*entry.field = v
 		}
 	}
@@ -100,10 +100,10 @@ func resolveColors(runner tmux.Runner) ColorConfig {
 func resolveUpdateSettings(runner tmux.Runner) (time.Duration, string) {
 	var interval time.Duration
 	var mode string
-	if v, err := runner.ShowOption(UpdateIntervalOption); err == nil && v != "" {
+	if v, set, err := runner.ShowOption(UpdateIntervalOption); err == nil && set && v != "" {
 		interval = parseCheckInterval(v)
 	}
-	if v, err := runner.ShowOption(UpdateModeOption); err == nil && v != "" {
+	if v, set, err := runner.ShowOption(UpdateModeOption); err == nil && set && v != "" {
 		mode = parseUpdateMode(v)
 	}
 	return interval, mode
@@ -139,12 +139,12 @@ func parseCheckInterval(s string) time.Duration {
 // Reads a tmux option, falling back to a legacy name.
 // Returns the default if neither is set.
 func resolveOptionWithLegacyAndFallback(runner tmux.Runner, current, legacy, def string) string {
-	if v, err := runner.ShowOption(current); err == nil && v != "" {
+	if v, set, err := runner.ShowOption(current); err == nil && set && v != "" {
 		return v
 	}
 
 	if legacy != "" {
-		if v, err := runner.ShowOption(legacy); err == nil && v != "" {
+		if v, set, err := runner.ShowOption(legacy); err == nil && set && v != "" {
 			return v
 		}
 	}
@@ -153,7 +153,7 @@ func resolveOptionWithLegacyAndFallback(runner tmux.Runner, current, legacy, def
 }
 
 func resolveOptionWithFallback(runner tmux.Runner, current, def string) string {
-	if v, err := runner.ShowOption(current); err == nil && v != "" {
+	if v, set, err := runner.ShowOption(current); err == nil && set && v != "" {
 		return v
 	}
 
@@ -162,8 +162,8 @@ func resolveOptionWithFallback(runner tmux.Runner, current, def string) string {
 
 // resolveHiddenCategories reads a comma-separated list of category names to hide.
 func resolveHiddenCategories(runner tmux.Runner) []string {
-	v, err := runner.ShowOption(HiddenCategoriesOption)
-	if err != nil || v == "" {
+	v, set, err := runner.ShowOption(HiddenCategoriesOption)
+	if err != nil || !set || v == "" {
 		return nil
 	}
 	var cats []string

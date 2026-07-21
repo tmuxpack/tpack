@@ -169,15 +169,15 @@ func findTmuxConf(fs FS, p Paths) (string, []string) {
 }
 
 func resolvePluginDir(runner tmux.Runner, fs FS, p Paths) (plug.Root, PathSource, error) {
-	if v, err := runner.ShowOption(PluginPathOption); err == nil && strings.TrimSpace(v) != "" {
+	if v, set, err := runner.ShowOption(PluginPathOption); err == nil && set {
 		root, rootErr := plug.NewRoot(PluginPathOption, v, p.Home, p.XDGConfigHome)
 		return root, SourceOption, rootErr
 	}
-	if v, err := runner.ShowEnvironment(PluginPathEnvVar); err == nil && strings.TrimSpace(v) != "" {
+	if v, err := runner.ShowEnvironment(PluginPathEnvVar); err == nil {
 		root, rootErr := plug.NewRoot(PluginPathEnvVar, v, p.Home, p.XDGConfigHome)
 		return root, SourceEnvTpack, rootErr
 	}
-	if v, err := runner.ShowEnvironment(LegacyPluginPathEnvVar); err == nil && strings.TrimSpace(v) != "" {
+	if v, err := runner.ShowEnvironment(LegacyPluginPathEnvVar); err == nil {
 		root, rootErr := plug.NewRoot(LegacyPluginPathEnvVar, v, p.Home, p.XDGConfigHome)
 		return root, SourceEnvLegacy, rootErr
 	}

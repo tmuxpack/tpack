@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/tmuxpack/tpack/internal/config"
+	"github.com/tmuxpack/tpack/internal/plug"
 	"github.com/tmuxpack/tpack/internal/tmux"
 )
 
@@ -49,6 +50,63 @@ func TestResolvePathsRejectsInvalidInputs(t *testing.T) {
 			fs.Files["/home/user/.tmux.conf"] = ""
 			if _, err := config.ResolvePaths(m, fs, tt.env); err == nil {
 				t.Fatal("ResolvePaths returned no error")
+			}
+		})
+	}
+}
+
+func TestResolvePathsRejectsPresentEmptyPluginPaths(t *testing.T) {
+	tests := []struct {
+		name        string
+		optionSet   bool
+		option      string
+		environment map[string]string
+	}{
+		{
+			name:        "empty option",
+			optionSet:   true,
+			environment: map[string]string{config.PluginPathEnvVar: "/lower-precedence"},
+		},
+		{
+			name:        "whitespace option",
+			optionSet:   true,
+			option:      " \t ",
+			environment: map[string]string{config.PluginPathEnvVar: "/lower-precedence"},
+		},
+		{
+			name:        "empty tpack environment",
+			environment: map[string]string{config.PluginPathEnvVar: "", config.LegacyPluginPathEnvVar: "/lower-precedence"},
+		},
+		{
+			name:        "whitespace tpack environment",
+			environment: map[string]string{config.PluginPathEnvVar: " \n ", config.LegacyPluginPathEnvVar: "/lower-precedence"},
+		},
+		{
+			name:        "empty legacy environment",
+			environment: map[string]string{config.LegacyPluginPathEnvVar: ""},
+		},
+		{
+			name:        "whitespace legacy environment",
+			environment: map[string]string{config.LegacyPluginPathEnvVar: "  "},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			runner := tmux.NewMockRunner()
+			if tt.optionSet {
+				runner.Options[config.PluginPathOption] = tt.option
+			}
+			for name, value := range tt.environment {
+				runner.Environment[name] = value
+			}
+			fs := config.NewMockFS()
+			fs.Files["/home/user/.tmux.conf"] = ""
+
+			_, err := config.ResolvePaths(runner, fs, testEnv())
+			var rootErr *plug.RootError
+			if !errors.As(err, &rootErr) {
+				t.Fatalf("ResolvePaths error = %v, want *plug.RootError", err)
 			}
 		})
 	}

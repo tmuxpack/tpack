@@ -1,11 +1,16 @@
 // Package tmux provides an interface for interacting with tmux.
 package tmux
 
+import "errors"
+
+// ErrNotSet indicates that a requested tmux option or environment variable is absent.
+var ErrNotSet = errors.New("tmux value is not set")
+
 // Runner abstracts tmux server interactions for testability.
 type Runner interface {
 	// ShowOption returns the value of a tmux global option.
 	// Equivalent to: tmux show-option -gqv <option>
-	ShowOption(option string) (string, error)
+	ShowOption(option string) (value string, set bool, err error)
 
 	// ShowEnvironment returns the value of a tmux global environment variable.
 	// Equivalent to: tmux show-environment -g <name>

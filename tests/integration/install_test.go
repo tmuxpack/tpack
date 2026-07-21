@@ -12,6 +12,7 @@ import (
 	gitcli "github.com/tmuxpack/tpack/internal/git/cli"
 	"github.com/tmuxpack/tpack/internal/manager"
 	"github.com/tmuxpack/tpack/internal/plug"
+	"github.com/tmuxpack/tpack/internal/tmux"
 	"github.com/tmuxpack/tpack/internal/ui"
 )
 
@@ -158,8 +159,8 @@ set -g @plugin "user/repo#develop"
 // noopRunner is a tmux.Runner that returns empty values.
 type noopRunner struct{}
 
-func (n *noopRunner) ShowOption(string) (string, error)       { return "", nil }
-func (n *noopRunner) ShowEnvironment(string) (string, error)  { return "", nil }
+func (n *noopRunner) ShowOption(string) (string, bool, error) { return "", false, nil }
+func (n *noopRunner) ShowEnvironment(string) (string, error)  { return "", tmux.ErrNotSet }
 func (n *noopRunner) SetEnvironment(string, string) error     { return nil }
 func (n *noopRunner) BindKey(string, string, string) error    { return nil }
 func (n *noopRunner) SourceFile(string) error                 { return nil }

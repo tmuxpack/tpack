@@ -31,7 +31,7 @@ var updateCmd = &cobra.Command{
 		// No plugin names: show interactive prompt (tmux-echo) or update all (shell).
 		if len(names) == 0 {
 			if tmuxEcho {
-				runUpdatePrompt(runner, cfg)
+				runUpdatePrompt(runner, cfg, output)
 				return outputResult(output)
 			}
 			names = []string{"all"}
@@ -63,13 +63,16 @@ func init() {
 }
 
 // runUpdatePrompt handles the interactive update prompt from tmux keybinding.
-func runUpdatePrompt(runner *tmux.RealRunner, cfg *config.Config) {
-	output := ui.NewTmuxOutput(runner)
-
+func runUpdatePrompt(runner tmux.Runner, cfg *config.Config, output ui.Output) {
 	// Reload environment.
-	_ = runner.SourceFile(cfg.TmuxConf)
+	if err := runner.SourceFile(cfg.TmuxConf); err != nil {
+		output.Err("source tmux config: " + err.Error())
+		return
+	}
 
-	listInstalledPlugins(runner, cfg, output)
+	if !listInstalledPlugins(runner, cfg, output) {
+		return
+	}
 
 	output.Ok("")
 	output.Ok("Type plugin name to update it.")
@@ -78,16 +81,18 @@ func runUpdatePrompt(runner *tmux.RealRunner, cfg *config.Config) {
 	output.Ok("- ENTER - cancels")
 
 	binary := findBinary()
-	_ = runner.CommandPrompt("plugin update:",
-		"send-keys C-c; run-shell '"+shell.EscapeInSingleQuotes(binary)+" update --tmux-echo %1'")
+	if err := runner.CommandPrompt("plugin update:",
+		"send-keys C-c; run-shell '"+shell.EscapeInSingleQuotes(binary)+" update --tmux-echo %1'"); err != nil {
+		output.Err("open update prompt: " + err.Error())
+	}
 }
 
 // listInstalledPlugins displays the list of installed plugins via output.
-func listInstalledPlugins(runner *tmux.RealRunner, cfg *config.Config, output ui.Output) {
+func listInstalledPlugins(runner tmux.Runner, cfg *config.Config, output ui.Output) bool {
 	plugins, err := config.GatherPlugins(runner, config.RealFS{}, cfg.Paths, output.Warn)
 	if err != nil {
 		output.Err("config: " + err.Error())
-		return
+		return false
 	}
 
 	output.Ok("Installed plugins:")
@@ -100,4 +105,5 @@ func listInstalledPlugins(runner *tmux.RealRunner, cfg *config.Config, output ui
 			output.Ok("  " + p.Name)
 		}
 	}
+	return true
 }

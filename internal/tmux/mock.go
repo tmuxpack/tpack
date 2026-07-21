@@ -46,16 +46,20 @@ func (m *MockRunner) err(key string) error {
 	return nil
 }
 
-func (m *MockRunner) ShowOption(option string) (string, error) {
+func (m *MockRunner) ShowOption(option string) (string, bool, error) {
 	m.record("ShowOption", option)
-	return m.Options[option], m.err("ShowOption:" + option)
+	value, set := m.Options[option]
+	return value, set, m.err("ShowOption:" + option)
 }
 
 func (m *MockRunner) ShowEnvironment(name string) (string, error) {
 	m.record("ShowEnvironment", name)
 	val, ok := m.Environment[name]
 	if !ok {
-		return "", m.err("ShowEnvironment:" + name)
+		if err := m.err("ShowEnvironment:" + name); err != nil {
+			return "", err
+		}
+		return "", ErrNotSet
 	}
 	return val, m.err("ShowEnvironment:" + name)
 }

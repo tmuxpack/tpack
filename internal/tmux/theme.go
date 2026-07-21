@@ -17,18 +17,18 @@ type ThemeColors struct {
 func DetectTheme(r Runner) ThemeColors {
 	var tc ThemeColors
 
-	if statusStyle, err := r.ShowOption("status-style"); err == nil {
+	if statusStyle, set, err := r.ShowOption("status-style"); err == nil && set {
 		attrs := ParseStyle(statusStyle)
 		tc.Primary = NormalizeColor(attrs.BG)
 		tc.Text = NormalizeColor(attrs.FG)
 	}
 
-	if borderStyle, err := r.ShowOption("pane-active-border-style"); err == nil {
+	if borderStyle, set, err := r.ShowOption("pane-active-border-style"); err == nil && set {
 		attrs := ParseStyle(borderStyle)
 		tc.Secondary = NormalizeColor(attrs.FG)
 	}
 
-	if windowStyle, err := r.ShowOption("window-status-current-style"); err == nil {
+	if windowStyle, set, err := r.ShowOption("window-status-current-style"); err == nil && set {
 		attrs := ParseStyle(windowStyle)
 		tc.Accent = NormalizeColor(attrs.BG)
 		if tc.Accent == "" {
