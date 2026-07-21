@@ -8,20 +8,24 @@ _find_tpack() {
 	local root_dir="$1"
 
 	if [ -x "$root_dir/dist/tpack" ]; then
-		echo "$root_dir/dist/tpack"
-		return
+		printf '%s\n' "$root_dir/dist/tpack"
+		return 0
 	fi
 	if [ -x "$root_dir/tpack" ]; then
-		echo "$root_dir/tpack"
-		return
+		printf '%s\n' "$root_dir/tpack"
+		return 0
 	fi
 	if command -v tpack >/dev/null 2>&1; then
-		command -v tpack
-		return
+		local tpack_path
+		tpack_path="$(command -v tpack)"
+		printf '%s\n' "$tpack_path"
+		return 0
 	fi
 
 	# Auto-download from GitHub Releases
 	if _download_tpack "$root_dir"; then
-		echo "$root_dir/tpack"
+		printf '%s\n' "$root_dir/tpack"
+		return 0
 	fi
+	return 1
 }
