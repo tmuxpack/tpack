@@ -2,12 +2,10 @@ package integration_test
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"testing"
-	"time"
 
 	"github.com/tmuxpack/tpack/internal/shell"
 	"github.com/tmuxpack/tpack/internal/ui"
@@ -16,7 +14,7 @@ import (
 type paneRunner struct{ socket string }
 
 func (r paneRunner) RunShell(command string) error {
-	return exec.CommandContext(context.Background(), "tmux", "-L", r.socket, "run-shell", command).Run()
+	return exec.CommandContext(context.Background(), "tmux", "-S", r.socket, "run-shell", command).Run()
 }
 
 func (r paneRunner) ShowWindowOption(string) (string, error) { return "vi", nil }
@@ -25,13 +23,13 @@ func TestTmuxOutputTreatsFormatCommandAsLiteral(t *testing.T) {
 	if _, err := exec.LookPath("tmux"); err != nil {
 		t.Skip("tmux not found")
 	}
-	socket := fmt.Sprintf("tp-ui-%d", time.Now().UnixNano()%1_000_000)
-	start := exec.CommandContext(context.Background(), "tmux", "-L", socket, "-f", "/dev/null", "new-session", "-d")
+	socket := filepath.Join(t.TempDir(), "tmux.sock")
+	start := exec.CommandContext(context.Background(), "tmux", "-S", socket, "-f", "/dev/null", "new-session", "-d")
 	if out, err := start.CombinedOutput(); err != nil {
 		t.Fatalf("start tmux: %v: %s", err, out)
 	}
 	t.Cleanup(func() {
-		_ = exec.CommandContext(context.Background(), "tmux", "-L", socket, "kill-server").Run()
+		_ = exec.CommandContext(context.Background(), "tmux", "-S", socket, "kill-server").Run()
 	})
 
 	marker := filepath.Join(t.TempDir(), "format-command-ran")

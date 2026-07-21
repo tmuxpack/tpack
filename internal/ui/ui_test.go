@@ -379,6 +379,29 @@ func TestMultiSinkAttemptsAllChildren(t *testing.T) {
 	}
 }
 
+func TestMultiSinkEndMessageAttemptsAllChildren(t *testing.T) {
+	firstErr := errors.New("first end failed")
+	first := ui.NewMockSink()
+	first.Err = firstErr
+	secondErr := errors.New("second end failed")
+	second := ui.NewMockSink()
+	second.Err = secondErr
+	out := ui.NewReporter(ui.NewMultiSink(first, second))
+
+	out.EndMessage()
+
+	if first.EndCalls != 1 || second.EndCalls != 1 {
+		t.Errorf("EndCalls = (%d, %d), want (1, 1)", first.EndCalls, second.EndCalls)
+	}
+	result := out.Result()
+	if !errors.Is(result, firstErr) {
+		t.Errorf("result = %v, want first error", result)
+	}
+	if !errors.Is(result, secondErr) {
+		t.Errorf("result = %v, want second error", result)
+	}
+}
+
 func TestSeveritySinkRoutesByLevel(t *testing.T) {
 	info := ui.NewMockSink()
 	warning := ui.NewMockSink()
