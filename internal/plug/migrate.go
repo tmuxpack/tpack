@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"syscall"
+	"time"
 
 	"github.com/tmuxpack/tpack/internal/git"
 )
@@ -42,7 +43,7 @@ func MigrateLegacy(ctx context.Context, root Root, plugins []Plugin, origins git
 	if err := lock.Chmod(0o600); err != nil {
 		return fmt.Errorf("secure migration lock %s: %w", lockPath, err)
 	}
-	if err := syscall.Flock(int(lock.Fd()), syscall.LOCK_EX); err != nil {
+	if err := acquireMigrationLock(ctx, lock); err != nil {
 		return fmt.Errorf("lock plugin root %s: %w", rootPath, err)
 	}
 
@@ -55,6 +56,32 @@ func MigrateLegacy(ctx context.Context, root Root, plugins []Plugin, origins git
 		}
 	}
 	return nil
+}
+
+const migrationLockRetryInterval = 10 * time.Millisecond
+
+func acquireMigrationLock(ctx context.Context, lock *os.File) error {
+	retry := time.NewTicker(migrationLockRetryInterval)
+	defer retry.Stop()
+
+	for {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		err := syscall.Flock(int(lock.Fd()), syscall.LOCK_EX|syscall.LOCK_NB)
+		if err == nil {
+			return nil
+		}
+		if !errors.Is(err, syscall.EWOULDBLOCK) && !errors.Is(err, syscall.EAGAIN) {
+			return err
+		}
+
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-retry.C:
+		}
+	}
 }
 
 func openMigrationLock(path string) (*os.File, error) {

@@ -7,7 +7,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
+	"time"
 
 	"github.com/tmuxpack/tpack/internal/git"
 	"github.com/tmuxpack/tpack/internal/plug"
@@ -168,6 +170,47 @@ func TestMigrateLegacyRestrictsExistingLockFileMode(t *testing.T) {
 	if got := info.Mode().Perm(); got != 0o600 {
 		t.Fatalf("lock mode = %o, want 600", got)
 	}
+}
+
+func TestMigrateLegacyLockContentionHonorsContext(t *testing.T) {
+	rootPath := t.TempDir()
+	lockPath := filepath.Join(rootPath, ".tpack-migrate.lock")
+	holder, err := os.OpenFile(lockPath, os.O_CREATE|os.O_RDWR, 0o600)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if lockErr := syscall.Flock(int(holder.Fd()), syscall.LOCK_EX); lockErr != nil {
+		_ = holder.Close()
+		t.Fatal(lockErr)
+	}
+	t.Cleanup(func() {
+		_ = syscall.Flock(int(holder.Fd()), syscall.LOCK_UN)
+		_ = holder.Close()
+	})
+
+	p := mustParsePlugin(t, "catppuccin/tmux")
+	legacy := filepath.Join(rootPath, "tmux")
+	mustMkdir(t, legacy)
+	mustWriteFile(t, filepath.Join(legacy, "marker"), "unchanged")
+	origins := &git.MockOriginReader{URL: "git@github.com:catppuccin/tmux.git"}
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+
+	// Prevent an implementation using blocking flock from hanging this test.
+	release := time.AfterFunc(200*time.Millisecond, func() {
+		_ = syscall.Flock(int(holder.Fd()), syscall.LOCK_UN)
+	})
+	defer release.Stop()
+
+	err = plug.MigrateLegacy(ctx, mustRoot(t, rootPath), []plug.Plugin{p}, origins)
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("error = %v, want context deadline exceeded", err)
+	}
+	if len(origins.Calls) != 0 {
+		t.Fatalf("origin calls = %v, want none", origins.Calls)
+	}
+	assertFileContent(t, filepath.Join(legacy, "marker"), "unchanged")
+	assertPathMissing(t, filepath.Join(rootPath, p.DirName))
 }
 
 func TestMigrateLegacyRejectsSymlinkLockWithoutTouchingTarget(t *testing.T) {
