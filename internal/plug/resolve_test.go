@@ -31,17 +31,17 @@ func TestPluginName(t *testing.T) {
 	}
 }
 
-func TestRootChildUsesPluginName(t *testing.T) {
+func TestRootChildUsesExactComponent(t *testing.T) {
 	root, err := plug.NewRoot("test", "/tmp/plugins", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	got, err := root.Child("https://github.com/user/repo.git")
+	got, err := root.Child("repo.git")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got != "/tmp/plugins/repo" {
-		t.Errorf("Child() = %q, want /tmp/plugins/repo", got)
+	if got != "/tmp/plugins/repo.git" {
+		t.Errorf("Child() = %q, want /tmp/plugins/repo.git", got)
 	}
 }
 

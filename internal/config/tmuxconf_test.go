@@ -51,6 +51,16 @@ func TestGatherPluginsRejectsConflictingAliases(t *testing.T) {
 	}
 }
 
+func TestGatherPluginsRejectsAliasWithPathSeparator(t *testing.T) {
+	fs, paths := configWithPlugins(t,
+		`set -g @plugin "catppuccin/tmux alias=group/theme"`+"\n"+
+			`set -g @plugin "dracula/tmux alias=theme"`)
+	_, err := config.GatherPlugins(tmux.NewMockRunner(), fs, paths, nil)
+	if err == nil || !strings.Contains(err.Error(), `invalid plugin name "group/theme"`) {
+		t.Fatalf("error = %v", err)
+	}
+}
+
 func TestGatherPluginsRejectsUnsafeAlias(t *testing.T) {
 	m := tmux.NewMockRunner()
 	fs := config.NewMockFS()

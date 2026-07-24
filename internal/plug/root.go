@@ -56,15 +56,15 @@ func (r Root) String() string {
 	return r.path + string(filepath.Separator)
 }
 
-// Child returns a plugin directory guaranteed to remain below the root.
-func (r Root) Child(raw string) (string, error) {
+// Child returns an exact plugin directory component below the root.
+func (r Root) Child(name string) (string, error) {
 	root, err := r.Path()
 	if err != nil {
 		return "", err
 	}
-	name := PluginName(raw)
-	if name == "" || name == "." || name == ".." || filepath.IsAbs(name) {
-		return "", fmt.Errorf("invalid plugin name %q", raw)
+	if name == "" || name == "." || name == ".." || filepath.IsAbs(name) ||
+		filepath.VolumeName(name) != "" || strings.ContainsAny(name, `/\`) {
+		return "", fmt.Errorf("invalid plugin name %q", name)
 	}
 	child := filepath.Join(root, name)
 	rel, err := filepath.Rel(root, child)

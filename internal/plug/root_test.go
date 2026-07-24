@@ -58,21 +58,21 @@ func TestNewRoot(t *testing.T) {
 	}
 }
 
-func TestRootChild(t *testing.T) {
+func TestRootChildPreservesExactComponent(t *testing.T) {
 	root, err := plug.NewRoot("test", "/home/user/plugins", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	got, err := root.Child("owner/repo.git")
+	got, err := root.Child("repo.git")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got != "/home/user/plugins/repo" {
+	if got != "/home/user/plugins/repo.git" {
 		t.Errorf("Child() = %q", got)
 	}
 
-	for _, raw := range []string{"", ".", "..", "/"} {
+	for _, raw := range []string{"", ".", "..", "/", "owner/repo.git", `owner\repo.git`} {
 		if _, err := root.Child(raw); err == nil {
 			t.Errorf("Child(%q) returned no error", raw)
 		}
