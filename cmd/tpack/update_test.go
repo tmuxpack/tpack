@@ -64,6 +64,23 @@ func TestRunUpdatePromptStopsWhenRequiredSourceCannotBeRead(t *testing.T) {
 	}
 }
 
+func TestListInstalledPluginsUsesDirName(t *testing.T) {
+	cfg := promptTestConfig(t, "set -g @plugin \"catppuccin/tmux\"\n")
+	pluginDir := filepath.Join(cfg.PluginPath.String(), "tmux-87a1216f1f68")
+	runGitCommand(t, "", "init", pluginDir)
+	output := ui.NewMockOutput()
+
+	if ok := listInstalledPlugins(tmux.NewMockRunner(), cfg, output); !ok {
+		t.Fatalf("listInstalledPlugins failed: %v", output.ErrMsgs)
+	}
+	for _, msg := range output.OkMsgs {
+		if msg == "  tmux" {
+			return
+		}
+	}
+	t.Fatalf("installed canonical plugin omitted from output: %v", output.OkMsgs)
+}
+
 func TestRunUpdatePromptReportsDirectTmuxErrors(t *testing.T) {
 	tests := []struct {
 		name       string

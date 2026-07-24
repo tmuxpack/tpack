@@ -101,7 +101,7 @@ func listInstalledPlugins(runner tmux.Runner, cfg *config.Config, output ui.Outp
 	mgr := newManagerDeps(cfg.PluginPath, output)
 
 	for _, p := range plugins {
-		if mgr.IsPluginInstalled(p.Name) {
+		if mgr.IsPluginInstalled(p.DirName) {
 			output.Ok("  " + p.Name)
 		}
 	}
