@@ -3,15 +3,16 @@
 ## Goal
 
 Notify users when tpack's one-time plugin migration renames one or more plugin
-folders, because a running tmux server or plugin may still reference an old
-path. The notification should be brief, generic, and visible from `tpack init`.
+folders, because a running tmux server, plugin, or script may still reference
+an old path. The notification should be brief, generic, and visible from
+`tpack init`.
 
 ## Behavior
 
 After at least one successful legacy-folder rename, tpack emits exactly one
 warning through the existing output path:
 
-> Plugin folders were renamed during migration; restart tmux if plugins fail to load.
+> Plugin paths changed during migration; restart tmux and update scripts that use old plugin paths if needed.
 
 No warning is emitted when migration performs no renames. Multiple renames in
 one migration produce one warning. If an earlier plugin is renamed and a later
