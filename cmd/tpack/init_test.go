@@ -29,6 +29,33 @@ func TestInitOutputRoutesBySeverity(t *testing.T) {
 	}
 }
 
+func TestInitMigrationFailureStopsBeforeBindingsAndSourcing(t *testing.T) {
+	runner, legacyPath, statePath := operationalMigrationFixture(t)
+	runner.Options[config.UpdateModeOption] = updateModePrompt
+	runner.Options[config.UpdateIntervalOption] = "1h"
+	output := ui.NewMockOutput()
+
+	err := runInit(runner, output)
+	if !errors.Is(err, errSilent) {
+		t.Fatalf("runInit() = %v, want errSilent", err)
+	}
+	if len(output.ErrMsgs) != 1 {
+		t.Fatalf("errors = %q, want exactly one", output.ErrMsgs)
+	}
+	if _, err := os.Stat(legacyPath); err != nil {
+		t.Fatalf("legacy path changed after migration failure: %v", err)
+	}
+	if _, err := os.Stat(statePath); !os.IsNotExist(err) {
+		t.Fatalf("state path exists after migration failure: %v", err)
+	}
+	for _, call := range runner.Calls {
+		switch call.Method {
+		case "SetEnvironment", "BindKey", "SourceFile":
+			t.Fatalf("%s called after migration failure", call.Method)
+		}
+	}
+}
+
 func TestFindBinary(t *testing.T) {
 	t.Run("returns non-empty string", func(t *testing.T) {
 		result := findBinary()

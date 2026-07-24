@@ -34,7 +34,7 @@ var installCmd = &cobra.Command{
 
 		mgr := newManagerDeps(cfg.PluginPath, output)
 
-		plugins, err := config.GatherPlugins(runner, config.RealFS{}, cfg.Paths, output.Warn)
+		plugins, err := loadPlugins(runner, cfg, output)
 		if err != nil {
 			output.Err("config: " + err.Error())
 			return outputResult(output)
@@ -90,6 +90,14 @@ func newManagerDeps(pluginPath plug.Root, output ui.Output) *manager.Manager {
 		gitcli.NewValidator(),
 		output,
 	)
+}
+
+const pluginLoadTimeout = 30 * time.Second
+
+func loadPlugins(runner tmux.Runner, cfg *config.Config, output ui.Output) ([]plug.Plugin, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), pluginLoadTimeout)
+	defer cancel()
+	return config.LoadPlugins(ctx, runner, config.RealFS{}, cfg.Paths, gitcli.NewOriginReader(), output.Warn)
 }
 
 // completePluginNames returns a list of plugin names for shell completion.

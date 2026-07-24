@@ -39,7 +39,7 @@ var updateCmd = &cobra.Command{
 
 		mgr := newManagerDeps(cfg.PluginPath, output)
 
-		plugins, err := config.GatherPlugins(runner, config.RealFS{}, cfg.Paths, output.Warn)
+		plugins, err := loadPlugins(runner, cfg, output)
 		if err != nil {
 			output.Err("config: " + err.Error())
 			return outputResult(output)
@@ -89,7 +89,7 @@ func runUpdatePrompt(runner tmux.Runner, cfg *config.Config, output ui.Output) {
 
 // listInstalledPlugins displays the list of installed plugins via output.
 func listInstalledPlugins(runner tmux.Runner, cfg *config.Config, output ui.Output) bool {
-	plugins, err := config.GatherPlugins(runner, config.RealFS{}, cfg.Paths, output.Warn)
+	plugins, err := loadPlugins(runner, cfg, output)
 	if err != nil {
 		output.Err("config: " + err.Error())
 		return false

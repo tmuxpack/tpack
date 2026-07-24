@@ -12,6 +12,7 @@ import (
 
 	"github.com/tmuxpack/tpack/internal/config"
 	"github.com/tmuxpack/tpack/internal/plug"
+	"github.com/tmuxpack/tpack/internal/state"
 	"github.com/tmuxpack/tpack/internal/tmux"
 	"github.com/tmuxpack/tpack/internal/ui"
 )
@@ -23,6 +24,46 @@ func mustRoot(t *testing.T, path string) plug.Root {
 		t.Fatal(err)
 	}
 	return root
+}
+
+func TestCheckUpdatesMigrationFailureDoesNotSaveTimestamp(t *testing.T) {
+	runner, legacyPath, statePath := operationalMigrationFixture(t)
+	runner.Options[config.UpdateModeOption] = updateModePrompt
+	runner.Options[config.UpdateIntervalOption] = "1h"
+	diag := ui.NewMockOutput()
+
+	if code := checkUpdates(runner, diag, ui.NewMockOutput(), ui.NewMockOutput()); code != 1 {
+		t.Fatalf("checkUpdates() = %d, want 1", code)
+	}
+	if len(diag.ErrMsgs) != 1 {
+		t.Fatalf("errors = %q, want exactly one", diag.ErrMsgs)
+	}
+	if got := state.Load(statePath, nil).LastUpdateCheck; !got.IsZero() {
+		t.Fatalf("LastUpdateCheck = %v, want zero", got)
+	}
+	if _, err := os.Stat(legacyPath); err != nil {
+		t.Fatalf("legacy path changed after migration failure: %v", err)
+	}
+}
+
+func operationalMigrationFixture(t *testing.T) (*tmux.MockRunner, string, string) {
+	t.Helper()
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
+	t.Setenv("XDG_DATA_HOME", filepath.Join(home, ".local", "share"))
+	t.Setenv("XDG_STATE_HOME", filepath.Join(home, ".local", "state"))
+	conf := filepath.Join(home, ".tmux.conf")
+	if err := os.WriteFile(conf, []byte(`set -g @plugin "catppuccin/tmux"`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	legacyPath := filepath.Join(home, ".tmux", "plugins", "tmux")
+	if err := os.MkdirAll(legacyPath, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	runner := tmux.NewMockRunner()
+	runner.VersionStr = "tmux 3.4"
+	return runner, legacyPath, filepath.Join(home, ".local", "state", "tpack")
 }
 
 func TestUpdateChecksEnabled(t *testing.T) {

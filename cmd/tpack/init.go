@@ -33,7 +33,10 @@ func runInitCmd() error {
 	// init usually runs from the tmux.conf `run` line, where stderr is
 	// invisible; the status line is the only channel the user sees.
 	output := newInitOutput(shell, status)
+	return runInit(runner, output)
+}
 
+func runInit(runner tmux.Runner, output ui.Output) error {
 	// Check tmux version.
 	verStr, err := runner.Version()
 	if err != nil {
@@ -49,6 +52,11 @@ func runInitCmd() error {
 
 	// Resolve config.
 	cfg, err := config.Resolve(runner)
+	if err != nil {
+		output.Err("config: " + err.Error())
+		return outputResult(output)
+	}
+	plugins, err := loadPlugins(runner, cfg, output)
 	if err != nil {
 		output.Err("config: " + err.Error())
 		return outputResult(output)
@@ -69,11 +77,6 @@ func runInitCmd() error {
 
 	// Source plugins; failures go to stderr and are persisted for the TUI.
 	mgr := newManagerDeps(cfg.PluginPath, output)
-	plugins, err := config.GatherPlugins(runner, config.RealFS{}, cfg.Paths, output.Warn)
-	if err != nil {
-		output.Err("config: " + err.Error())
-		return outputResult(output)
-	}
 	failures := mgr.Source(context.Background(), plugins)
 	for _, f := range failures {
 		output.Err("error loading " + f.Name + ": " + f.Message)

@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -67,5 +69,24 @@ func TestPluginNamesForCompletionUsesRepositoryNames(t *testing.T) {
 	want := []string{"catppuccin/tmux", "dracula/tmux"}
 	if !reflect.DeepEqual(names, want) {
 		t.Errorf("completion names = %v, want %v", names, want)
+	}
+}
+
+func TestPluginNamesForCompletionDoesNotMigrateLegacyDirectory(t *testing.T) {
+	cfg := promptTestConfig(t, `set -g @plugin "catppuccin/tmux"`)
+	legacyPath := filepath.Join(cfg.PluginPath.String(), "tmux")
+	if err := os.MkdirAll(legacyPath, 0o700); err != nil {
+		t.Fatal(err)
+	}
+
+	names, err := pluginNamesForCompletion(tmux.NewMockRunner(), config.RealFS{}, cfg.Paths)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{"catppuccin/tmux"}; !reflect.DeepEqual(names, want) {
+		t.Fatalf("completion names = %v, want %v", names, want)
+	}
+	if _, err := os.Stat(legacyPath); err != nil {
+		t.Fatalf("completion changed legacy path: %v", err)
 	}
 }
