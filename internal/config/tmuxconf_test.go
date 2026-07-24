@@ -3,6 +3,7 @@ package config_test
 import (
 	"errors"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/tmuxpack/tpack/internal/config"
@@ -16,6 +17,37 @@ func testPaths(t *testing.T) config.Paths {
 		PluginPath:    mustRoot(t, "/home/user/.local/share/tmux/plugins"),
 		Home:          "/home/user",
 		XDGConfigHome: "/home/user/.config",
+	}
+}
+
+func configWithPlugins(t *testing.T, content string) (config.FS, config.Paths) {
+	t.Helper()
+	paths := testPaths(t)
+	fs := config.NewMockFS()
+	fs.Files[paths.TmuxConf] = content
+	return fs, paths
+}
+
+func TestGatherPluginsAllowsSameBasenameRepositories(t *testing.T) {
+	fs, paths := configWithPlugins(t,
+		`set -g @plugin "catppuccin/tmux"`+"\n"+
+			`set -g @plugin "dracula/tmux"`)
+	plugins, err := config.GatherPlugins(tmux.NewMockRunner(), fs, paths, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if plugins[0].DirName == plugins[1].DirName {
+		t.Fatalf("same-basename repositories share %q", plugins[0].DirName)
+	}
+}
+
+func TestGatherPluginsRejectsConflictingAliases(t *testing.T) {
+	fs, paths := configWithPlugins(t,
+		`set -g @plugin "catppuccin/tmux alias=theme"`+"\n"+
+			`set -g @plugin "dracula/tmux alias=theme"`)
+	_, err := config.GatherPlugins(tmux.NewMockRunner(), fs, paths, nil)
+	if err == nil || !strings.Contains(err.Error(), `directory "theme"`) {
+		t.Fatalf("error = %v", err)
 	}
 }
 

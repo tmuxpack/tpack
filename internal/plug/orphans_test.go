@@ -21,7 +21,7 @@ func mkPluginDirs(t *testing.T, names ...string) string {
 
 func TestFindOrphansDetectsUndeclaredDir(t *testing.T) {
 	dir := mkPluginDirs(t, "tmux-sensible", "tmux-yank")
-	declared := []plug.Plugin{plug.ParseSpec("tmux-plugins/tmux-sensible", nil)}
+	declared := []plug.Plugin{mustParsePlugin(t, "tmux-plugins/tmux-sensible")}
 
 	orphans, err := plug.FindOrphans(declared, mustRoot(t, dir))
 	if err != nil {
@@ -38,7 +38,7 @@ func TestFindOrphansDetectsUndeclaredDir(t *testing.T) {
 
 func TestFindOrphansIgnoresTpmAndDeclared(t *testing.T) {
 	dir := mkPluginDirs(t, "tmux-sensible", "tpm", "tpack")
-	declared := []plug.Plugin{plug.ParseSpec("tmux-plugins/tmux-sensible", nil)}
+	declared := []plug.Plugin{mustParsePlugin(t, "tmux-plugins/tmux-sensible")}
 
 	orphans, err := plug.FindOrphans(declared, mustRoot(t, dir))
 	if err != nil {

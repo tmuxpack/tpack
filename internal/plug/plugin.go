@@ -7,6 +7,10 @@ type Plugin struct {
 	Raw string
 	// Name is the derived plugin name (e.g. "repo").
 	Name string
+	// Identity is the normalized repository identity.
+	Identity string
+	// DirName is the validated directory name used to store the plugin.
+	DirName string
 	// Spec is the plugin specifier without branch (e.g. "user/repo" or full URL).
 	// This may be a shorthand that requires NormalizeURL before cloning.
 	Spec string

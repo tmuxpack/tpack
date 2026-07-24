@@ -9,6 +9,15 @@ import (
 	"github.com/tmuxpack/tpack/internal/plug"
 )
 
+func mustParsePlugin(t *testing.T, raw string) plug.Plugin {
+	t.Helper()
+	p, err := plug.ParseSpec(raw, nil)
+	if err != nil {
+		t.Fatalf("ParseSpec(%q): %v", raw, err)
+	}
+	return p
+}
+
 const tmuxExamplePlugin = "tmux-plugins/tmux-example-plugin"
 
 func skipIfNoGit(t *testing.T) {

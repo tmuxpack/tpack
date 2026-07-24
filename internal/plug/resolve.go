@@ -34,7 +34,7 @@ func NormalizeURL(shorthand string) string {
 // Example: "catppuccin/tmux alias=catppuccin-tmux#v2"
 // warn, if non-nil, receives a message for unexpected extra tokens; a nil
 // warn silently drops it.
-func ParseSpec(raw string, warn func(string)) Plugin {
+func ParseSpec(raw string, warn func(string)) (Plugin, error) {
 	raw = strings.TrimSpace(raw)
 	original := raw
 
@@ -79,16 +79,19 @@ func ParseSpec(raw string, warn func(string)) Plugin {
 		}
 	}
 
-	name := PluginName(spec)
+	identity, err := NormalizeIdentity(spec)
+	if err != nil {
+		return Plugin{}, fmt.Errorf("parse plugin %q: %w", original, err)
+	}
+	dirName := GeneratedDirName(identity)
+	legacyName := LegacyPluginName(spec)
 	if alias != "" {
-		name = alias
+		dirName = alias
+		legacyName = alias
 	}
 
 	return Plugin{
-		Raw:    original,
-		Name:   name,
-		Spec:   spec,
-		Branch: branch,
-		Alias:  alias,
-	}
+		Raw: original, Name: legacyName, Identity: identity, DirName: dirName,
+		Spec: spec, Branch: branch, Alias: alias,
+	}, nil
 }

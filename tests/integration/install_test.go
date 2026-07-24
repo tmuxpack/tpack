@@ -32,7 +32,7 @@ func TestInstallRealPlugin(t *testing.T) {
 	mgr := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, output)
 
 	plugins := []plug.Plugin{
-		plug.ParseSpec(tmuxExamplePlugin, nil),
+		mustParsePlugin(t, tmuxExamplePlugin),
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
@@ -81,8 +81,8 @@ func TestInstallMultiplePlugins(t *testing.T) {
 	mgr := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, output)
 
 	plugins := []plug.Plugin{
-		plug.ParseSpec(tmuxExamplePlugin, nil),
-		plug.ParseSpec("tmux-plugins/tmux-sensible", nil),
+		mustParsePlugin(t, tmuxExamplePlugin),
+		mustParsePlugin(t, "tmux-plugins/tmux-sensible"),
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
@@ -113,7 +113,7 @@ func TestInstallNonexistentPlugin(t *testing.T) {
 	mgr := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, output)
 
 	plugins := []plug.Plugin{
-		plug.ParseSpec("nonexistent-user/nonexistent-plugin-xyz-abc-123", nil),
+		mustParsePlugin(t, "nonexistent-user/nonexistent-plugin-xyz-abc-123"),
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)

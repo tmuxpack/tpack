@@ -85,7 +85,7 @@ func TestParseSpec(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.raw, func(t *testing.T) {
-			p := plug.ParseSpec(tt.raw, nil)
+			p := mustParsePlugin(t, tt.raw)
 			if p.Name != tt.name {
 				t.Errorf("Name = %q, want %q", p.Name, tt.name)
 			}
@@ -102,9 +102,38 @@ func TestParseSpec(t *testing.T) {
 	}
 }
 
+func TestParseSpecBuildsIdentityMetadata(t *testing.T) {
+	p, err := plug.ParseSpec("catppuccin/tmux#v2", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.Spec != "catppuccin/tmux" || p.Branch != "v2" {
+		t.Fatalf("parsed spec = %#v", p)
+	}
+	if p.Identity != "github.com/catppuccin/tmux" {
+		t.Errorf("Identity = %q", p.Identity)
+	}
+	if p.DirName != "tmux-87a1216f1f68" {
+		t.Errorf("DirName = %q", p.DirName)
+	}
+}
+
+func TestParseSpecAliasControlsOnlyDirectoryMetadata(t *testing.T) {
+	p, err := plug.ParseSpec("catppuccin/tmux alias=catppuccin-theme#v2", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.Identity != "github.com/catppuccin/tmux" || p.DirName != "catppuccin-theme" {
+		t.Fatalf("parsed alias = %#v", p)
+	}
+}
+
 func TestParseSpecWarnsOnExtraTokens(t *testing.T) {
 	var warnings []string
-	p := plug.ParseSpec("user/repo extra junk", func(msg string) { warnings = append(warnings, msg) })
+	p, err := plug.ParseSpec("user/repo extra junk", func(msg string) { warnings = append(warnings, msg) })
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if p.Name != "repo" {
 		t.Errorf("Name = %q, want %q", p.Name, "repo")
@@ -119,8 +148,17 @@ func TestParseSpecWarnsOnExtraTokens(t *testing.T) {
 }
 
 func TestParseSpecNilWarnDoesNotPanic(t *testing.T) {
-	p := plug.ParseSpec("user/repo extra", nil)
+	p := mustParsePlugin(t, "user/repo extra")
 	if p.Name != "repo" {
 		t.Errorf("Name = %q, want %q", p.Name, "repo")
 	}
+}
+
+func mustParsePlugin(t *testing.T, raw string) plug.Plugin {
+	t.Helper()
+	p, err := plug.ParseSpec(raw, nil)
+	if err != nil {
+		t.Fatalf("ParseSpec(%q): %v", raw, err)
+	}
+	return p
 }

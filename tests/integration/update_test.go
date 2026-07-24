@@ -31,7 +31,7 @@ func TestUpdateInstalledPlugin(t *testing.T) {
 	installOutput := ui.NewMockOutput()
 	mgr := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, installOutput)
 	plugins := []plug.Plugin{
-		plug.ParseSpec(tmuxExamplePlugin, nil),
+		mustParsePlugin(t, tmuxExamplePlugin),
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
@@ -78,7 +78,7 @@ func TestUpdateSpecificPlugin(t *testing.T) {
 
 	mgr := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, installOutput)
 	plugins := []plug.Plugin{
-		plug.ParseSpec(tmuxExamplePlugin, nil),
+		mustParsePlugin(t, tmuxExamplePlugin),
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
@@ -134,11 +134,11 @@ func TestCleanRemovesUnlistedPlugins(t *testing.T) {
 	installOutput := ui.NewMockOutput()
 	mgr := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, installOutput)
 	declared := []plug.Plugin{
-		plug.ParseSpec(tmuxExamplePlugin, nil),
+		mustParsePlugin(t, tmuxExamplePlugin),
 	}
 	installAll := []plug.Plugin{
-		plug.ParseSpec(tmuxExamplePlugin, nil),
-		plug.ParseSpec("tmux-plugins/tmux-sensible", nil),
+		mustParsePlugin(t, tmuxExamplePlugin),
+		mustParsePlugin(t, "tmux-plugins/tmux-sensible"),
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
@@ -182,7 +182,7 @@ func TestCleanWithEmptyConfigRemovesAll(t *testing.T) {
 	installOutput := ui.NewMockOutput()
 	mgr := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, installOutput)
 	plugins := []plug.Plugin{
-		plug.ParseSpec(tmuxExamplePlugin, nil),
+		mustParsePlugin(t, tmuxExamplePlugin),
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
