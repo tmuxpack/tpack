@@ -29,14 +29,14 @@ func TestInstallViaCLI(t *testing.T) {
 	if exitCode != 0 {
 		t.Fatalf("expected exit code 0, got %d\noutput: %s", exitCode, output)
 	}
-	assertContains(t, output, `"tmux-example-plugin" download success`)
+	assertContains(t, output, `"tmux-plugins/tmux-example-plugin" download success`)
 
-	pluginDir := filepath.Join(home, ".tmux", "plugins", "tmux-example-plugin")
+	pluginDir := canonicalPluginDir(t, filepath.Join(home, ".tmux", "plugins"), "tmux-plugins/tmux-example-plugin")
 	assertDirExists(t, pluginDir)
 
 	// Second install: expect already installed.
 	output, _ = runInTmux(t, home, socket, binary+" install", 60*time.Second)
-	assertContains(t, output, `Already installed "tmux-example-plugin"`)
+	assertContains(t, output, `Already installed "tmux-plugins/tmux-example-plugin"`)
 }
 
 func TestInstallCustomDirViaCLI(t *testing.T) {
@@ -66,14 +66,14 @@ func TestInstallCustomDirViaCLI(t *testing.T) {
 	if exitCode != 0 {
 		t.Fatalf("expected exit code 0, got %d\noutput: %s", exitCode, output)
 	}
-	assertContains(t, output, `"tmux-example-plugin" download success`)
+	assertContains(t, output, `"tmux-plugins/tmux-example-plugin" download success`)
 
-	pluginDir := filepath.Join(customDir, "tmux-example-plugin")
+	pluginDir := canonicalPluginDir(t, customDir, "tmux-plugins/tmux-example-plugin")
 	assertDirExists(t, pluginDir)
 
 	// Second install: expect already installed.
 	output, _ = runInTmux(t, home, socket, binary+" install", 60*time.Second)
-	assertContains(t, output, `Already installed "tmux-example-plugin"`)
+	assertContains(t, output, `Already installed "tmux-plugins/tmux-example-plugin"`)
 }
 
 func TestInstallNonExistentViaCLI(t *testing.T) {
@@ -96,7 +96,7 @@ func TestInstallNonExistentViaCLI(t *testing.T) {
 	if exitCode != 1 {
 		t.Fatalf("expected exit code 1, got %d\noutput: %s", exitCode, output)
 	}
-	assertContains(t, output, `"non-existing-plugin" download fail`)
+	assertContains(t, output, `"tmux-plugins/non-existing-plugin" download fail`)
 }
 
 func TestInstallMultipleViaCLI(t *testing.T) {
@@ -121,14 +121,15 @@ func TestInstallMultipleViaCLI(t *testing.T) {
 		t.Fatalf("expected exit code 0, got %d\noutput: %s", exitCode, output)
 	}
 
-	exampleDir := filepath.Join(home, ".tmux", "plugins", "tmux-example-plugin")
-	copycatDir := filepath.Join(home, ".tmux", "plugins", "tmux-copycat")
+	pluginRoot := filepath.Join(home, ".tmux", "plugins")
+	exampleDir := canonicalPluginDir(t, pluginRoot, "tmux-plugins/tmux-example-plugin")
+	copycatDir := canonicalPluginDir(t, pluginRoot, "tmux-plugins/tmux-copycat")
 	assertDirExists(t, exampleDir)
 	assertDirExists(t, copycatDir)
 
 	// Second install: expect already installed messages.
 	output, _ = runInTmux(t, home, socket, binary+" install", 120*time.Second)
-	assertContains(t, output, `Already installed "tmux-example-plugin"`)
+	assertContains(t, output, `Already installed "tmux-plugins/tmux-example-plugin"`)
 }
 
 func TestInstallFromSourcedFileViaCLI(t *testing.T) {
@@ -167,14 +168,15 @@ func TestInstallFromSourcedFileViaCLI(t *testing.T) {
 		t.Fatalf("expected exit code 0, got %d\noutput: %s", exitCode, output)
 	}
 
-	exampleDir := filepath.Join(home, ".tmux", "plugins", "tmux-example-plugin")
-	copycatDir := filepath.Join(home, ".tmux", "plugins", "tmux-copycat")
+	pluginRoot := filepath.Join(home, ".tmux", "plugins")
+	exampleDir := canonicalPluginDir(t, pluginRoot, "tmux-plugins/tmux-example-plugin")
+	copycatDir := canonicalPluginDir(t, pluginRoot, "tmux-plugins/tmux-copycat")
 	assertDirExists(t, exampleDir)
 	assertDirExists(t, copycatDir)
 
 	// Second install: expect already installed.
 	output, _ = runInTmux(t, home, socket, binary+" install", 120*time.Second)
-	assertContains(t, output, `Already installed "tmux-copycat"`)
+	assertContains(t, output, `Already installed "tmux-plugins/tmux-copycat"`)
 }
 
 func TestInstallFromMultipleSourcedFilesViaCLI(t *testing.T) {
@@ -218,14 +220,15 @@ func TestInstallFromMultipleSourcedFilesViaCLI(t *testing.T) {
 		t.Fatalf("expected exit code 0, got %d\noutput: %s", exitCode, output)
 	}
 
-	exampleDir := filepath.Join(home, ".tmux", "plugins", "tmux-example-plugin")
-	copycatDir := filepath.Join(home, ".tmux", "plugins", "tmux-copycat")
-	sensibleDir := filepath.Join(home, ".tmux", "plugins", "tmux-sensible")
+	pluginRoot := filepath.Join(home, ".tmux", "plugins")
+	exampleDir := canonicalPluginDir(t, pluginRoot, "tmux-plugins/tmux-example-plugin")
+	copycatDir := canonicalPluginDir(t, pluginRoot, "tmux-plugins/tmux-copycat")
+	sensibleDir := canonicalPluginDir(t, pluginRoot, "tmux-plugins/tmux-sensible")
 	assertDirExists(t, exampleDir)
 	assertDirExists(t, copycatDir)
 	assertDirExists(t, sensibleDir)
 
 	// Second install: expect already installed.
 	output, _ = runInTmux(t, home, socket, binary+" install", 120*time.Second)
-	assertContains(t, output, `Already installed "tmux-sensible"`)
+	assertContains(t, output, `Already installed "tmux-plugins/tmux-sensible"`)
 }

@@ -12,4 +12,5 @@ Get up and running with tpack in under 5 minutes.
 
 ---
 
-Already using TPM? See [Migrating from TPM](migrating-from-tpm.md) — tpack is a drop-in replacement, so you likely don't need to change anything.
+Already using TPM? See [Migrating from TPM](migrating-from-tpm.md) for the
+configuration compatibility and one-time plugin-directory migration details.

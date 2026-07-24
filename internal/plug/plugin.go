@@ -5,7 +5,7 @@ package plug
 type Plugin struct {
 	// Raw is the original plugin specification string (e.g. "user/repo#branch").
 	Raw string
-	// Name is the derived plugin name (e.g. "repo").
+	// Name is the repository-qualified display and command name (e.g. "owner/repo").
 	Name string
 	// Identity is the normalized repository identity.
 	Identity string
@@ -16,8 +16,8 @@ type Plugin struct {
 	Spec string
 	// Branch is the optional branch to check out (empty string = default).
 	Branch string
-	// Alias is the optional alias from "alias=X" in config.
-	// When set, Name is derived from Alias instead of the spec.
+	// Alias is the optional directory override from "alias=X" in config.
+	// When set, it overrides DirName without changing Name or Identity.
 	Alias string
 }
 

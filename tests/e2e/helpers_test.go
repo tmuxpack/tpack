@@ -11,6 +11,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/tmuxpack/tpack/internal/plug"
 )
 
 var (
@@ -250,14 +252,8 @@ func tmuxListKeys(t *testing.T, socket string) string {
 // The repo should be in "owner/name" format (e.g., "tmux-plugins/tmux-example-plugin").
 func installPluginManually(t *testing.T, pluginDir, repo string) {
 	t.Helper()
-
-	parts := strings.SplitN(repo, "/", 2)
-	if len(parts) != 2 {
-		t.Fatalf("invalid repo format %q, expected owner/name", repo)
-	}
-	name := parts[1]
-
-	destDir := filepath.Join(pluginDir, name)
+	p := mustParsePlugin(t, repo)
+	destDir := filepath.Join(pluginDir, p.DirName)
 	url := "https://github.com/" + repo
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
@@ -268,6 +264,38 @@ func installPluginManually(t *testing.T, pluginDir, repo string) {
 	if err != nil {
 		t.Fatalf("failed to clone %s: %v\n%s", repo, err, out)
 	}
+}
+
+func mustParsePlugin(t *testing.T, raw string) plug.Plugin {
+	t.Helper()
+	p, err := plug.ParseSpec(raw, nil)
+	if err != nil {
+		t.Fatalf("ParseSpec(%q): %v", raw, err)
+	}
+	return p
+}
+
+func canonicalPluginDir(t *testing.T, pluginDir, raw string) string {
+	t.Helper()
+	return filepath.Join(pluginDir, mustParsePlugin(t, raw).DirName)
+}
+
+func prepareLegacyRepository(t *testing.T, pluginDir, raw string) string {
+	t.Helper()
+	p := mustParsePlugin(t, raw)
+	destDir := filepath.Join(pluginDir, plug.LegacyPluginName(p.Spec))
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	for _, args := range [][]string{
+		{"init", destDir},
+		{"-C", destDir, "remote", "add", "origin", plug.NormalizeURL(p.Spec)},
+	} {
+		cmd := exec.CommandContext(ctx, "git", args...)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+	return destDir
 }
 
 // assertContains checks that output contains the expected substring.

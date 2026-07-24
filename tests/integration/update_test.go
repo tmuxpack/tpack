@@ -3,7 +3,6 @@ package integration_test
 import (
 	"context"
 	"os"
-	"path/filepath"
 	"runtime"
 	"testing"
 	"time"
@@ -30,9 +29,8 @@ func TestUpdateInstalledPlugin(t *testing.T) {
 	// First install.
 	installOutput := ui.NewMockOutput()
 	mgr := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, installOutput)
-	plugins := []plug.Plugin{
-		mustParsePlugin(t, tmuxExamplePlugin),
-	}
+	p := mustParsePlugin(t, tmuxExamplePlugin)
+	plugins := []plug.Plugin{p}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
@@ -54,7 +52,7 @@ func TestUpdateInstalledPlugin(t *testing.T) {
 	// Should have "update success" message.
 	found := false
 	for _, msg := range updateOutput.OkMsgs {
-		if msg == "  \"tmux-example-plugin\" update success" {
+		if msg == "  \"tmux-plugins/tmux-example-plugin\" update success" {
 			found = true
 		}
 	}
@@ -77,9 +75,8 @@ func TestUpdateSpecificPlugin(t *testing.T) {
 	installOutput := ui.NewMockOutput()
 
 	mgr := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, installOutput)
-	plugins := []plug.Plugin{
-		mustParsePlugin(t, tmuxExamplePlugin),
-	}
+	p := mustParsePlugin(t, tmuxExamplePlugin)
+	plugins := []plug.Plugin{p}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
@@ -88,7 +85,7 @@ func TestUpdateSpecificPlugin(t *testing.T) {
 	// Update specific plugin.
 	updateOutput := ui.NewMockOutput()
 	mgr2 := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, updateOutput)
-	mgr2.Update(ctx, plugins, []string{"tmux-example-plugin"})
+	mgr2.Update(ctx, plugins, []string{p.Name})
 
 	if updateOutput.Result() != nil {
 		t.Errorf("update reported failure: %v", updateOutput.ErrMsgs)
@@ -104,12 +101,13 @@ func TestUpdateNotInstalledPlugin(t *testing.T) {
 	output := ui.NewMockOutput()
 
 	mgr := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, output)
+	p := mustParsePlugin(t, "example/nonexistent")
 
-	mgr.Update(context.Background(), nil, []string{"nonexistent"})
+	mgr.Update(context.Background(), []plug.Plugin{p}, []string{p.Name})
 
 	found := false
 	for _, msg := range output.ErrMsgs {
-		if msg == "nonexistent not installed!" {
+		if msg == "example/nonexistent not installed!" {
 			found = true
 		}
 	}
@@ -133,12 +131,12 @@ func TestCleanRemovesUnlistedPlugins(t *testing.T) {
 	// Install a declared plugin plus an unlisted orphan.
 	installOutput := ui.NewMockOutput()
 	mgr := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, installOutput)
-	declared := []plug.Plugin{
-		mustParsePlugin(t, tmuxExamplePlugin),
-	}
+	declaredPlugin := mustParsePlugin(t, tmuxExamplePlugin)
+	orphanPlugin := mustParsePlugin(t, "tmux-plugins/tmux-sensible")
+	declared := []plug.Plugin{declaredPlugin}
 	installAll := []plug.Plugin{
-		mustParsePlugin(t, tmuxExamplePlugin),
-		mustParsePlugin(t, "tmux-plugins/tmux-sensible"),
+		declaredPlugin,
+		orphanPlugin,
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
@@ -154,12 +152,12 @@ func TestCleanRemovesUnlistedPlugins(t *testing.T) {
 	mgr2 := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, cleanOutput)
 	mgr2.Clean(context.Background(), declared)
 
-	orphanDir := filepath.Join(pluginDir, "tmux-sensible")
+	orphanDir := pluginPath(t, pluginDir, orphanPlugin)
 	if _, err := os.Stat(orphanDir); !os.IsNotExist(err) {
 		t.Error("expected unlisted plugin to be removed after clean")
 	}
 
-	declaredDir := filepath.Join(pluginDir, "tmux-example-plugin")
+	declaredDir := pluginPath(t, pluginDir, declaredPlugin)
 	if _, err := os.Stat(declaredDir); err != nil {
 		t.Error("expected declared plugin to survive clean")
 	}
@@ -181,9 +179,8 @@ func TestCleanWithEmptyConfigRemovesAll(t *testing.T) {
 	// clean is expected to remove it -- matching TPM's original contract.
 	installOutput := ui.NewMockOutput()
 	mgr := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, installOutput)
-	plugins := []plug.Plugin{
-		mustParsePlugin(t, tmuxExamplePlugin),
-	}
+	p := mustParsePlugin(t, tmuxExamplePlugin)
+	plugins := []plug.Plugin{p}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
@@ -199,7 +196,7 @@ func TestCleanWithEmptyConfigRemovesAll(t *testing.T) {
 	mgr2 := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, cleanOutput)
 	mgr2.Clean(context.Background(), nil)
 
-	dir := filepath.Join(pluginDir, "tmux-example-plugin")
+	dir := pluginPath(t, pluginDir, p)
 	if _, err := os.Stat(dir); !os.IsNotExist(err) {
 		t.Error("expected plugin to be removed when declared list is empty")
 	}
@@ -218,7 +215,8 @@ func TestCleanAbortsWhenConfBecomesUnreadableAfterResolve(t *testing.T) {
 
 	// An already-installed plugin that must survive: the command should
 	// abort before ever reaching mgr.Clean.
-	installedDir := filepath.Join(pluginDir, "tmux-example-plugin")
+	p := mustParsePlugin(t, tmuxExamplePlugin)
+	installedDir := pluginPath(t, pluginDir, p)
 	if err := os.MkdirAll(installedDir, 0o755); err != nil {
 		t.Fatal(err)
 	}

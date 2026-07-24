@@ -19,7 +19,7 @@ func NormalizeURL(shorthand string) string {
 
 // ParseSpec parses a raw plugin specification into a Plugin struct.
 // The format is "spec#branch" where #branch is optional.
-// An optional "alias=X" token may follow the spec to override the plugin name.
+// An optional "alias=X" token may follow the spec to override DirName.
 // The branch suffix "#branch" may appear on either the spec or the alias token.
 // Example: "catppuccin/tmux alias=catppuccin-tmux#v2"
 // warn, if non-nil, receives a message for unexpected extra tokens; a nil

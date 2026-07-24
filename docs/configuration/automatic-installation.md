@@ -4,7 +4,7 @@ Bootstrap tpack automatically when setting up a new machine from your dotfiles.
 
 ## Git clone setup
 
-If you use the [git clone installation method](../getting-started/installation.md#option-b-git-clone-tpm-drop-in-replacement),
+If you use the [git clone installation method](../getting-started/installation.md#option-b-git-clone-tpm-compatible-setup),
 add this snippet to your `tmux.conf`, **before** the final `run` line:
 
 ```bash

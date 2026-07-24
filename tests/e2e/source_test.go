@@ -21,9 +21,10 @@ func TestPluginSourcing(t *testing.T) {
 
 	// Set up an isolated HOME with a minimal tmux.conf (e2eEnv writes one).
 	home, socket := e2eEnv(t, "# placeholder")
+	pluginRoot := filepath.Join(home, ".tmux", "plugins")
 
 	// Create the fake plugin directory and executable .tmux file.
-	pluginDir := filepath.Join(home, ".tmux", "plugins", "tmux_test_plugin")
+	pluginDir := canonicalPluginDir(t, pluginRoot, "doesnt_matter/tmux_test_plugin")
 	if err := os.MkdirAll(pluginDir, 0o755); err != nil {
 		t.Fatalf("failed to create plugin dir: %v", err)
 	}

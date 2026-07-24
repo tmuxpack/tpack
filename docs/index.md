@@ -7,7 +7,8 @@ hide:
 # tpack
 
 **A modern tmux plugin manager written in Go.**
-Drop-in replacement for TPM — fully backward compatible with existing configurations, plugins, and key bindings.
+Compatible with TPM configuration syntax and key bindings, with a
+repository-aware on-disk layout.
 
 Works on Linux, macOS, and FreeBSD.
 
@@ -17,9 +18,11 @@ Works on Linux, macOS, and FreeBSD.
 
 <div class="grid cards" markdown>
 
--   **Drop-in TPM Replacement**
+-   **TPM-Compatible Configuration**
 
-    Switch without changing your `tmux.conf`. All existing TPM settings, plugin declarations, and key bindings continue to work.
+    Existing TPM settings, plugin declarations, and key bindings continue to
+    work. Exact-origin legacy plugin directories are migrated once; see the
+    [migration guide](getting-started/migrating-from-tpm.md).
 
 -   **Interactive TUI**
 
@@ -58,7 +61,7 @@ Works on Linux, macOS, and FreeBSD.
     run 'tpack init'
     ```
 
-=== "Git clone (TPM drop-in)"
+=== "Git clone (TPM-compatible)"
 
     Clone tpack and add it to your tmux config:
 

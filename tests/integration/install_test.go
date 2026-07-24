@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -31,16 +30,15 @@ func TestInstallRealPlugin(t *testing.T) {
 
 	mgr := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, output)
 
-	plugins := []plug.Plugin{
-		mustParsePlugin(t, tmuxExamplePlugin),
-	}
+	p := mustParsePlugin(t, tmuxExamplePlugin)
+	plugins := []plug.Plugin{p}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 	mgr.Install(ctx, plugins)
 
 	// Verify the plugin was cloned.
-	dir := filepath.Join(pluginDir, "tmux-example-plugin")
+	dir := pluginPath(t, pluginDir, p)
 	if _, err := os.Stat(dir); err != nil {
 		t.Errorf("plugin directory not created: %v", err)
 	}
@@ -56,7 +54,7 @@ func TestInstallRealPlugin(t *testing.T) {
 
 	found := false
 	for _, msg := range output2.OkMsgs {
-		if msg == "Already installed \"tmux-example-plugin\"" {
+		if msg == "Already installed \"tmux-plugins/tmux-example-plugin\"" {
 			found = true
 		}
 	}
@@ -89,10 +87,10 @@ func TestInstallMultiplePlugins(t *testing.T) {
 	defer cancel()
 	mgr.Install(ctx, plugins)
 
-	for _, name := range []string{"tmux-example-plugin", "tmux-sensible"} {
-		dir := filepath.Join(pluginDir, name)
+	for _, p := range plugins {
+		dir := pluginPath(t, pluginDir, p)
 		if _, err := os.Stat(dir); err != nil {
-			t.Errorf("plugin %s not installed: %v", name, err)
+			t.Errorf("plugin %s not installed: %v", p.Name, err)
 		}
 	}
 }
