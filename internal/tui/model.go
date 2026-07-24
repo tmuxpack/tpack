@@ -671,12 +671,12 @@ func (m Model) returnToList() Model {
 		removedSet := make(map[string]bool)
 		for _, r := range m.results {
 			if r.Success {
-				removedSet[r.Name] = true
+				removedSet[r.DirName] = true
 			}
 		}
 		var remaining []OrphanItem
 		for _, o := range m.orphans {
-			if !removedSet[o.Name] {
+			if !removedSet[o.DirName] {
 				remaining = append(remaining, o)
 			}
 		}

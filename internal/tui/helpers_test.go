@@ -104,11 +104,11 @@ func TestLoadErrorMapUsesDirectoryKeyWithLegacyNameFallback(t *testing.T) {
 		{Name: "tmux", DirName: "tmux--f0e8a426", Message: "new record"},
 		{Name: "legacy", Message: "old record"},
 	})
-	if got["tmux--f0e8a426"] != "new record" {
-		t.Errorf("directory-keyed error = %q", got["tmux--f0e8a426"])
+	if got.byDirName["tmux--f0e8a426"] != "new record" {
+		t.Errorf("directory-keyed error = %q", got.byDirName["tmux--f0e8a426"])
 	}
-	if got["legacy"] != "old record" {
-		t.Errorf("legacy name-keyed error = %q", got["legacy"])
+	if got.byLegacyName["legacy"] != "old record" {
+		t.Errorf("legacy name-keyed error = %q", got.byLegacyName["legacy"])
 	}
 }
 
@@ -127,6 +127,34 @@ func TestBuildPluginItemsMatchesLegacyLoadErrorByName(t *testing.T) {
 
 	if items[0].Status != StatusLoadFailed || items[0].LoadErr != "legacy failure" {
 		t.Fatalf("legacy load failure was not correlated: %+v", items[0])
+	}
+}
+
+func TestBuildPluginItemsDoesNotTreatDirectoryKeyAsLegacyName(t *testing.T) {
+	pluginPath := t.TempDir()
+	plugins := []plug.Plugin{
+		{Name: "source", DirName: "shared-key", Spec: "owner/source"},
+		{Name: "shared-key", DirName: "other-directory", Spec: "owner/other"},
+	}
+	validator := git.NewMockValidator()
+	for _, plugin := range plugins {
+		dir := filepath.Join(pluginPath, plugin.DirName)
+		if err := os.Mkdir(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		validator.Valid[dir] = true
+	}
+	loadErrors := loadErrorMap([]plug.LoadFailure{{
+		Name: "source", DirName: "shared-key", Message: "source failed",
+	}})
+
+	items := buildPluginItems(plugins, mustRoot(t, pluginPath), validator, loadErrors)
+
+	if items[0].Status != StatusLoadFailed || items[0].LoadErr != "source failed" {
+		t.Fatalf("directory-matched plugin = %+v", items[0])
+	}
+	if items[1].Status != StatusChecking || items[1].LoadErr != "" {
+		t.Fatalf("unrelated plugin inherited directory-keyed failure: %+v", items[1])
 	}
 }
 
@@ -249,7 +277,9 @@ func TestBuildPluginItems_LoadFailed(t *testing.T) {
 	validator.Valid[dir] = true
 
 	plugins := []plug.Plugin{testPlugin("tmux-statusline", "x/tmux-statusline")}
-	loadErrors := map[string]string{"tmux-statusline": "exec format error"}
+	loadErrors := loadErrorMap([]plug.LoadFailure{{
+		Name: "tmux-statusline", DirName: "tmux-statusline", Message: "exec format error",
+	}})
 
 	items := buildPluginItems(plugins, mustRoot(t, pluginPath), validator, loadErrors)
 
@@ -266,7 +296,9 @@ func TestBuildPluginItems_LoadErrorIgnoredWhenNotInstalled(t *testing.T) {
 	validator := git.NewMockValidator()
 
 	plugins := []plug.Plugin{testPlugin("ghost", "x/ghost")}
-	loadErrors := map[string]string{"ghost": "stale error"}
+	loadErrors := loadErrorMap([]plug.LoadFailure{{
+		Name: "ghost", DirName: "ghost", Message: "stale error",
+	}})
 
 	items := buildPluginItems(plugins, mustRoot(t, pluginPath), validator, loadErrors)
 

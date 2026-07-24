@@ -366,7 +366,7 @@ func (m *Model) buildCleanOps() []pendingOp {
 	for _, o := range m.orphans {
 		ops = append(ops, pendingOp{
 			Name:    o.Name,
-			DirName: o.Name,
+			DirName: o.DirName,
 			Path:    o.Path,
 		})
 	}

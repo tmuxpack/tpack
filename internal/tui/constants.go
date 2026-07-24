@@ -106,8 +106,9 @@ type PluginItem struct {
 
 // OrphanItem represents a plugin directory not in config.
 type OrphanItem struct {
-	Name string
-	Path string
+	Name    string
+	DirName string
+	Path    string
 }
 
 // ResultItem holds the result of a single operation.

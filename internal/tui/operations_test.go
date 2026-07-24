@@ -290,6 +290,19 @@ func TestCleanPluginCmd_Success(t *testing.T) {
 	}
 }
 
+func TestBuildCleanOpsUsesOrphanDirectoryKey(t *testing.T) {
+	m := newTestModel(t, nil)
+	m.orphans = []OrphanItem{{
+		Name: "display label", DirName: "orphan-directory", Path: "/plugins/orphan-directory",
+	}}
+
+	ops := m.buildCleanOps()
+
+	if len(ops) != 1 || ops[0].Name != "display label" || ops[0].DirName != "orphan-directory" {
+		t.Fatalf("clean operations = %+v", ops)
+	}
+}
+
 func TestCleanPluginCmd_NonExistentDir(t *testing.T) {
 	op := pendingOp{
 		Name: "ghost-plugin",

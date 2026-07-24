@@ -318,11 +318,11 @@ func TestReturnToList_RemovesCleanedOrphans(t *testing.T) {
 	m.operation = OpClean
 	m.processing = false
 	m.orphans = []OrphanItem{
-		{Name: "cleaned", Path: "/tmp/cleaned"},
-		{Name: "remaining", Path: "/tmp/remaining"},
+		{Name: "cleaned", DirName: "cleaned", Path: "/tmp/cleaned"},
+		{Name: "remaining", DirName: "remaining", Path: "/tmp/remaining"},
 	}
 	m.results = []ResultItem{
-		{Name: "cleaned", Success: true, Message: "removed"},
+		{Name: "cleaned", DirName: "cleaned", Success: true, Message: "removed"},
 	}
 
 	m = m.returnToList()
@@ -332,6 +332,25 @@ func TestReturnToList_RemovesCleanedOrphans(t *testing.T) {
 	}
 	if m.orphans[0].Name != "remaining" {
 		t.Errorf("expected remaining orphan 'remaining', got %q", m.orphans[0].Name)
+	}
+}
+
+func TestReturnToListRemovesCleanedOrphanByDirectoryKey(t *testing.T) {
+	m := newTestModel(t, nil)
+	m.screen = ScreenProgress
+	m.operation = OpClean
+	m.orphans = []OrphanItem{
+		{Name: "shared label", DirName: "orphan-a", Path: "/plugins/orphan-a"},
+		{Name: "shared label", DirName: "orphan-b", Path: "/plugins/orphan-b"},
+	}
+	m.results = []ResultItem{{
+		Name: "shared label", DirName: "orphan-b", Success: true, Message: "removed",
+	}}
+
+	m = m.returnToList()
+
+	if len(m.orphans) != 1 || m.orphans[0].DirName != "orphan-a" {
+		t.Fatalf("remaining orphans = %+v", m.orphans)
 	}
 }
 
@@ -574,8 +593,8 @@ func TestUpdateList_UninstallKey(t *testing.T) {
 func TestBuildCleanOps(t *testing.T) {
 	m := newTestModel(t, nil)
 	m.orphans = []OrphanItem{
-		{Name: "orphan-a", Path: "/tmp/orphan-a"},
-		{Name: "orphan-b", Path: "/tmp/orphan-b"},
+		{Name: "orphan-a", DirName: "orphan-a", Path: "/tmp/orphan-a"},
+		{Name: "orphan-b", DirName: "orphan-b", Path: "/tmp/orphan-b"},
 	}
 
 	ops := m.buildCleanOps()
