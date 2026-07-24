@@ -96,6 +96,25 @@ func createLocalRepository(t *testing.T, barePath, marker string) string {
 	return barePath
 }
 
+func createLocalPlugins(t *testing.T, raws ...string) []plug.Plugin {
+	t.Helper()
+	repositoryRoot := t.TempDir()
+	rewrites := make(map[string]string, len(raws))
+	plugins := make([]plug.Plugin, 0, len(raws))
+	for i, raw := range raws {
+		p := mustParsePlugin(t, raw)
+		repository := createLocalRepository(
+			t,
+			filepath.Join(repositoryRoot, strconv.Itoa(i), plug.LegacyPluginName(p.Spec)+".git"),
+			p.Identity,
+		)
+		rewrites[p.Spec] = repository
+		plugins = append(plugins, p)
+	}
+	configureGitURLRewrites(t, rewrites)
+	return plugins
+}
+
 func configureGitURLRewrites(t *testing.T, rewrites map[string]string) {
 	t.Helper()
 	t.Setenv("GIT_CONFIG_GLOBAL", "/dev/null")

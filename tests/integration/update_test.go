@@ -16,7 +16,7 @@ import (
 
 func TestUpdateInstalledPlugin(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping network test in -short mode")
+		t.Skip("skipping Git integration test in -short mode")
 	}
 	skipIfNoGit(t)
 
@@ -29,8 +29,7 @@ func TestUpdateInstalledPlugin(t *testing.T) {
 	// First install.
 	installOutput := ui.NewMockOutput()
 	mgr := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, installOutput)
-	p := mustParsePlugin(t, tmuxExamplePlugin)
-	plugins := []plug.Plugin{p}
+	plugins := createLocalPlugins(t, tmuxExamplePlugin)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
@@ -63,7 +62,7 @@ func TestUpdateInstalledPlugin(t *testing.T) {
 
 func TestUpdateSpecificPlugin(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping network test in -short mode")
+		t.Skip("skipping Git integration test in -short mode")
 	}
 	skipIfNoGit(t)
 
@@ -75,8 +74,8 @@ func TestUpdateSpecificPlugin(t *testing.T) {
 	installOutput := ui.NewMockOutput()
 
 	mgr := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, installOutput)
-	p := mustParsePlugin(t, tmuxExamplePlugin)
-	plugins := []plug.Plugin{p}
+	plugins := createLocalPlugins(t, tmuxExamplePlugin)
+	p := plugins[0]
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
@@ -118,7 +117,7 @@ func TestUpdateNotInstalledPlugin(t *testing.T) {
 
 func TestCleanRemovesUnlistedPlugins(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping network test in -short mode")
+		t.Skip("skipping Git integration test in -short mode")
 	}
 	skipIfNoGit(t)
 
@@ -131,13 +130,10 @@ func TestCleanRemovesUnlistedPlugins(t *testing.T) {
 	// Install a declared plugin plus an unlisted orphan.
 	installOutput := ui.NewMockOutput()
 	mgr := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, installOutput)
-	declaredPlugin := mustParsePlugin(t, tmuxExamplePlugin)
-	orphanPlugin := mustParsePlugin(t, "tmux-plugins/tmux-sensible")
+	installAll := createLocalPlugins(t, tmuxExamplePlugin, "tmux-plugins/tmux-sensible")
+	declaredPlugin := installAll[0]
+	orphanPlugin := installAll[1]
 	declared := []plug.Plugin{declaredPlugin}
-	installAll := []plug.Plugin{
-		declaredPlugin,
-		orphanPlugin,
-	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
@@ -165,7 +161,7 @@ func TestCleanRemovesUnlistedPlugins(t *testing.T) {
 
 func TestCleanWithEmptyConfigRemovesAll(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping network test in -short mode")
+		t.Skip("skipping Git integration test in -short mode")
 	}
 	skipIfNoGit(t)
 
@@ -179,8 +175,8 @@ func TestCleanWithEmptyConfigRemovesAll(t *testing.T) {
 	// clean is expected to remove it -- matching TPM's original contract.
 	installOutput := ui.NewMockOutput()
 	mgr := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, installOutput)
-	p := mustParsePlugin(t, tmuxExamplePlugin)
-	plugins := []plug.Plugin{p}
+	plugins := createLocalPlugins(t, tmuxExamplePlugin)
+	p := plugins[0]
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()

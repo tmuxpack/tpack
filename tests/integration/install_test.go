@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -17,7 +18,7 @@ import (
 
 func TestInstallRealPlugin(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping network test in -short mode")
+		t.Skip("skipping Git integration test in -short mode")
 	}
 	skipIfNoGit(t)
 
@@ -30,8 +31,8 @@ func TestInstallRealPlugin(t *testing.T) {
 
 	mgr := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, output)
 
-	p := mustParsePlugin(t, tmuxExamplePlugin)
-	plugins := []plug.Plugin{p}
+	plugins := createLocalPlugins(t, tmuxExamplePlugin)
+	p := plugins[0]
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
@@ -65,7 +66,7 @@ func TestInstallRealPlugin(t *testing.T) {
 
 func TestInstallMultiplePlugins(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping network test in -short mode")
+		t.Skip("skipping Git integration test in -short mode")
 	}
 	skipIfNoGit(t)
 
@@ -78,10 +79,7 @@ func TestInstallMultiplePlugins(t *testing.T) {
 
 	mgr := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, output)
 
-	plugins := []plug.Plugin{
-		mustParsePlugin(t, tmuxExamplePlugin),
-		mustParsePlugin(t, "tmux-plugins/tmux-sensible"),
-	}
+	plugins := createLocalPlugins(t, tmuxExamplePlugin, "tmux-plugins/tmux-sensible")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
@@ -97,7 +95,7 @@ func TestInstallMultiplePlugins(t *testing.T) {
 
 func TestInstallNonexistentPlugin(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping network test in -short mode")
+		t.Skip("skipping Git integration test in -short mode")
 	}
 	skipIfNoGit(t)
 
@@ -110,9 +108,9 @@ func TestInstallNonexistentPlugin(t *testing.T) {
 
 	mgr := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, output)
 
-	plugins := []plug.Plugin{
-		mustParsePlugin(t, "nonexistent-user/nonexistent-plugin-xyz-abc-123"),
-	}
+	p := mustParsePlugin(t, "https://plugins.test/nonexistent/plugin.git")
+	configureGitURLRewrites(t, map[string]string{p.Spec: filepath.Join(t.TempDir(), "missing.git")})
+	plugins := []plug.Plugin{p}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
