@@ -25,7 +25,7 @@ func TestUpdateViaCLI(t *testing.T) {
 	home, socket := e2eEnv(t, tmuxConf)
 
 	pluginDir := filepath.Join(home, ".tmux", "plugins")
-	installPluginManually(t, pluginDir, "tmux-plugins/tmux-example-plugin")
+	installPluginManually(t, home, pluginDir, "tmux-plugins/tmux-example-plugin")
 
 	startTmux(t, home, socket)
 

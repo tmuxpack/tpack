@@ -27,8 +27,8 @@ func TestCleanViaCLI(t *testing.T) {
 	startTmux(t, home, socket)
 
 	pluginDir := filepath.Join(home, ".tmux", "plugins")
-	installPluginManually(t, pluginDir, "tmux-plugins/tmux-example-plugin")
-	installPluginManually(t, pluginDir, "tmux-plugins/tmux-sensible")
+	installPluginManually(t, home, pluginDir, "tmux-plugins/tmux-example-plugin")
+	installPluginManually(t, home, pluginDir, "tmux-plugins/tmux-sensible")
 
 	exampleDir := canonicalPluginDir(t, pluginDir, "tmux-plugins/tmux-example-plugin")
 	orphanPlugin := mustParsePlugin(t, "tmux-plugins/tmux-sensible")
@@ -63,8 +63,8 @@ func TestCleanWithEmptyConfigRemovesAll(t *testing.T) {
 	startTmux(t, home, socket)
 
 	pluginDir := filepath.Join(home, ".tmux", "plugins")
-	installPluginManually(t, pluginDir, "tmux-plugins/tmux-example-plugin")
-	installPluginManually(t, pluginDir, "tmux-plugins/tmux-sensible")
+	installPluginManually(t, home, pluginDir, "tmux-plugins/tmux-example-plugin")
+	installPluginManually(t, home, pluginDir, "tmux-plugins/tmux-sensible")
 
 	exampleDir := canonicalPluginDir(t, pluginDir, "tmux-plugins/tmux-example-plugin")
 	sensibleDir := canonicalPluginDir(t, pluginDir, "tmux-plugins/tmux-sensible")
@@ -102,8 +102,8 @@ func TestCleanFailsOnPermissionDenied(t *testing.T) {
 	startTmux(t, home, socket)
 
 	pluginDir := filepath.Join(home, ".tmux", "plugins")
-	installPluginManually(t, pluginDir, "tmux-plugins/tmux-example-plugin")
-	installPluginManually(t, pluginDir, "tmux-plugins/tmux-sensible")
+	installPluginManually(t, home, pluginDir, "tmux-plugins/tmux-example-plugin")
+	installPluginManually(t, home, pluginDir, "tmux-plugins/tmux-sensible")
 
 	exampleDir := canonicalPluginDir(t, pluginDir, "tmux-plugins/tmux-example-plugin")
 	orphanPlugin := mustParsePlugin(t, "tmux-plugins/tmux-sensible")
@@ -141,8 +141,8 @@ func TestCleanPreservesPluginsWhenRequiredSourceIsMissing(t *testing.T) {
 		t.Fatal(err)
 	}
 	pluginDir := filepath.Join(home, ".tmux", "plugins")
-	installPluginManually(t, pluginDir, "tmux-plugins/tmux-example-plugin")
-	installPluginManually(t, pluginDir, "tmux-plugins/tmux-sensible")
+	installPluginManually(t, home, pluginDir, "tmux-plugins/tmux-example-plugin")
+	installPluginManually(t, home, pluginDir, "tmux-plugins/tmux-sensible")
 	exampleDir := canonicalPluginDir(t, pluginDir, "tmux-plugins/tmux-example-plugin")
 	sensibleDir := canonicalPluginDir(t, pluginDir, "tmux-plugins/tmux-sensible")
 	output, exitCode := runInTmux(t, home, socket, binary+" clean", 30*time.Second)
@@ -164,7 +164,7 @@ func TestCleanAllowsMissingQuietSource(t *testing.T) {
 	home, socket := e2eEnv(t, "source-file -q ~/.tmux/plugins.conf\n")
 	startTmux(t, home, socket)
 	pluginDir := filepath.Join(home, ".tmux", "plugins")
-	installPluginManually(t, pluginDir, "tmux-plugins/tmux-sensible")
+	installPluginManually(t, home, pluginDir, "tmux-plugins/tmux-sensible")
 	orphanDir := canonicalPluginDir(t, pluginDir, "tmux-plugins/tmux-sensible")
 	output, exitCode := runInTmux(t, home, socket, binary+" clean", 30*time.Second)
 	if exitCode != 0 {

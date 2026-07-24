@@ -51,10 +51,11 @@ one-time, idempotent migration: later runs see the canonical directory and do
 nothing. Explicit declarations such as `owner/repo alias=my-plugin` preserve
 `my-plugin` as the directory and are not migrated.
 
-tpack does not guess when an origin mismatches or cannot be read, and it never
-deletes such a checkout. A migration error stops the requested operation.
-Migration locking and destination rechecks ensure concurrent tpack runs do not
-overwrite canonical directories.
+Automatic migration does not guess, move, or delete a checkout when its origin
+mismatches or cannot be read. A migration error stops the requested operation.
+An unmatched legacy directory remains subject to normal orphan semantics, so a
+later explicit `tpack clean` can remove it. Migration locking and destination
+rechecks ensure concurrent tpack runs do not overwrite canonical directories.
 
 ## How to switch
 

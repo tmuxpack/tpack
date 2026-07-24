@@ -23,9 +23,11 @@ bindings, while adding repository-aware plugin management.
 > `tmux-87a1216f1f68` (always ASCII and at most 64 bytes), so repositories with
 > the same basename can coexist. On the first operational command, tpack
 > identifies a legacy basename checkout by its Git origin and renames an exact
-> match once. A mismatched or unreadable checkout is never guessed, deleted, or
-> moved, and concurrent tpack runs cannot overwrite a canonical directory.
-> Explicit `alias=` values keep their configured directory instead.
+> match once. Automatic migration never guesses, deletes, or moves a mismatched
+> or unreadable checkout, and concurrent tpack runs cannot overwrite a canonical
+> directory. A later explicit `tpack clean` can remove an unmatched legacy
+> directory under normal orphan-cleanup semantics. Explicit `alias=` values keep
+> their configured directory instead.
 >
 > This means switching back to TPM is not seamless. Running tpack and TPM
 > against the same plugin root is unsupported, and scripts or configuration
