@@ -162,7 +162,11 @@ func TestFindOrphans_EmptyDir(t *testing.T) {
 }
 
 func TestFindOrphansResolvesRootBeforeEnumeration(t *testing.T) {
-	target := t.TempDir()
+	realTarget := t.TempDir()
+	target := filepath.Join(t.TempDir(), "target")
+	if err := os.Symlink(realTarget, target); err != nil {
+		t.Fatal(err)
+	}
 	if err := os.Mkdir(filepath.Join(target, "orphan"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -178,7 +182,11 @@ func TestFindOrphansResolvesRootBeforeEnumeration(t *testing.T) {
 	if len(orphans) != 1 {
 		t.Fatalf("orphans = %v, want one", orphans)
 	}
-	want := filepath.Join(target, "orphan")
+	resolvedTarget, err := filepath.EvalSymlinks(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := filepath.Join(resolvedTarget, "orphan")
 	if orphans[0].Path != want {
 		t.Errorf("orphan path = %q, want resolved path %q", orphans[0].Path, want)
 	}
