@@ -2,10 +2,11 @@ package tui
 
 import (
 	"context"
+	"fmt"
+	"strings"
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
-	"github.com/tmuxpack/tpack/internal/config"
 	"github.com/tmuxpack/tpack/internal/plug"
 	"github.com/tmuxpack/tpack/internal/registry"
 )
@@ -16,6 +17,9 @@ type registryFetchResultMsg struct {
 }
 
 func pluginFromRegistryItem(item registry.RegistryItem) (plug.Plugin, error) {
+	if strings.ContainsAny(item.Host, `/\@?#`) {
+		return plug.Plugin{}, fmt.Errorf("invalid repository host %q", item.Host)
+	}
 	spec := item.Repo
 	if item.Host != "" && item.Host != defaultGitHubHost {
 		spec = "https://" + item.Host + "/" + item.Repo
@@ -202,7 +206,10 @@ func (m Model) installFromBrowse() (tea.Model, tea.Cmd) {
 	}
 
 	if m.cfg.TmuxConf != "" {
-		_ = config.AppendPlugin(m.cfg.TmuxConf, candidate.Spec)
+		if err := m.deps.AppendPlugin(m.cfg.TmuxConf, candidate.Spec); err != nil {
+			m.browseStatus = "Failed to install: " + err.Error()
+			return m, nil
+		}
 	}
 	m.plugins = append(m.plugins, PluginItem{
 		Raw:      candidate.Raw,

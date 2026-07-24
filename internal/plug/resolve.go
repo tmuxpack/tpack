@@ -11,7 +11,10 @@ import (
 // The "git::@" prefix is a credential placeholder used by the original TPM
 // to prevent git from prompting for authentication on non-existent repos.
 func NormalizeURL(shorthand string) string {
-	if strings.Contains(shorthand, "://") || strings.Contains(shorthand, "git@") {
+	if strings.Contains(shorthand, "://") {
+		return shorthand
+	}
+	if _, _, ok := parseSCPIdentity(shorthand); ok {
 		return shorthand
 	}
 	return "https://git::@github.com/" + shorthand
@@ -25,6 +28,9 @@ func NormalizeURL(shorthand string) string {
 // warn, if non-nil, receives a message for unexpected extra tokens; a nil
 // warn silently drops it.
 func ParseSpec(raw string, warn func(string)) (Plugin, error) {
+	if containsControl(raw) || strings.ContainsAny(raw, `\'";`+"`$|&<>") {
+		return Plugin{}, fmt.Errorf("parse plugin %q: repository spec contains unsafe characters", raw)
+	}
 	raw = strings.TrimSpace(raw)
 	original := raw
 

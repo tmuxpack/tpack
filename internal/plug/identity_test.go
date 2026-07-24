@@ -19,6 +19,7 @@ func TestNormalizeIdentity(t *testing.T) {
 		{name: "https credentials", spec: "https://git::@github.com/catppuccin/tmux", want: "github.com/catppuccin/tmux"},
 		{name: "ssh URL", spec: "ssh://git@github.com/catppuccin/tmux.git", want: "github.com/catppuccin/tmux"},
 		{name: "scp", spec: "git@github.com:catppuccin/tmux.git", want: "github.com/catppuccin/tmux"},
+		{name: "scp without user", spec: "github.com:catppuccin/tmux.git", want: "github.com/catppuccin/tmux"},
 		{name: "host normalized", spec: "https://GitLab.COM/group/tmux.git", want: "gitlab.com/group/tmux"},
 		{name: "non-default port retained", spec: "ssh://git@example.com:2222/team/tmux.git", want: "example.com:2222/team/tmux"},
 	}
@@ -31,6 +32,27 @@ func TestNormalizeIdentity(t *testing.T) {
 			}
 			if got != tt.want {
 				t.Errorf("NormalizeIdentity(%q) = %q, want %q", tt.spec, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestNormalizeIdentityRejectsUnsafeRepositorySpecs(t *testing.T) {
+	tests := []string{
+		`https://github.com/owner/repo";run-shell`,
+		"https://github.com/owner/repo\nset -g @plugin attacker/repo",
+		"https://github.com/owner/../repo",
+		"https://github.com/owner/./repo",
+		"https://github.com/owner//repo",
+		`https://github.com;run-shell/owner/repo`,
+		`https://attacker";@github.com/owner/repo`,
+		`github.com;run-shell:owner/repo`,
+	}
+
+	for _, spec := range tests {
+		t.Run(spec, func(t *testing.T) {
+			if identity, err := plug.NormalizeIdentity(spec); err == nil {
+				t.Fatalf("NormalizeIdentity(%q) = %q, want error", spec, identity)
 			}
 		})
 	}

@@ -57,6 +57,20 @@ func TestMigrateLegacyAcceptsEquivalentOriginURLForm(t *testing.T) {
 	assertPathExists(t, filepath.Join(rootPath, p.DirName))
 }
 
+func TestMigrateLegacyAcceptsEquivalentNoUserSCPOrigin(t *testing.T) {
+	rootPath := t.TempDir()
+	p := mustParsePlugin(t, "https://github.com/catppuccin/tmux.git")
+	legacy := filepath.Join(rootPath, "tmux")
+	mustMkdir(t, legacy)
+
+	err := plug.MigrateLegacy(context.Background(), mustRoot(t, rootPath), []plug.Plugin{p},
+		&git.MockOriginReader{URL: "github.com:catppuccin/tmux.git"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertPathExists(t, filepath.Join(rootPath, p.DirName))
+}
+
 func TestMigrateLegacyOriginMismatchIsNoOp(t *testing.T) {
 	rootPath := t.TempDir()
 	p := mustParsePlugin(t, "catppuccin/tmux")

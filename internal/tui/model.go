@@ -25,6 +25,8 @@ type Deps struct {
 	RevParser git.RevParser
 	Logger    git.Logger
 	Runner    tmux.Runner // optional, for post-op tmux sourcing
+	// AppendPlugin persists browser installs before they are queued.
+	AppendPlugin func(confPath, spec string) error
 }
 
 // ModelOption configures optional Model behavior.
@@ -119,6 +121,9 @@ type Model struct {
 
 // NewModel creates a new Model from the resolved config and gathered plugins.
 func NewModel(cfg *config.Config, plugins []plug.Plugin, deps Deps, opts ...ModelOption) Model {
+	if deps.AppendPlugin == nil {
+		deps.AppendPlugin = config.AppendPlugin
+	}
 	items := buildPluginItems(plugins, cfg.PluginPath, deps.Validator, loadErrorMap(state.LoadLoadErrors(cfg.StatePath, nil)))
 	orphans, orphanErr := findOrphans(plugins, cfg.PluginPath)
 

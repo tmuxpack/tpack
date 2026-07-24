@@ -50,6 +50,7 @@ func TestNormalizeURL(t *testing.T) {
 		{"user/repo", "https://git::@github.com/user/repo"},
 		{"https://github.com/user/repo.git", "https://github.com/user/repo.git"},
 		{"git@github.com:user/repo.git", "git@github.com:user/repo.git"},
+		{"github.com:user/repo.git", "github.com:user/repo.git"},
 		{"https://git::@github.com/user/repo", "https://git::@github.com/user/repo"},
 	}
 
@@ -60,6 +61,14 @@ func TestNormalizeURL(t *testing.T) {
 				t.Errorf("NormalizeURL(%q) = %q, want %q", tt.input, got, tt.want)
 			}
 		})
+	}
+}
+
+func TestParseSpecNoUserSCPMatchesHTTPSIdentity(t *testing.T) {
+	scp := mustParsePlugin(t, "github.com:catppuccin/tmux.git#v2")
+	https := mustParsePlugin(t, "https://github.com/catppuccin/tmux.git#v2")
+	if scp.Identity != https.Identity || scp.DirName != https.DirName {
+		t.Fatalf("SCP plugin = %#v, HTTPS plugin = %#v", scp, https)
 	}
 }
 

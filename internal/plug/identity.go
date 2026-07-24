@@ -7,7 +7,9 @@ import (
 	"net/url"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"unicode"
 )
 
 const (
@@ -18,6 +20,9 @@ const (
 
 // NormalizeIdentity returns a canonical host and repository path for spec.
 func NormalizeIdentity(spec string) (string, error) {
+	if containsControl(spec) {
+		return "", fmt.Errorf("repository spec contains control characters")
+	}
 	spec = strings.TrimSpace(spec)
 	if spec == "" {
 		return "", fmt.Errorf("repository spec is empty")
@@ -47,20 +52,64 @@ func normalizeHostPath(host, repoPath string) (string, error) {
 	if host == "" || repoPath == "" || repoPath == "." {
 		return "", fmt.Errorf("repository identity requires host and path")
 	}
+	if err := validateRepositoryHost(host); err != nil {
+		return "", err
+	}
+	if err := validateRepositoryPath(repoPath); err != nil {
+		return "", err
+	}
 	return host + "/" + repoPath, nil
 }
 
 func parseSCPIdentity(spec string) (host, repoPath string, ok bool) {
-	at := strings.LastIndexByte(spec, '@')
-	if at < 0 || at == len(spec)-1 {
+	colon := strings.IndexByte(spec, ':')
+	if colon <= 0 || colon == len(spec)-1 {
 		return "", "", false
 	}
-	rest := spec[at+1:]
-	colon := strings.IndexByte(rest, ':')
-	if colon <= 0 || colon == len(rest)-1 || strings.Contains(rest[:colon], "/") {
+	host = spec[:colon]
+	if at := strings.LastIndexByte(host, '@'); at >= 0 {
+		host = host[at+1:]
+	}
+	if host == "" || strings.ContainsAny(host, `/\`) {
 		return "", "", false
 	}
-	return rest[:colon], rest[colon+1:], true
+	return host, spec[colon+1:], true
+}
+
+func validateRepositoryHost(host string) error {
+	hostname := host
+	if name, port, err := strings.Cut(host, ":"); err && name != "" && port != "" {
+		if _, convErr := strconv.ParseUint(port, 10, 16); convErr != nil {
+			return fmt.Errorf("invalid repository host %q", host)
+		}
+		hostname = name
+	}
+	if hostname == "" || strings.HasPrefix(hostname, ".") || strings.HasSuffix(hostname, ".") {
+		return fmt.Errorf("invalid repository host %q", host)
+	}
+	for _, r := range hostname {
+		if (r < 'a' || r > 'z') && (r < '0' || r > '9') && r != '.' && r != '-' {
+			return fmt.Errorf("invalid repository host %q", host)
+		}
+	}
+	return nil
+}
+
+func validateRepositoryPath(repoPath string) error {
+	if containsControl(repoPath) || strings.ContainsFunc(repoPath, unicode.IsSpace) ||
+		strings.ContainsAny(repoPath, `\'";`+"`$|&<>") {
+		return fmt.Errorf("invalid repository path %q", repoPath)
+	}
+	for segment := range strings.SplitSeq(repoPath, "/") {
+		if segment == "" || segment == "." || segment == ".." {
+			return fmt.Errorf("invalid repository path %q", repoPath)
+		}
+	}
+	return nil
+}
+
+func containsControl(value string) bool {
+	return strings.ContainsFunc(value, unicode.IsControl)
 }
 
 // RepositoryName returns the owner and repository for GitHub identities and
