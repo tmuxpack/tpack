@@ -118,8 +118,8 @@ func TestFindOutdatedPluginsUsesDirNameAndReturnsName(t *testing.T) {
 	advanceOutdatedRepo(t, bare)
 
 	got := findOutdatedPlugins([]plug.Plugin{p}, mustRoot(t, rootPath))
-	if len(got) != 1 || got[0] != "tmux" {
-		t.Fatalf("outdated plugins = %v, want [tmux]", got)
+	if len(got) != 1 || got[0] != "catppuccin/tmux" {
+		t.Fatalf("outdated plugins = %v, want [catppuccin/tmux]", got)
 	}
 }
 

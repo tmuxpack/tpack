@@ -81,29 +81,30 @@ func TestUpdateSpecific(t *testing.T) {
 	}
 }
 
-func TestUpdateSpecificUsesDirName(t *testing.T) {
+func TestUpdateSpecificSelectsExactRepositoryNameAndUsesDirName(t *testing.T) {
 	pluginDir := setupTestDir(t)
-	p := mustParsePlugin(t, "catppuccin/tmux")
-	setupInstalledPlugin(t, pluginDir, p.DirName)
+	catppuccin := mustParsePlugin(t, "catppuccin/tmux")
+	dracula := mustParsePlugin(t, "dracula/tmux")
+	setupInstalledPlugin(t, pluginDir, dracula.DirName)
 
 	puller := git.NewMockPuller()
 	validator := git.NewMockValidator()
-	validator.Valid[filepath.Join(pluginDir, p.DirName)] = true
+	validator.Valid[filepath.Join(pluginDir, dracula.DirName)] = true
 	output := ui.NewMockOutput()
 	mgr := manager.New(mustRoot(t, pluginDir), git.NewMockCloner(), puller, validator, output)
 
-	mgr.Update(context.Background(), []plug.Plugin{p}, []string{p.Name})
+	mgr.Update(context.Background(), []plug.Plugin{catppuccin, dracula}, []string{"dracula/tmux"})
 
 	if len(puller.Calls) != 1 {
 		t.Fatalf("pull calls = %d, errors = %v", len(puller.Calls), output.ErrMsgs)
 	}
-	wantDir := filepath.Join(pluginDir, "tmux-87a1216f1f68")
+	wantDir := filepath.Join(pluginDir, "tmux-e74ab6318c07")
 	if puller.Calls[0].Dir != wantDir {
 		t.Errorf("pull directory = %q, want %q", puller.Calls[0].Dir, wantDir)
 	}
 	foundName := false
 	for _, msg := range output.OkMsgs {
-		if msg == "  \"tmux\" update success" {
+		if msg == "  \"dracula/tmux\" update success" {
 			foundName = true
 		}
 	}
@@ -115,21 +116,21 @@ func TestUpdateSpecificUsesDirName(t *testing.T) {
 func TestUpdateSpecificRejectsNameAbsentFromConfig(t *testing.T) {
 	pluginDir := setupTestDir(t)
 	p := mustParsePlugin(t, "catppuccin/tmux")
-	setupInstalledPlugin(t, pluginDir, p.Name)
+	setupInstalledPlugin(t, pluginDir, p.DirName)
 
 	puller := git.NewMockPuller()
 	validator := git.NewMockValidator()
-	validator.Valid[filepath.Join(pluginDir, p.Name)] = true
+	validator.Valid[filepath.Join(pluginDir, p.DirName)] = true
 	output := ui.NewMockOutput()
 	mgr := manager.New(mustRoot(t, pluginDir), git.NewMockCloner(), puller, validator, output)
 
-	mgr.Update(context.Background(), []plug.Plugin{p}, []string{"catppuccin/tmux"})
+	mgr.Update(context.Background(), []plug.Plugin{p}, []string{"tmux"})
 
 	if len(puller.Calls) != 0 {
 		t.Fatalf("unconfigured name caused %d pull calls", len(puller.Calls))
 	}
-	if len(output.ErrMsgs) == 0 {
-		t.Fatal("unconfigured name was not rejected")
+	if len(output.ErrMsgs) != 1 || output.ErrMsgs[0] != "tmux not configured!" {
+		t.Fatalf("errors = %v, want requested exact name", output.ErrMsgs)
 	}
 }
 

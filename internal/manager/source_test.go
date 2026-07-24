@@ -75,7 +75,7 @@ func TestSourceFailurePersistsNameAndDirName(t *testing.T) {
 	if len(failures) != 1 {
 		t.Fatalf("failures = %v", failures)
 	}
-	if failures[0].Name != "tmux" || failures[0].DirName != "tmux-87a1216f1f68" {
+	if failures[0].Name != "catppuccin/tmux" || failures[0].DirName != "tmux-87a1216f1f68" {
 		t.Errorf("failure identity = %#v", failures[0])
 	}
 }

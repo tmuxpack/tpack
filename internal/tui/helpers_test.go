@@ -79,8 +79,8 @@ func TestBuildPluginItems_PreservesFields(t *testing.T) {
 	if items[0].Raw != "tmux-plugins/tmux-yank#main" {
 		t.Errorf("expected raw spec preserved, got %q", items[0].Raw)
 	}
-	if items[0].Name != "tmux-yank" {
-		t.Errorf("expected name tmux-yank, got %s", items[0].Name)
+	if items[0].Name != "tmux-plugins/tmux-yank" {
+		t.Errorf("expected name tmux-plugins/tmux-yank, got %s", items[0].Name)
 	}
 	if items[0].Identity != "github.com/tmux-plugins/tmux-yank" {
 		t.Errorf("expected normalized identity, got %q", items[0].Identity)
@@ -127,6 +127,24 @@ func TestBuildPluginItemsMatchesLegacyLoadErrorByName(t *testing.T) {
 
 	if items[0].Status != StatusLoadFailed || items[0].LoadErr != "legacy failure" {
 		t.Fatalf("legacy load failure was not correlated: %+v", items[0])
+	}
+}
+
+func TestBuildPluginItemsMatchesLegacyLoadErrorByAlias(t *testing.T) {
+	pluginPath := t.TempDir()
+	plugin := mustParsePlugin(t, "catppuccin/tmux alias=theme")
+	dir := filepath.Join(pluginPath, plugin.DirName)
+	if err := os.Mkdir(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	validator := git.NewMockValidator()
+	validator.Valid[dir] = true
+	loadErrors := loadErrorMap([]plug.LoadFailure{{Name: "theme", Message: "legacy failure"}})
+
+	items := buildPluginItems([]plug.Plugin{plugin}, mustRoot(t, pluginPath), validator, loadErrors)
+
+	if items[0].Status != StatusLoadFailed || items[0].LoadErr != "legacy failure" {
+		t.Fatalf("legacy aliased load failure was not correlated: %+v", items[0])
 	}
 }
 

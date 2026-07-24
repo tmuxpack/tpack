@@ -74,7 +74,7 @@ func TestListInstalledPluginsUsesDirName(t *testing.T) {
 		t.Fatalf("listInstalledPlugins failed: %v", output.ErrMsgs)
 	}
 	for _, msg := range output.OkMsgs {
-		if msg == "  tmux" {
+		if msg == "  catppuccin/tmux" {
 			return
 		}
 	}

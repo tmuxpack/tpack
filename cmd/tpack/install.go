@@ -100,14 +100,21 @@ func completePluginNames(cmd *cobra.Command, args []string, toComplete string) (
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
 
-	plugins, err := config.GatherPlugins(runner, config.RealFS{}, cfg.Paths, nil)
+	names, err := pluginNamesForCompletion(runner, config.RealFS{}, cfg.Paths)
 	if err != nil {
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
+	return names, cobra.ShellCompDirectiveNoFileComp
+}
 
-	var names []string
+func pluginNamesForCompletion(runner tmux.Runner, fs config.FS, paths config.Paths) ([]string, error) {
+	plugins, err := config.GatherPlugins(runner, fs, paths, nil)
+	if err != nil {
+		return nil, err
+	}
+	names := make([]string, 0, len(plugins))
 	for _, p := range plugins {
 		names = append(names, p.Name)
 	}
-	return names, cobra.ShellCompDirectiveNoFileComp
+	return names, nil
 }

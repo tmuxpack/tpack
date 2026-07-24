@@ -6,7 +6,7 @@ import (
 	"github.com/tmuxpack/tpack/internal/plug"
 )
 
-func TestPluginName(t *testing.T) {
+func TestLegacyPluginName(t *testing.T) {
 	tests := []struct {
 		raw  string
 		want string
@@ -23,9 +23,6 @@ func TestPluginName(t *testing.T) {
 		t.Run(tt.raw, func(t *testing.T) {
 			if got := plug.LegacyPluginName(tt.raw); got != tt.want {
 				t.Errorf("LegacyPluginName(%q) = %q, want %q", tt.raw, got, tt.want)
-			}
-			if got := plug.PluginName(tt.raw); got != tt.want {
-				t.Errorf("PluginName(%q) = %q, want %q", tt.raw, got, tt.want)
 			}
 		})
 	}
@@ -74,13 +71,13 @@ func TestParseSpec(t *testing.T) {
 		branch string
 		alias  string
 	}{
-		{"user/repo", "repo", "user/repo", "", ""},
-		{"user/repo#develop", "repo", "user/repo", "develop", ""},
-		{"https://github.com/user/plugin.git#main", "plugin", "https://github.com/user/plugin.git", "main", ""},
+		{"user/repo", "user/repo", "user/repo", "", ""},
+		{"user/repo#develop", "user/repo", "user/repo", "develop", ""},
+		{"https://github.com/user/plugin.git#main", "user/plugin", "https://github.com/user/plugin.git", "main", ""},
 		{"simple", "simple", "simple", "", ""},
-		{"catppuccin/tmux alias=catppuccin-tmux", "catppuccin-tmux", "catppuccin/tmux", "", "catppuccin-tmux"},
-		{"catppuccin/tmux alias=catppuccin-tmux#v2", "catppuccin-tmux", "catppuccin/tmux", "v2", "catppuccin-tmux"},
-		{"https://github.com/user/repo.git alias=my-plugin", "my-plugin", "https://github.com/user/repo.git", "", "my-plugin"},
+		{"catppuccin/tmux alias=catppuccin-tmux", "catppuccin/tmux", "catppuccin/tmux", "", "catppuccin-tmux"},
+		{"catppuccin/tmux alias=catppuccin-tmux#v2", "catppuccin/tmux", "catppuccin/tmux", "v2", "catppuccin-tmux"},
+		{"https://github.com/user/repo.git alias=my-plugin", "user/repo", "https://github.com/user/repo.git", "", "my-plugin"},
 	}
 
 	for _, tt := range tests {
@@ -99,6 +96,23 @@ func TestParseSpec(t *testing.T) {
 				t.Errorf("Alias = %q, want %q", p.Alias, tt.alias)
 			}
 		})
+	}
+}
+
+func TestParseSpecUsesRepositoryDisplayName(t *testing.T) {
+	tests := map[string]string{
+		"catppuccin/tmux":                             "catppuccin/tmux",
+		"catppuccin/tmux alias=theme":                 "catppuccin/tmux",
+		"https://gitlab.com/group/subgroup/theme.git": "gitlab.com/group/subgroup/theme",
+	}
+	for raw, want := range tests {
+		p, err := plug.ParseSpec(raw, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if p.Name != want {
+			t.Errorf("ParseSpec(%q).Name = %q, want %q", raw, p.Name, want)
+		}
 	}
 }
 
@@ -135,8 +149,8 @@ func TestParseSpecWarnsOnExtraTokens(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if p.Name != "repo" {
-		t.Errorf("Name = %q, want %q", p.Name, "repo")
+	if p.Name != "user/repo" {
+		t.Errorf("Name = %q, want %q", p.Name, "user/repo")
 	}
 	if len(warnings) != 1 {
 		t.Fatalf("expected 1 warning, got %d: %v", len(warnings), warnings)
@@ -149,8 +163,8 @@ func TestParseSpecWarnsOnExtraTokens(t *testing.T) {
 
 func TestParseSpecNilWarnDoesNotPanic(t *testing.T) {
 	p := mustParsePlugin(t, "user/repo extra")
-	if p.Name != "repo" {
-		t.Errorf("Name = %q, want %q", p.Name, "repo")
+	if p.Name != "user/repo" {
+		t.Errorf("Name = %q, want %q", p.Name, "user/repo")
 	}
 }
 

@@ -2,10 +2,13 @@ package main
 
 import (
 	"bytes"
+	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/spf13/cobra"
+	"github.com/tmuxpack/tpack/internal/config"
+	"github.com/tmuxpack/tpack/internal/tmux"
 )
 
 func executeCompletion(t *testing.T, shell string) string {
@@ -52,4 +55,17 @@ func TestCompletePluginNames_ErrorPath(t *testing.T) {
 		t.Errorf("expected ShellCompDirectiveNoFileComp, got %v", directive)
 	}
 	_ = names
+}
+
+func TestPluginNamesForCompletionUsesRepositoryNames(t *testing.T) {
+	cfg := promptTestConfig(t, "set -g @plugin \"catppuccin/tmux\"\nset -g @plugin \"dracula/tmux\"\n")
+
+	names, err := pluginNamesForCompletion(tmux.NewMockRunner(), config.RealFS{}, cfg.Paths)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"catppuccin/tmux", "dracula/tmux"}
+	if !reflect.DeepEqual(names, want) {
+		t.Errorf("completion names = %v, want %v", names, want)
+	}
 }

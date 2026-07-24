@@ -5,16 +5,6 @@ import (
 	"strings"
 )
 
-// PluginName extracts the plugin name from a raw specification.
-// Examples:
-//
-//	"user/repo"                         → "repo"
-//	"https://github.com/user/repo.git" → "repo"
-//	"git@github.com:user/repo.git"     → "repo"
-func PluginName(raw string) string {
-	return LegacyPluginName(raw)
-}
-
 // NormalizeURL converts a shorthand plugin name to a full git URL.
 // If the input already has a protocol prefix or contains ":", it is returned as-is.
 // Otherwise it is expanded to a GitHub HTTPS URL.
@@ -84,14 +74,12 @@ func ParseSpec(raw string, warn func(string)) (Plugin, error) {
 		return Plugin{}, fmt.Errorf("parse plugin %q: %w", original, err)
 	}
 	dirName := GeneratedDirName(identity)
-	legacyName := LegacyPluginName(spec)
 	if alias != "" {
 		dirName = alias
-		legacyName = alias
 	}
 
 	return Plugin{
-		Raw: original, Name: legacyName, Identity: identity, DirName: dirName,
+		Raw: original, Name: RepositoryName(identity), Identity: identity, DirName: dirName,
 		Spec: spec, Branch: branch, Alias: alias,
 	}, nil
 }

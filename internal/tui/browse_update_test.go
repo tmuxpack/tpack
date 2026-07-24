@@ -443,7 +443,7 @@ func TestInstallFromBrowse_AllowsSameBasenameRepository(t *testing.T) {
 		t.Fatalf("plugins = %+v, want two repositories", m.plugins)
 	}
 	added := m.plugins[1]
-	if added.Raw != "dracula/tmux" || added.Name != "tmux" || added.Identity != "github.com/dracula/tmux" || added.DirName != "tmux-e74ab6318c07" {
+	if added.Raw != "dracula/tmux" || added.Name != "dracula/tmux" || added.Identity != "github.com/dracula/tmux" || added.DirName != "tmux-e74ab6318c07" {
 		t.Fatalf("added plugin fields = %+v", added)
 	}
 	data, err := os.ReadFile(m.cfg.TmuxConf)

@@ -59,7 +59,11 @@ func (i *loadErrorIndex) lookup(plugin plug.Plugin) (string, bool) {
 	if msg, ok := i.byDirName[plugin.DirName]; ok {
 		return msg, true
 	}
-	msg, ok := i.byLegacyName[plugin.Name]
+	legacyName := plug.LegacyPluginName(plugin.Spec)
+	if plugin.Alias != "" {
+		legacyName = plugin.Alias
+	}
+	msg, ok := i.byLegacyName[legacyName]
 	return msg, ok
 }
 

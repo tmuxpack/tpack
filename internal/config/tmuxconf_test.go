@@ -100,11 +100,11 @@ set -g @plugin "tmux-plugins/tmux-sensible"
 	if len(plugins) != 2 {
 		t.Fatalf("expected 2 plugins, got %d", len(plugins))
 	}
-	if plugins[0].Name != "tpm" {
-		t.Errorf("plugin[0].Name = %q, want %q", plugins[0].Name, "tpm")
+	if plugins[0].Name != "tmux-plugins/tpm" {
+		t.Errorf("plugin[0].Name = %q, want %q", plugins[0].Name, "tmux-plugins/tpm")
 	}
-	if plugins[1].Name != "tmux-sensible" {
-		t.Errorf("plugin[1].Name = %q, want %q", plugins[1].Name, "tmux-sensible")
+	if plugins[1].Name != "tmux-plugins/tmux-sensible" {
+		t.Errorf("plugin[1].Name = %q, want %q", plugins[1].Name, "tmux-plugins/tmux-sensible")
 	}
 }
 
@@ -121,10 +121,10 @@ func TestGatherPluginsLegacySyntax(t *testing.T) {
 	if len(plugins) != 2 {
 		t.Fatalf("expected 2 plugins, got %d", len(plugins))
 	}
-	if plugins[0].Name != "tpm" {
+	if plugins[0].Name != "tmux-plugins/tpm" {
 		t.Errorf("plugin[0].Name = %q", plugins[0].Name)
 	}
-	if plugins[1].Name != "tmux-yank" {
+	if plugins[1].Name != "tmux-plugins/tmux-yank" {
 		t.Errorf("plugin[1].Name = %q", plugins[1].Name)
 	}
 }
@@ -175,7 +175,7 @@ func TestGatherPluginsFromRecursiveSources(t *testing.T) {
 	for _, plugin := range plugins {
 		names = append(names, plugin.Name)
 	}
-	if want := []string{"root", "one", "two"}; !reflect.DeepEqual(names, want) {
+	if want := []string{"owner/root", "owner/one", "owner/two"}; !reflect.DeepEqual(names, want) {
 		t.Errorf("names = %v, want %v", names, want)
 	}
 }
