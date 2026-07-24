@@ -33,7 +33,7 @@ func TestInstallNewPlugin(t *testing.T) {
 	mgr := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, output)
 
 	plugins := []plug.Plugin{
-		{Raw: "tmux-plugins/tmux-sensible", Name: "tmux-sensible", Spec: "tmux-plugins/tmux-sensible"},
+		{Raw: "tmux-plugins/tmux-sensible", Name: "tmux-sensible", DirName: "tmux-sensible", Spec: "tmux-plugins/tmux-sensible"},
 	}
 
 	mgr.Install(context.Background(), plugins)
@@ -56,6 +56,32 @@ func TestInstallNewPlugin(t *testing.T) {
 	}
 }
 
+func TestInstallSameBasenameRepositoriesUsesDistinctDirectories(t *testing.T) {
+	root := mustRoot(t, setupTestDir(t))
+	catppuccin := mustParsePlugin(t, "catppuccin/tmux")
+	dracula := mustParsePlugin(t, "dracula/tmux")
+	cloner := git.NewMockCloner()
+	mgr := manager.New(root, cloner, git.NewMockPuller(), git.NewMockValidator(), ui.NewMockOutput())
+
+	mgr.Install(context.Background(), []plug.Plugin{catppuccin, dracula})
+
+	if len(cloner.Calls) != 2 {
+		t.Fatalf("clone calls = %d", len(cloner.Calls))
+	}
+	wantDirs := map[string]bool{
+		filepath.Join(root.String(), "tmux-87a1216f1f68"): true,
+		filepath.Join(root.String(), "tmux-e74ab6318c07"): true,
+	}
+	for _, call := range cloner.Calls {
+		if !wantDirs[call.Dir] {
+			t.Errorf("unexpected clone destination %q", call.Dir)
+		}
+	}
+	if cloner.Calls[0].Dir == cloner.Calls[1].Dir {
+		t.Fatalf("clone destinations collide at %q", cloner.Calls[0].Dir)
+	}
+}
+
 func TestInstallAlreadyInstalled(t *testing.T) {
 	pluginDir := setupTestDir(t)
 	// Create plugin directory to simulate already installed.
@@ -71,7 +97,7 @@ func TestInstallAlreadyInstalled(t *testing.T) {
 	mgr := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, output)
 
 	plugins := []plug.Plugin{
-		{Raw: "tmux-plugins/tmux-sensible", Name: "tmux-sensible", Spec: "tmux-plugins/tmux-sensible"},
+		{Raw: "tmux-plugins/tmux-sensible", Name: "tmux-sensible", DirName: "tmux-sensible", Spec: "tmux-plugins/tmux-sensible"},
 	}
 
 	mgr.Install(context.Background(), plugins)
@@ -106,7 +132,7 @@ func TestInstallCloneFailsWithFallback(t *testing.T) {
 	mgr := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, output)
 
 	plugins := []plug.Plugin{
-		{Raw: "user/plugin", Name: "plugin", Spec: "user/plugin"},
+		{Raw: "user/plugin", Name: "plugin", DirName: "plugin", Spec: "user/plugin"},
 	}
 
 	mgr.Install(context.Background(), plugins)
@@ -138,7 +164,7 @@ func TestInstallBothClonesFail(t *testing.T) {
 	mgr := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, output)
 
 	plugins := []plug.Plugin{
-		{Raw: "user/plugin", Name: "plugin", Spec: "user/plugin"},
+		{Raw: "user/plugin", Name: "plugin", DirName: "plugin", Spec: "user/plugin"},
 	}
 
 	mgr.Install(context.Background(), plugins)
@@ -164,7 +190,7 @@ func TestInstallWithBranch(t *testing.T) {
 	mgr := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, output)
 
 	plugins := []plug.Plugin{
-		{Raw: "user/repo", Name: "repo", Spec: "user/repo", Branch: "develop"},
+		{Raw: "user/repo", Name: "repo", DirName: "repo", Spec: "user/repo", Branch: "develop"},
 	}
 
 	mgr.Install(context.Background(), plugins)
@@ -181,6 +207,15 @@ func TestInstallWithBranch(t *testing.T) {
 type countingCloner struct {
 	failUntil int
 	count     *int
+}
+
+func mustParsePlugin(t *testing.T, raw string) plug.Plugin {
+	t.Helper()
+	p, err := plug.ParseSpec(raw, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return p
 }
 
 func (c *countingCloner) Clone(_ context.Context, _ git.CloneOptions) error {

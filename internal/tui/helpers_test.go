@@ -87,7 +87,7 @@ func TestBuildPluginItems_PreservesFields(t *testing.T) {
 func TestFindOrphans_NoOrphans(t *testing.T) {
 	pluginPath := t.TempDir() + "/"
 	plugins := []plug.Plugin{
-		{Name: "tmux-sensible", Spec: "tmux-plugins/tmux-sensible"},
+		{Name: "tmux-sensible", DirName: "tmux-sensible", Spec: "tmux-plugins/tmux-sensible"},
 	}
 
 	// Create only the listed plugin directory.
@@ -105,7 +105,7 @@ func TestFindOrphans_NoOrphans(t *testing.T) {
 func TestFindOrphans_WithOrphans(t *testing.T) {
 	pluginPath := t.TempDir() + "/"
 	plugins := []plug.Plugin{
-		{Name: "tmux-sensible", Spec: "tmux-plugins/tmux-sensible"},
+		{Name: "tmux-sensible", DirName: "tmux-sensible", Spec: "tmux-plugins/tmux-sensible"},
 	}
 
 	// Create listed plugin + orphan directory.

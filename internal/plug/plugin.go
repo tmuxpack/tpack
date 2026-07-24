@@ -25,5 +25,6 @@ type Plugin struct {
 // captured error message.
 type LoadFailure struct {
 	Name    string `yaml:"name"`
+	DirName string `yaml:"dir_name,omitempty"`
 	Message string `yaml:"message"`
 }

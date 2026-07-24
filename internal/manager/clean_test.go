@@ -27,7 +27,7 @@ func TestCleanRemovesUnlisted(t *testing.T) {
 	mgr := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, output)
 
 	plugins := []plug.Plugin{
-		{Name: "tmux-sensible"},
+		{Name: "tmux-sensible", DirName: "tmux-sensible"},
 	}
 
 	mgr.Clean(context.Background(), plugins)
@@ -74,7 +74,7 @@ func TestCleanNeverRemovesTpm(t *testing.T) {
 
 	// Only list tmux-sensible (not tpm).
 	plugins := []plug.Plugin{
-		{Name: "tmux-sensible"},
+		{Name: "tmux-sensible", DirName: "tmux-sensible"},
 	}
 
 	mgr.Clean(context.Background(), plugins)
@@ -97,7 +97,7 @@ func TestCleanNoPluginsToRemove(t *testing.T) {
 	mgr := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, output)
 
 	plugins := []plug.Plugin{
-		{Name: "tmux-sensible"},
+		{Name: "tmux-sensible", DirName: "tmux-sensible"},
 	}
 
 	mgr.Clean(context.Background(), plugins)

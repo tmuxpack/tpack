@@ -21,7 +21,7 @@ func mkPluginDirs(t *testing.T, names ...string) string {
 
 func TestFindOrphansDetectsUndeclaredDir(t *testing.T) {
 	dir := mkPluginDirs(t, "tmux-sensible", "tmux-yank")
-	declared := []plug.Plugin{mustParsePlugin(t, "tmux-plugins/tmux-sensible")}
+	declared := []plug.Plugin{{Name: "tmux-sensible", DirName: "tmux-sensible"}}
 
 	orphans, err := plug.FindOrphans(declared, mustRoot(t, dir))
 	if err != nil {
@@ -38,7 +38,7 @@ func TestFindOrphansDetectsUndeclaredDir(t *testing.T) {
 
 func TestFindOrphansIgnoresTpmAndDeclared(t *testing.T) {
 	dir := mkPluginDirs(t, "tmux-sensible", "tpm", "tpack")
-	declared := []plug.Plugin{mustParsePlugin(t, "tmux-plugins/tmux-sensible")}
+	declared := []plug.Plugin{{Name: "tmux-sensible", DirName: "tmux-sensible"}}
 
 	orphans, err := plug.FindOrphans(declared, mustRoot(t, dir))
 	if err != nil {
@@ -47,6 +47,23 @@ func TestFindOrphansIgnoresTpmAndDeclared(t *testing.T) {
 
 	if len(orphans) != 0 {
 		t.Errorf("orphans = %v, want none", orphans)
+	}
+}
+
+func TestFindOrphansMatchesDeclaredDirNameExactly(t *testing.T) {
+	p := mustParsePlugin(t, "catppuccin/tmux")
+	dir := mkPluginDirs(t, "tmux-87a1216f1f68", "tmux")
+
+	orphans, err := plug.FindOrphans([]plug.Plugin{p}, mustRoot(t, dir))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(orphans) != 1 {
+		t.Fatalf("orphans = %v, want legacy basename only", orphans)
+	}
+	if orphans[0].Name != "tmux" {
+		t.Errorf("orphan name = %q, want tmux", orphans[0].Name)
 	}
 }
 

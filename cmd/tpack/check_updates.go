@@ -112,7 +112,7 @@ func findOutdatedPlugins(plugins []plug.Plugin, pluginPath plug.Root) []string {
 
 	var targets []target
 	for _, p := range plugins {
-		dir, err := pluginPath.Child(p.Name)
+		dir, err := pluginPath.Child(p.DirName)
 		if err != nil {
 			continue
 		}

@@ -38,8 +38,8 @@ func (m *Manager) EnsurePathExists() error {
 }
 
 // Checks if a plugin directory exists and is a git repo.
-func (m *Manager) IsPluginInstalled(name string) bool {
-	dir, err := m.pluginRoot.Child(name)
+func (m *Manager) IsPluginInstalled(dirName string) bool {
+	dir, err := m.pluginRoot.Child(dirName)
 	if err != nil {
 		return false
 	}

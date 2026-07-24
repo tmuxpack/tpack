@@ -35,8 +35,8 @@ func TestUpdateAll(t *testing.T) {
 	mgr := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, output)
 
 	plugins := []plug.Plugin{
-		{Name: "tmux-sensible"},
-		{Name: "tmux-yank"},
+		{Name: "tmux-sensible", DirName: "tmux-sensible"},
+		{Name: "tmux-yank", DirName: "tmux-yank"},
 	}
 
 	mgr.Update(context.Background(), plugins, []string{"all"})
@@ -70,14 +70,66 @@ func TestUpdateSpecific(t *testing.T) {
 	mgr := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, output)
 
 	plugins := []plug.Plugin{
-		{Name: "tmux-sensible"},
-		{Name: "tmux-yank"},
+		{Name: "tmux-sensible", DirName: "tmux-sensible"},
+		{Name: "tmux-yank", DirName: "tmux-yank"},
 	}
 
 	mgr.Update(context.Background(), plugins, []string{"tmux-sensible"})
 
 	if len(puller.Calls) != 1 {
 		t.Errorf("expected 1 pull call, got %d", len(puller.Calls))
+	}
+}
+
+func TestUpdateSpecificUsesDirName(t *testing.T) {
+	pluginDir := setupTestDir(t)
+	p := mustParsePlugin(t, "catppuccin/tmux")
+	setupInstalledPlugin(t, pluginDir, p.DirName)
+
+	puller := git.NewMockPuller()
+	validator := git.NewMockValidator()
+	validator.Valid[filepath.Join(pluginDir, p.DirName)] = true
+	output := ui.NewMockOutput()
+	mgr := manager.New(mustRoot(t, pluginDir), git.NewMockCloner(), puller, validator, output)
+
+	mgr.Update(context.Background(), []plug.Plugin{p}, []string{p.Name})
+
+	if len(puller.Calls) != 1 {
+		t.Fatalf("pull calls = %d, errors = %v", len(puller.Calls), output.ErrMsgs)
+	}
+	wantDir := filepath.Join(pluginDir, "tmux-87a1216f1f68")
+	if puller.Calls[0].Dir != wantDir {
+		t.Errorf("pull directory = %q, want %q", puller.Calls[0].Dir, wantDir)
+	}
+	foundName := false
+	for _, msg := range output.OkMsgs {
+		if msg == "  \"tmux\" update success" {
+			foundName = true
+		}
+	}
+	if !foundName {
+		t.Errorf("update output does not retain Name: %v", output.OkMsgs)
+	}
+}
+
+func TestUpdateSpecificRejectsNameAbsentFromConfig(t *testing.T) {
+	pluginDir := setupTestDir(t)
+	p := mustParsePlugin(t, "catppuccin/tmux")
+	setupInstalledPlugin(t, pluginDir, p.Name)
+
+	puller := git.NewMockPuller()
+	validator := git.NewMockValidator()
+	validator.Valid[filepath.Join(pluginDir, p.Name)] = true
+	output := ui.NewMockOutput()
+	mgr := manager.New(mustRoot(t, pluginDir), git.NewMockCloner(), puller, validator, output)
+
+	mgr.Update(context.Background(), []plug.Plugin{p}, []string{"catppuccin/tmux"})
+
+	if len(puller.Calls) != 0 {
+		t.Fatalf("unconfigured name caused %d pull calls", len(puller.Calls))
+	}
+	if len(output.ErrMsgs) == 0 {
+		t.Fatal("unconfigured name was not rejected")
 	}
 }
 
@@ -91,7 +143,7 @@ func TestUpdateNotInstalled(t *testing.T) {
 
 	mgr := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, output)
 
-	mgr.Update(context.Background(), nil, []string{"tmux-foo"})
+	mgr.Update(context.Background(), []plug.Plugin{{Name: "tmux-foo", DirName: "tmux-foo"}}, []string{"tmux-foo"})
 
 	found := false
 	for _, msg := range output.ErrMsgs {
@@ -117,7 +169,7 @@ func TestUpdateOutputIndented(t *testing.T) {
 
 	mgr := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, output)
 
-	mgr.Update(context.Background(), []plug.Plugin{{Name: "tmux-sensible"}}, []string{"all"})
+	mgr.Update(context.Background(), []plug.Plugin{{Name: "tmux-sensible", DirName: "tmux-sensible"}}, []string{"all"})
 
 	foundIndented := false
 	for _, msg := range output.OkMsgs {
@@ -144,7 +196,7 @@ func TestUpdatePullFails(t *testing.T) {
 
 	mgr := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, output)
 
-	mgr.Update(context.Background(), []plug.Plugin{{Name: "tmux-sensible"}}, []string{"all"})
+	mgr.Update(context.Background(), []plug.Plugin{{Name: "tmux-sensible", DirName: "tmux-sensible"}}, []string{"all"})
 
 	found := false
 	for _, msg := range output.ErrMsgs {

@@ -19,13 +19,13 @@ import (
 func (m *Manager) Source(ctx context.Context, plugins []plug.Plugin) []plug.LoadFailure {
 	var failures []plug.LoadFailure
 	for _, p := range plugins {
-		dir, err := m.pluginRoot.Child(p.Name)
+		dir, err := m.pluginRoot.Child(p.DirName)
 		if err != nil {
-			failures = append(failures, plug.LoadFailure{Name: p.Name, Message: err.Error()})
+			failures = append(failures, plug.LoadFailure{Name: p.Name, DirName: p.DirName, Message: err.Error()})
 			continue
 		}
 		if msg := sourcePlugin(ctx, dir); msg != "" {
-			failures = append(failures, plug.LoadFailure{Name: p.Name, Message: msg})
+			failures = append(failures, plug.LoadFailure{Name: p.Name, DirName: p.DirName, Message: msg})
 		}
 	}
 	return failures
