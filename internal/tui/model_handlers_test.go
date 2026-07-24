@@ -13,10 +13,10 @@ import (
 func TestHandleCheckResult_Outdated(t *testing.T) {
 	m := newTestModel(t, nil)
 	m.plugins = []PluginItem{
-		{Name: "alpha", Status: StatusChecking},
+		{Name: "alpha", DirName: "alpha", Status: StatusChecking},
 	}
 
-	msg := pluginCheckResultMsg{Name: "alpha", Outdated: true}
+	msg := pluginCheckResultMsg{Name: "alpha", DirName: "alpha", Outdated: true}
 	result, _ := m.Update(msg)
 	m = result.(Model)
 
@@ -25,13 +25,60 @@ func TestHandleCheckResult_Outdated(t *testing.T) {
 	}
 }
 
+func TestSameBasenameResultsUseDirectoryKey(t *testing.T) {
+	m := newTestModel(t, nil)
+	m.plugins = []PluginItem{
+		{Name: "tmux", DirName: "tmux-87a1216f1f68", Status: StatusNotInstalled},
+		{Name: "tmux", DirName: "tmux-e74ab6318c07", Status: StatusNotInstalled},
+	}
+	m.screen = ScreenProgress
+	m.operation = OpInstall
+	m.processing = true
+	m.inFlight = 1
+	m.totalItems = 1
+	m.inFlightNames = []string{"tmux"}
+
+	updated, _ := m.Update(pluginInstallResultMsg{
+		Name: "tmux", DirName: "tmux-e74ab6318c07", Success: true, Message: "installed",
+	})
+	m = updated.(Model)
+
+	if m.plugins[0].Status != StatusNotInstalled {
+		t.Fatalf("unrelated repository status = %s", m.plugins[0].Status)
+	}
+	if m.plugins[1].Status != StatusInstalled {
+		t.Fatalf("completed repository status = %s", m.plugins[1].Status)
+	}
+	if len(m.results) != 1 || m.results[0].DirName != "tmux-e74ab6318c07" {
+		t.Fatalf("result directory correlation = %+v", m.results)
+	}
+}
+
+func TestSameBasenameCheckResultUsesDirectoryKey(t *testing.T) {
+	m := newTestModel(t, nil)
+	m.plugins = []PluginItem{
+		{Name: "tmux", DirName: "tmux-87a1216f1f68", Status: StatusChecking},
+		{Name: "tmux", DirName: "tmux-e74ab6318c07", Status: StatusChecking},
+	}
+
+	updated, _ := m.Update(pluginCheckResultMsg{Name: "tmux", DirName: "tmux-e74ab6318c07", Outdated: true})
+	m = updated.(Model)
+
+	if m.plugins[0].Status != StatusChecking {
+		t.Fatalf("unrelated repository status = %s", m.plugins[0].Status)
+	}
+	if m.plugins[1].Status != StatusOutdated {
+		t.Fatalf("checked repository status = %s", m.plugins[1].Status)
+	}
+}
+
 func TestHandleCheckResult_Error(t *testing.T) {
 	m := newTestModel(t, nil)
 	m.plugins = []PluginItem{
-		{Name: "alpha", Status: StatusChecking},
+		{Name: "alpha", DirName: "alpha", Status: StatusChecking},
 	}
 
-	msg := pluginCheckResultMsg{Name: "alpha", Err: errors.New("fetch failed")}
+	msg := pluginCheckResultMsg{Name: "alpha", DirName: "alpha", Err: errors.New("fetch failed")}
 	result, _ := m.Update(msg)
 	m = result.(Model)
 
@@ -43,10 +90,10 @@ func TestHandleCheckResult_Error(t *testing.T) {
 func TestHandleCheckResult_UpToDate(t *testing.T) {
 	m := newTestModel(t, nil)
 	m.plugins = []PluginItem{
-		{Name: "alpha", Status: StatusChecking},
+		{Name: "alpha", DirName: "alpha", Status: StatusChecking},
 	}
 
-	msg := pluginCheckResultMsg{Name: "alpha", Outdated: false, Err: nil}
+	msg := pluginCheckResultMsg{Name: "alpha", DirName: "alpha", Outdated: false, Err: nil}
 	result, _ := m.Update(msg)
 	m = result.(Model)
 
@@ -58,11 +105,11 @@ func TestHandleCheckResult_UpToDate(t *testing.T) {
 func TestHandleCheckResult_UnknownPlugin(t *testing.T) {
 	m := newTestModel(t, nil)
 	m.plugins = []PluginItem{
-		{Name: "alpha", Status: StatusChecking},
+		{Name: "alpha", DirName: "alpha", Status: StatusChecking},
 	}
 
 	// Should not panic when the plugin name doesn't match any known plugin.
-	msg := pluginCheckResultMsg{Name: "nonexistent", Outdated: true}
+	msg := pluginCheckResultMsg{Name: "nonexistent", DirName: "nonexistent", Outdated: true}
 	result, _ := m.Update(msg)
 	_ = result.(Model) // should not panic
 }
@@ -70,7 +117,7 @@ func TestHandleCheckResult_UnknownPlugin(t *testing.T) {
 func TestHandleInstallResult_Success(t *testing.T) {
 	m := newTestModel(t, nil)
 	m.plugins = []PluginItem{
-		{Name: "alpha", Spec: "user/alpha", Status: StatusNotInstalled},
+		testPluginItem("alpha", "user/alpha", StatusNotInstalled),
 	}
 	m.screen = ScreenProgress
 	m.operation = OpInstall
@@ -78,7 +125,7 @@ func TestHandleInstallResult_Success(t *testing.T) {
 	m.totalItems = 1
 	m.completedItems = 0
 
-	msg := pluginInstallResultMsg{Name: "alpha", Success: true, Message: "installed"}
+	msg := pluginInstallResultMsg{Name: "alpha", DirName: "alpha", Success: true, Message: "installed"}
 	result, _ := m.Update(msg)
 	m = result.(Model)
 
@@ -96,7 +143,7 @@ func TestHandleInstallResult_Success(t *testing.T) {
 func TestHandleInstallResult_Failure(t *testing.T) {
 	m := newTestModel(t, nil)
 	m.plugins = []PluginItem{
-		{Name: "alpha", Spec: "user/alpha", Status: StatusNotInstalled},
+		testPluginItem("alpha", "user/alpha", StatusNotInstalled),
 	}
 	m.screen = ScreenProgress
 	m.operation = OpInstall
@@ -104,7 +151,7 @@ func TestHandleInstallResult_Failure(t *testing.T) {
 	m.totalItems = 1
 	m.completedItems = 0
 
-	msg := pluginInstallResultMsg{Name: "alpha", Success: false, Message: "clone failed"}
+	msg := pluginInstallResultMsg{Name: "alpha", DirName: "alpha", Success: false, Message: "clone failed"}
 	result, _ := m.Update(msg)
 	m = result.(Model)
 
@@ -123,7 +170,7 @@ func TestHandleInstallResult_Failure(t *testing.T) {
 func TestHandleUpdateResult(t *testing.T) {
 	m := newTestModel(t, nil)
 	m.plugins = []PluginItem{
-		{Name: "alpha", Spec: "user/alpha", Status: StatusInstalled},
+		testPluginItem("alpha", "user/alpha", StatusInstalled),
 	}
 	m.screen = ScreenProgress
 	m.operation = OpUpdate
@@ -131,7 +178,7 @@ func TestHandleUpdateResult(t *testing.T) {
 	m.totalItems = 1
 	m.completedItems = 0
 
-	msg := pluginUpdateResultMsg{Name: "alpha", Success: true, Message: "updated"}
+	msg := pluginUpdateResultMsg{Name: "alpha", DirName: "alpha", Success: true, Message: "updated"}
 	result, _ := m.Update(msg)
 	m = result.(Model)
 
@@ -169,7 +216,7 @@ func TestHandleCleanResult(t *testing.T) {
 func TestHandleUninstallResult_Success(t *testing.T) {
 	m := newTestModel(t, nil)
 	m.plugins = []PluginItem{
-		{Name: "alpha", Spec: "user/alpha", Status: StatusInstalled},
+		testPluginItem("alpha", "user/alpha", StatusInstalled),
 	}
 	m.screen = ScreenProgress
 	m.operation = OpUninstall
@@ -177,7 +224,7 @@ func TestHandleUninstallResult_Success(t *testing.T) {
 	m.totalItems = 1
 	m.completedItems = 0
 
-	msg := pluginUninstallResultMsg{Name: "alpha", Success: true, Message: "removed"}
+	msg := pluginUninstallResultMsg{Name: "alpha", DirName: "alpha", Success: true, Message: "removed"}
 	result, _ := m.Update(msg)
 	m = result.(Model)
 
@@ -189,8 +236,8 @@ func TestHandleUninstallResult_Success(t *testing.T) {
 func TestHandleRemoveResult_Success(t *testing.T) {
 	m := newTestModel(t, nil)
 	m.plugins = []PluginItem{
-		{Name: "alpha", Spec: "user/alpha", Status: StatusInstalled},
-		{Name: "beta", Spec: "user/beta", Status: StatusInstalled},
+		testPluginItem("alpha", "user/alpha", StatusInstalled),
+		testPluginItem("beta", "user/beta", StatusInstalled),
 	}
 	m.screen = ScreenProgress
 	m.operation = OpRemove
@@ -198,7 +245,7 @@ func TestHandleRemoveResult_Success(t *testing.T) {
 	m.totalItems = 1
 	m.completedItems = 0
 
-	msg := pluginRemoveResultMsg{Name: "alpha", Success: true, Message: "removed successfully"}
+	msg := pluginRemoveResultMsg{Name: "alpha", DirName: "alpha", Success: true, Message: "removed successfully"}
 	result, _ := m.Update(msg)
 	m = result.(Model)
 
@@ -219,7 +266,7 @@ func TestHandleRemoveResult_Success(t *testing.T) {
 func TestHandleRemoveResult_Failure_StillRemovesFromList(t *testing.T) {
 	m := newTestModel(t, nil)
 	m.plugins = []PluginItem{
-		{Name: "alpha", Spec: "user/alpha", Status: StatusInstalled},
+		testPluginItem("alpha", "user/alpha", StatusInstalled),
 	}
 	m.screen = ScreenProgress
 	m.operation = OpRemove
@@ -227,7 +274,7 @@ func TestHandleRemoveResult_Failure_StillRemovesFromList(t *testing.T) {
 	m.totalItems = 1
 	m.completedItems = 0
 
-	msg := pluginRemoveResultMsg{Name: "alpha", Success: false, Message: "permission denied"}
+	msg := pluginRemoveResultMsg{Name: "alpha", DirName: "alpha", Success: false, Message: "permission denied"}
 	result, _ := m.Update(msg)
 	m = result.(Model)
 
@@ -246,7 +293,7 @@ func TestHandleRemoveResult_Failure_StillRemovesFromList(t *testing.T) {
 func TestUpdateList_RemoveKey(t *testing.T) {
 	m := newTestModel(t, nil)
 	m.plugins = []PluginItem{
-		{Name: "alpha", Spec: "user/alpha", Status: StatusInstalled},
+		testPluginItem("alpha", "user/alpha", StatusInstalled),
 	}
 	m.viewHeight = 10
 
@@ -439,7 +486,7 @@ func TestUpdateList_ToggleSelection(t *testing.T) {
 func TestUpdateList_InstallKey(t *testing.T) {
 	m := newTestModel(t, nil)
 	m.plugins = []PluginItem{
-		{Name: "alpha", Spec: "user/alpha", Status: StatusNotInstalled},
+		testPluginItem("alpha", "user/alpha", StatusNotInstalled),
 	}
 	m.viewHeight = 10
 
@@ -461,7 +508,7 @@ func TestUpdateList_InstallKey(t *testing.T) {
 func TestUpdateList_UpdateKey(t *testing.T) {
 	m := newTestModel(t, nil)
 	m.plugins = []PluginItem{
-		{Name: "alpha", Spec: "user/alpha", Status: StatusInstalled},
+		testPluginItem("alpha", "user/alpha", StatusInstalled),
 	}
 	m.viewHeight = 10
 
@@ -505,7 +552,7 @@ func TestUpdateList_CleanKey(t *testing.T) {
 func TestUpdateList_UninstallKey(t *testing.T) {
 	m := newTestModel(t, nil)
 	m.plugins = []PluginItem{
-		{Name: "alpha", Spec: "user/alpha", Status: StatusInstalled},
+		testPluginItem("alpha", "user/alpha", StatusInstalled),
 	}
 	m.viewHeight = 10
 
@@ -821,7 +868,7 @@ func TestUpdateProgress_NavigationKeys(t *testing.T) {
 func TestHandleUpdateResult_WithCommits(t *testing.T) {
 	m := newTestModel(t, nil)
 	m.plugins = []PluginItem{
-		{Name: "alpha", Spec: "user/alpha", Status: StatusInstalled},
+		testPluginItem("alpha", "user/alpha", StatusInstalled),
 	}
 	m.screen = ScreenProgress
 	m.operation = OpUpdate
@@ -833,7 +880,7 @@ func TestHandleUpdateResult_WithCommits(t *testing.T) {
 		{Hash: "abc", Message: "add feature"},
 		{Hash: "def", Message: "fix bug"},
 	}
-	msg := pluginUpdateResultMsg{Name: "alpha", Success: true, Message: "updated", Commits: commits}
+	msg := pluginUpdateResultMsg{Name: "alpha", DirName: "alpha", Success: true, Message: "updated", Commits: commits}
 	result, _ := m.Update(msg)
 	m = result.(Model)
 

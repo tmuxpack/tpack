@@ -94,11 +94,14 @@ func (s PluginStatus) String() string {
 
 // PluginItem is an enriched plugin with install status.
 type PluginItem struct {
-	Name    string
-	Spec    string
-	Branch  string
-	Status  PluginStatus
-	LoadErr string
+	Raw      string
+	Name     string
+	Identity string
+	DirName  string
+	Spec     string
+	Branch   string
+	Status   PluginStatus
+	LoadErr  string
 }
 
 // OrphanItem represents a plugin directory not in config.
@@ -110,6 +113,7 @@ type OrphanItem struct {
 // ResultItem holds the result of a single operation.
 type ResultItem struct {
 	Name      string
+	DirName   string
 	Success   bool
 	Message   string
 	Output    string
@@ -121,11 +125,13 @@ type ResultItem struct {
 
 // pendingOp is a queued operation item.
 type pendingOp struct {
-	Name   string
-	Spec   string
-	Branch string
-	Path   string
-	Root   plug.Root
+	Raw     string
+	Name    string
+	DirName string
+	Spec    string
+	Branch  string
+	Path    string
+	Root    plug.Root
 }
 
 // loadingFailedLabel is the display label for a plugin that failed to load.

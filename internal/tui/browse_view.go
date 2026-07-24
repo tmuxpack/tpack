@@ -102,10 +102,13 @@ func (m *Model) renderBrowseResults() string {
 		repo := m.theme.BrowseRepoStyle.Hyperlink(repoURL).Render(p.Repo)
 
 		installed := ""
-		for _, pl := range m.plugins {
-			if pl.Spec == p.Repo || pl.Name == pluginNameFromRepo(p.Repo) {
-				installed = " " + m.theme.BrowseInstalledStyle.Render("(installed)")
-				break
+		candidate, err := pluginFromRegistryItem(p)
+		if err == nil {
+			for _, pl := range m.plugins {
+				if pl.Identity == candidate.Identity {
+					installed = " " + m.theme.BrowseInstalledStyle.Render("(installed)")
+					break
+				}
 			}
 		}
 
@@ -140,12 +143,4 @@ func formatStars(n int) string {
 		return fmt.Sprintf("%4.1fk", float64(n)/1000.0)
 	}
 	return fmt.Sprintf("%5d", n)
-}
-
-func pluginNameFromRepo(repo string) string {
-	parts := strings.SplitN(repo, "/", 2)
-	if len(parts) == 2 {
-		return parts[1]
-	}
-	return repo
 }

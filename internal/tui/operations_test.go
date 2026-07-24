@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
@@ -13,6 +14,81 @@ import (
 	"github.com/tmuxpack/tpack/internal/git"
 	"github.com/tmuxpack/tpack/internal/tmux"
 )
+
+func TestBuildInstallOpsUsesDirectoryKeyAndPreservesRaw(t *testing.T) {
+	rootDir := t.TempDir()
+	m := newTestModel(t, nil)
+	m.cfg.PluginPath = mustRoot(t, rootDir)
+	m.plugins = []PluginItem{
+		{Raw: "catppuccin/tmux#v2", Name: "tmux", DirName: "tmux-87a1216f1f68", Spec: "catppuccin/tmux", Branch: "v2", Status: StatusNotInstalled},
+		{Raw: "dracula/tmux alias=dark", Name: "tmux", DirName: "dark", Spec: "dracula/tmux", Status: StatusNotInstalled},
+	}
+	m.selected = map[int]bool{0: true, 1: true}
+	m.multiSelectActive = true
+
+	ops := m.buildInstallOps()
+	if len(ops) != 2 {
+		t.Fatalf("install operations = %d, want 2", len(ops))
+	}
+	if ops[0].Path != filepath.Join(rootDir, "tmux-87a1216f1f68") || ops[1].Path != filepath.Join(rootDir, "dark") {
+		t.Fatalf("operation paths = %q, %q", ops[0].Path, ops[1].Path)
+	}
+	if ops[0].Raw != "catppuccin/tmux#v2" || ops[1].Raw != "dracula/tmux alias=dark" {
+		t.Fatalf("operation raw specs = %q, %q", ops[0].Raw, ops[1].Raw)
+	}
+	if ops[0].DirName != "tmux-87a1216f1f68" || ops[1].DirName != "dark" {
+		t.Fatalf("operation directory keys = %q, %q", ops[0].DirName, ops[1].DirName)
+	}
+}
+
+func TestUninstallPluginCmdResolvesDirectoryKey(t *testing.T) {
+	rootDir := t.TempDir()
+	wantRemoved := filepath.Join(rootDir, "tmux-e74ab6318c07")
+	wantKept := filepath.Join(rootDir, "tmux-87a1216f1f68")
+	for _, dir := range []string{wantRemoved, wantKept} {
+		if err := os.Mkdir(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	op := pendingOp{Name: "tmux", DirName: "tmux-e74ab6318c07", Path: wantRemoved, Root: mustRoot(t, rootDir)}
+
+	msg := uninstallPluginCmd(op)()
+	result, ok := msg.(pluginUninstallResultMsg)
+	if !ok || !result.Success {
+		t.Fatalf("uninstall result = %#v", msg)
+	}
+	if _, err := os.Stat(wantRemoved); !os.IsNotExist(err) {
+		t.Fatalf("directory-keyed path was not removed: %v", err)
+	}
+	if _, err := os.Stat(wantKept); err != nil {
+		t.Fatalf("other same-basename repository was changed: %v", err)
+	}
+}
+
+func TestStartRemoveUsesRawConfigDeclaration(t *testing.T) {
+	rootDir := t.TempDir()
+	confPath := filepath.Join(t.TempDir(), "tmux.conf")
+	const raw = "catppuccin/tmux alias=catppuccin#v2"
+	if err := os.WriteFile(confPath, []byte("set -g @plugin \""+raw+"\"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	m := newTestModel(t, nil)
+	m.cfg.PluginPath = mustRoot(t, rootDir)
+	m.cfg.TmuxConf = confPath
+	m.plugins = []PluginItem{{Raw: raw, Name: "catppuccin", DirName: "catppuccin", Spec: "catppuccin/tmux", Branch: "v2", Status: StatusInstalled}}
+
+	_, cmd := m.startOperation(OpRemove)
+	if cmd == nil {
+		t.Fatal("remove did not queue filesystem operation")
+	}
+	data, err := os.ReadFile(confPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), raw) {
+		t.Fatalf("raw config declaration was not removed:\n%s", data)
+	}
+}
 
 func TestInstallPluginCmd_Success(t *testing.T) {
 	cloner := git.NewMockCloner()
@@ -240,9 +316,10 @@ func TestUninstallPluginCmd_Success(t *testing.T) {
 		t.Fatal(err)
 	}
 	op := pendingOp{
-		Name: "test-plugin",
-		Path: dir,
-		Root: mustRoot(t, rootDir),
+		Name:    "test-plugin",
+		DirName: "test-plugin",
+		Path:    dir,
+		Root:    mustRoot(t, rootDir),
 	}
 
 	cmd := uninstallPluginCmd(op)
@@ -267,9 +344,10 @@ func TestRemovePluginDirCmd_Success(t *testing.T) {
 		t.Fatal(err)
 	}
 	op := pendingOp{
-		Name: "test-plugin",
-		Path: dir,
-		Root: mustRoot(t, rootDir),
+		Name:    "test-plugin",
+		DirName: "test-plugin",
+		Path:    dir,
+		Root:    mustRoot(t, rootDir),
 	}
 
 	cmd := removePluginDirCmd(op)
@@ -290,9 +368,10 @@ func TestRemovePluginDirCmd_Success(t *testing.T) {
 func TestRemovePluginDirCmd_NonExistentDir(t *testing.T) {
 	rootDir := t.TempDir()
 	op := pendingOp{
-		Name: "ghost-plugin",
-		Path: filepath.Join(rootDir, "ghost-plugin"),
-		Root: mustRoot(t, rootDir),
+		Name:    "ghost-plugin",
+		DirName: "ghost-plugin",
+		Path:    filepath.Join(rootDir, "ghost-plugin"),
+		Root:    mustRoot(t, rootDir),
 	}
 
 	cmd := removePluginDirCmd(op)
@@ -311,9 +390,9 @@ func TestRemovePluginDirCmd_NonExistentDir(t *testing.T) {
 func TestBuildRemoveOps(t *testing.T) {
 	m := newTestModel(t, nil)
 	m.plugins = []PluginItem{
-		{Name: "a", Spec: "user/a", Status: StatusInstalled},
-		{Name: "b", Spec: "user/b", Status: StatusNotInstalled},
-		{Name: "c", Spec: "user/c", Status: StatusInstalled},
+		testPluginItem("a", "user/a", StatusInstalled),
+		testPluginItem("b", "user/b", StatusNotInstalled),
+		testPluginItem("c", "user/c", StatusInstalled),
 	}
 	m.listScroll.cursor = 1
 
@@ -329,8 +408,8 @@ func TestBuildRemoveOps(t *testing.T) {
 func TestBuildRemoveOps_IncludesAllStatuses(t *testing.T) {
 	m := newTestModel(t, nil)
 	m.plugins = []PluginItem{
-		{Name: "a", Spec: "user/a", Status: StatusInstalled},
-		{Name: "b", Spec: "user/b", Status: StatusNotInstalled},
+		testPluginItem("a", "user/a", StatusInstalled),
+		testPluginItem("b", "user/b", StatusNotInstalled),
 	}
 	m.selected = map[int]bool{0: true, 1: true}
 	m.multiSelectActive = true
@@ -344,9 +423,9 @@ func TestBuildRemoveOps_IncludesAllStatuses(t *testing.T) {
 func TestBuildUninstallOps(t *testing.T) {
 	m := newTestModel(t, nil)
 	m.plugins = []PluginItem{
-		{Name: "a", Spec: "user/a", Status: StatusInstalled},
-		{Name: "b", Spec: "user/b", Status: StatusNotInstalled},
-		{Name: "c", Spec: "user/c", Status: StatusInstalled},
+		testPluginItem("a", "user/a", StatusInstalled),
+		testPluginItem("b", "user/b", StatusNotInstalled),
+		testPluginItem("c", "user/c", StatusInstalled),
 	}
 	m.listScroll.cursor = 0
 
@@ -362,7 +441,7 @@ func TestBuildUninstallOps(t *testing.T) {
 func TestBuildUninstallOps_SkipsNotInstalled(t *testing.T) {
 	m := newTestModel(t, nil)
 	m.plugins = []PluginItem{
-		{Name: "a", Spec: "user/a", Status: StatusNotInstalled},
+		testPluginItem("a", "user/a", StatusNotInstalled),
 	}
 	m.listScroll.cursor = 0
 
@@ -389,7 +468,7 @@ func TestDestructiveOpsRejectRootSymlinkBeforeScheduling(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			m := newTestModel(t, nil)
 			m.cfg.PluginPath = mustRoot(t, rootLink)
-			m.plugins = []PluginItem{{Name: "repo", Status: StatusInstalled}}
+			m.plugins = []PluginItem{testPluginItem("repo", "user/repo", StatusInstalled)}
 
 			if ops := tt.build(&m); len(ops) != 0 {
 				t.Fatalf("scheduled %d destructive operations through root symlink", len(ops))
@@ -446,7 +525,7 @@ func TestDestructiveOpsResolveRootImmediatelyBeforeRemoval(t *testing.T) {
 
 			m := newTestModel(t, nil)
 			m.cfg.PluginPath = mustRoot(t, rootLink)
-			m.plugins = []PluginItem{{Name: "repo", Status: StatusInstalled}}
+			m.plugins = []PluginItem{testPluginItem("repo", "user/repo", StatusInstalled)}
 			ops := tt.build(&m)
 			if len(ops) != 1 {
 				t.Fatalf("operations = %d, want 1", len(ops))
@@ -468,9 +547,9 @@ func TestDestructiveOpsResolveRootImmediatelyBeforeRemoval(t *testing.T) {
 func TestBuildInstallOps(t *testing.T) {
 	m := newTestModel(t, nil)
 	m.plugins = []PluginItem{
-		{Name: "a", Spec: "user/a", Status: StatusNotInstalled},
-		{Name: "b", Spec: "user/b", Status: StatusInstalled},
-		{Name: "c", Spec: "user/c", Status: StatusNotInstalled},
+		testPluginItem("a", "user/a", StatusNotInstalled),
+		testPluginItem("b", "user/b", StatusInstalled),
+		testPluginItem("c", "user/c", StatusNotInstalled),
 	}
 	m.listScroll.cursor = 0
 
@@ -483,9 +562,9 @@ func TestBuildInstallOps(t *testing.T) {
 func TestBuildInstallOps_MultiSelect(t *testing.T) {
 	m := newTestModel(t, nil)
 	m.plugins = []PluginItem{
-		{Name: "a", Spec: "user/a", Status: StatusNotInstalled},
-		{Name: "b", Spec: "user/b", Status: StatusInstalled},
-		{Name: "c", Spec: "user/c", Status: StatusNotInstalled},
+		testPluginItem("a", "user/a", StatusNotInstalled),
+		testPluginItem("b", "user/b", StatusInstalled),
+		testPluginItem("c", "user/c", StatusNotInstalled),
 	}
 	m.selected = map[int]bool{0: true, 2: true}
 	m.multiSelectActive = true
@@ -499,8 +578,8 @@ func TestBuildInstallOps_MultiSelect(t *testing.T) {
 func TestBuildUpdateOps_AllInstalled(t *testing.T) {
 	m := newTestModel(t, nil)
 	m.plugins = []PluginItem{
-		{Name: "a", Spec: "user/a", Status: StatusInstalled},
-		{Name: "b", Spec: "user/b", Status: StatusInstalled},
+		testPluginItem("a", "user/a", StatusInstalled),
+		testPluginItem("b", "user/b", StatusInstalled),
 	}
 	m.listScroll.cursor = 0
 
@@ -528,9 +607,9 @@ func TestDispatchNext_EmptyQueue(t *testing.T) {
 func TestBuildAutoInstallOps(t *testing.T) {
 	m := newTestModel(t, nil)
 	m.plugins = []PluginItem{
-		{Name: "a", Spec: "user/a", Status: StatusNotInstalled},
-		{Name: "b", Spec: "user/b", Status: StatusInstalled},
-		{Name: "c", Spec: "user/c", Status: StatusNotInstalled},
+		testPluginItem("a", "user/a", StatusNotInstalled),
+		testPluginItem("b", "user/b", StatusInstalled),
+		testPluginItem("c", "user/c", StatusNotInstalled),
 	}
 
 	ops := m.buildAutoInstallOps()
@@ -548,7 +627,7 @@ func TestBuildAutoInstallOps(t *testing.T) {
 func TestBuildAutoInstallOps_NoneNotInstalled(t *testing.T) {
 	m := newTestModel(t, nil)
 	m.plugins = []PluginItem{
-		{Name: "a", Spec: "user/a", Status: StatusInstalled},
+		testPluginItem("a", "user/a", StatusInstalled),
 	}
 
 	ops := m.buildAutoInstallOps()
@@ -560,10 +639,10 @@ func TestBuildAutoInstallOps_NoneNotInstalled(t *testing.T) {
 func TestBuildAutoUpdateOps(t *testing.T) {
 	m := newTestModel(t, nil)
 	m.plugins = []PluginItem{
-		{Name: "a", Spec: "user/a", Status: StatusInstalled},
-		{Name: "b", Spec: "user/b", Status: StatusNotInstalled},
-		{Name: "c", Spec: "user/c", Status: StatusOutdated},
-		{Name: "d", Spec: "user/d", Status: StatusChecking},
+		testPluginItem("a", "user/a", StatusInstalled),
+		testPluginItem("b", "user/b", StatusNotInstalled),
+		testPluginItem("c", "user/c", StatusOutdated),
+		testPluginItem("d", "user/d", StatusChecking),
 	}
 
 	ops := m.buildAutoUpdateOps()
@@ -575,7 +654,7 @@ func TestBuildAutoUpdateOps(t *testing.T) {
 func TestBuildAutoUpdateOps_NoneInstalled(t *testing.T) {
 	m := newTestModel(t, nil)
 	m.plugins = []PluginItem{
-		{Name: "a", Spec: "user/a", Status: StatusNotInstalled},
+		testPluginItem("a", "user/a", StatusNotInstalled),
 	}
 
 	ops := m.buildAutoUpdateOps()

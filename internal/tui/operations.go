@@ -15,12 +15,14 @@ import (
 // Messages returned by operations.
 type pluginInstallResultMsg struct {
 	Name    string
+	DirName string
 	Success bool
 	Message string
 }
 
 type pluginUpdateResultMsg struct {
 	Name      string
+	DirName   string
 	Success   bool
 	Message   string
 	Output    string
@@ -32,36 +34,40 @@ type pluginUpdateResultMsg struct {
 
 type pluginCleanResultMsg struct {
 	Name    string
+	DirName string
 	Success bool
 	Message string
 }
 
 type pluginUninstallResultMsg struct {
 	Name    string
+	DirName string
 	Success bool
 	Message string
 }
 
 type pluginRemoveResultMsg struct {
 	Name    string
+	DirName string
 	Success bool
 	Message string
 }
 
 type pluginCheckResultMsg struct {
 	Name     string
+	DirName  string
 	Outdated bool
 	Err      error
 }
 
 // checks if a plugin is outdated
-func checkPluginCmd(fetcher git.Fetcher, name string, dir string) tea.Cmd {
+func checkPluginCmd(fetcher git.Fetcher, name, dirName, dir string) tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), CheckTimeout)
 		defer cancel()
 
 		outdated, err := fetcher.IsOutdated(ctx, dir)
-		return pluginCheckResultMsg{Name: name, Outdated: outdated, Err: err}
+		return pluginCheckResultMsg{Name: name, DirName: dirName, Outdated: outdated, Err: err}
 	}
 }
 
@@ -89,12 +95,14 @@ func installPluginCmd(cloner git.Cloner, op pendingOp) tea.Cmd {
 		if err != nil {
 			return pluginInstallResultMsg{
 				Name:    op.Name,
+				DirName: op.DirName,
 				Success: false,
 				Message: err.Error(),
 			}
 		}
 		return pluginInstallResultMsg{
 			Name:    op.Name,
+			DirName: op.DirName,
 			Success: true,
 			Message: appendWarnings("installed successfully", warnings),
 		}
@@ -129,6 +137,7 @@ func updatePluginCmd(puller git.Puller, revParser git.RevParser, logger git.Logg
 		if err != nil {
 			return pluginUpdateResultMsg{
 				Name:    op.Name,
+				DirName: op.DirName,
 				Success: false,
 				Message: err.Error(),
 				Output:  output,
@@ -148,6 +157,7 @@ func updatePluginCmd(puller git.Puller, revParser git.RevParser, logger git.Logg
 
 		return pluginUpdateResultMsg{
 			Name:      op.Name,
+			DirName:   op.DirName,
 			Success:   true,
 			Message:   appendWarnings("updated successfully", warnings),
 			Output:    output,
@@ -168,42 +178,42 @@ func appendWarnings(base string, warnings []string) string {
 	return base + " (with warnings: " + strings.Join(warnings, "; ") + ")"
 }
 
-func removeDirCmd(op pendingOp, resolveRoot bool, msgFactory func(name string, success bool, message string) tea.Msg) tea.Cmd {
+func removeDirCmd(op pendingOp, resolveRoot bool, msgFactory func(name, dirName string, success bool, message string) tea.Msg) tea.Cmd {
 	return func() tea.Msg {
 		path := op.Path
 		if resolveRoot {
 			root, err := op.Root.Resolved()
 			if err != nil {
-				return msgFactory(op.Name, false, err.Error())
+				return msgFactory(op.Name, op.DirName, false, err.Error())
 			}
-			path, err = root.Child(op.Name)
+			path, err = root.Child(op.DirName)
 			if err != nil {
-				return msgFactory(op.Name, false, err.Error())
+				return msgFactory(op.Name, op.DirName, false, err.Error())
 			}
 		}
 		if err := os.RemoveAll(path); err != nil {
-			return msgFactory(op.Name, false, err.Error())
+			return msgFactory(op.Name, op.DirName, false, err.Error())
 		}
-		return msgFactory(op.Name, true, "removed successfully")
+		return msgFactory(op.Name, op.DirName, true, "removed successfully")
 	}
 }
 
 // removes orphaned directories
 func cleanPluginCmd(op pendingOp) tea.Cmd {
-	return removeDirCmd(op, false, func(name string, success bool, message string) tea.Msg {
-		return pluginCleanResultMsg{Name: name, Success: success, Message: message}
+	return removeDirCmd(op, false, func(name, dirName string, success bool, message string) tea.Msg {
+		return pluginCleanResultMsg{Name: name, DirName: dirName, Success: success, Message: message}
 	})
 }
 
 func uninstallPluginCmd(op pendingOp) tea.Cmd {
-	return removeDirCmd(op, true, func(name string, success bool, message string) tea.Msg {
-		return pluginUninstallResultMsg{Name: name, Success: success, Message: message}
+	return removeDirCmd(op, true, func(name, dirName string, success bool, message string) tea.Msg {
+		return pluginUninstallResultMsg{Name: name, DirName: dirName, Success: success, Message: message}
 	})
 }
 
 func removePluginDirCmd(op pendingOp) tea.Cmd {
-	return removeDirCmd(op, true, func(name string, success bool, message string) tea.Msg {
-		return pluginRemoveResultMsg{Name: name, Success: success, Message: message}
+	return removeDirCmd(op, true, func(name, dirName string, success bool, message string) tea.Msg {
+		return pluginRemoveResultMsg{Name: name, DirName: dirName, Success: success, Message: message}
 	})
 }
 
@@ -286,7 +296,7 @@ func (m *Model) buildOpsFromTargetedWithRoot(filter func(PluginItem) bool, resol
 		}
 		var path string
 		if err == nil {
-			path, err = pathRoot.Child(p.Name)
+			path, err = pathRoot.Child(p.DirName)
 		}
 		if err != nil {
 			m.plugins[i].Status = StatusLoadFailed
@@ -294,11 +304,13 @@ func (m *Model) buildOpsFromTargetedWithRoot(filter func(PluginItem) bool, resol
 			continue
 		}
 		ops = append(ops, pendingOp{
-			Name:   p.Name,
-			Spec:   p.Spec,
-			Branch: p.Branch,
-			Path:   path,
-			Root:   root,
+			Raw:     p.Raw,
+			Name:    p.Name,
+			DirName: p.DirName,
+			Spec:    p.Spec,
+			Branch:  p.Branch,
+			Path:    path,
+			Root:    root,
 		})
 	}
 	return ops
@@ -311,17 +323,19 @@ func (m *Model) buildOpsFromAll(filter func(PluginItem) bool) []pendingOp {
 		if !filter(p) {
 			continue
 		}
-		path, err := m.cfg.PluginPath.Child(p.Name)
+		path, err := m.cfg.PluginPath.Child(p.DirName)
 		if err != nil {
 			m.plugins[i].Status = StatusLoadFailed
 			m.plugins[i].LoadErr = err.Error()
 			continue
 		}
 		ops = append(ops, pendingOp{
-			Name:   p.Name,
-			Spec:   p.Spec,
-			Branch: p.Branch,
-			Path:   path,
+			Raw:     p.Raw,
+			Name:    p.Name,
+			DirName: p.DirName,
+			Spec:    p.Spec,
+			Branch:  p.Branch,
+			Path:    path,
 		})
 	}
 	return ops
@@ -351,8 +365,9 @@ func (m *Model) buildCleanOps() []pendingOp {
 	var ops []pendingOp
 	for _, o := range m.orphans {
 		ops = append(ops, pendingOp{
-			Name: o.Name,
-			Path: o.Path,
+			Name:    o.Name,
+			DirName: o.Name,
+			Path:    o.Path,
 		})
 	}
 	return ops

@@ -22,8 +22,8 @@ func TestBuildPluginItems_AllNotInstalled(t *testing.T) {
 	pluginPath := t.TempDir() + "/"
 	validator := git.NewMockValidator()
 	plugins := []plug.Plugin{
-		{Name: "tmux-sensible", Spec: "tmux-plugins/tmux-sensible"},
-		{Name: "tmux-yank", Spec: "tmux-plugins/tmux-yank"},
+		testPlugin("tmux-sensible", "tmux-plugins/tmux-sensible"),
+		testPlugin("tmux-yank", "tmux-plugins/tmux-yank"),
 	}
 
 	items := buildPluginItems(plugins, mustRoot(t, pluginPath), validator, nil)
@@ -51,7 +51,7 @@ func TestBuildPluginItems_Installed(t *testing.T) {
 	validator.Valid[dir] = true
 
 	plugins := []plug.Plugin{
-		{Name: "tmux-sensible", Spec: "tmux-plugins/tmux-sensible"},
+		testPlugin("tmux-sensible", "tmux-plugins/tmux-sensible"),
 	}
 
 	items := buildPluginItems(plugins, mustRoot(t, pluginPath), validator, nil)
@@ -67,20 +67,66 @@ func TestBuildPluginItems_Installed(t *testing.T) {
 func TestBuildPluginItems_PreservesFields(t *testing.T) {
 	pluginPath := t.TempDir() + "/"
 	validator := git.NewMockValidator()
-	plugins := []plug.Plugin{
-		{Name: "tmux-yank", Spec: "tmux-plugins/tmux-yank", Branch: "main"},
+	plugin := mustParsePlugin(t, "tmux-plugins/tmux-yank#main")
+	dir := filepath.Join(pluginPath, plugin.DirName)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
 	}
+	validator.Valid[dir] = true
 
-	items := buildPluginItems(plugins, mustRoot(t, pluginPath), validator, nil)
+	items := buildPluginItems([]plug.Plugin{plugin}, mustRoot(t, pluginPath), validator, nil)
 
+	if items[0].Raw != "tmux-plugins/tmux-yank#main" {
+		t.Errorf("expected raw spec preserved, got %q", items[0].Raw)
+	}
 	if items[0].Name != "tmux-yank" {
 		t.Errorf("expected name tmux-yank, got %s", items[0].Name)
+	}
+	if items[0].Identity != "github.com/tmux-plugins/tmux-yank" {
+		t.Errorf("expected normalized identity, got %q", items[0].Identity)
+	}
+	if items[0].DirName != "tmux-yank-d3dd4adebd91" {
+		t.Errorf("expected canonical directory, got %q", items[0].DirName)
 	}
 	if items[0].Spec != "tmux-plugins/tmux-yank" {
 		t.Errorf("expected spec tmux-plugins/tmux-yank, got %s", items[0].Spec)
 	}
 	if items[0].Branch != "main" {
 		t.Errorf("expected branch main, got %s", items[0].Branch)
+	}
+	if items[0].Status != StatusChecking {
+		t.Errorf("expected DirName directory to be detected, got %s", items[0].Status)
+	}
+}
+
+func TestLoadErrorMapUsesDirectoryKeyWithLegacyNameFallback(t *testing.T) {
+	got := loadErrorMap([]plug.LoadFailure{
+		{Name: "tmux", DirName: "tmux--f0e8a426", Message: "new record"},
+		{Name: "legacy", Message: "old record"},
+	})
+	if got["tmux--f0e8a426"] != "new record" {
+		t.Errorf("directory-keyed error = %q", got["tmux--f0e8a426"])
+	}
+	if got["legacy"] != "old record" {
+		t.Errorf("legacy name-keyed error = %q", got["legacy"])
+	}
+}
+
+func TestBuildPluginItemsMatchesLegacyLoadErrorByName(t *testing.T) {
+	pluginPath := t.TempDir()
+	plugin := mustParsePlugin(t, "catppuccin/tmux")
+	dir := filepath.Join(pluginPath, plugin.DirName)
+	if err := os.Mkdir(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	validator := git.NewMockValidator()
+	validator.Valid[dir] = true
+	loadErrors := loadErrorMap([]plug.LoadFailure{{Name: "tmux", Message: "legacy failure"}})
+
+	items := buildPluginItems([]plug.Plugin{plugin}, mustRoot(t, pluginPath), validator, loadErrors)
+
+	if items[0].Status != StatusLoadFailed || items[0].LoadErr != "legacy failure" {
+		t.Fatalf("legacy load failure was not correlated: %+v", items[0])
 	}
 }
 
@@ -202,7 +248,7 @@ func TestBuildPluginItems_LoadFailed(t *testing.T) {
 	}
 	validator.Valid[dir] = true
 
-	plugins := []plug.Plugin{{Name: "tmux-statusline", Spec: "x/tmux-statusline"}}
+	plugins := []plug.Plugin{testPlugin("tmux-statusline", "x/tmux-statusline")}
 	loadErrors := map[string]string{"tmux-statusline": "exec format error"}
 
 	items := buildPluginItems(plugins, mustRoot(t, pluginPath), validator, loadErrors)
@@ -219,7 +265,7 @@ func TestBuildPluginItems_LoadErrorIgnoredWhenNotInstalled(t *testing.T) {
 	pluginPath := t.TempDir() + "/"
 	validator := git.NewMockValidator()
 
-	plugins := []plug.Plugin{{Name: "ghost", Spec: "x/ghost"}}
+	plugins := []plug.Plugin{testPlugin("ghost", "x/ghost")}
 	loadErrors := map[string]string{"ghost": "stale error"}
 
 	items := buildPluginItems(plugins, mustRoot(t, pluginPath), validator, loadErrors)

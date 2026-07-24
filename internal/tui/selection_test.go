@@ -8,8 +8,8 @@ import (
 
 func TestToggleSelection(t *testing.T) {
 	m := newTestModel(t, []plug.Plugin{
-		{Name: "a", Spec: "user/a"},
-		{Name: "b", Spec: "user/b"},
+		testPlugin("a", "user/a"),
+		testPlugin("b", "user/b"),
 	})
 
 	m.toggleSelection(0)
@@ -32,9 +32,9 @@ func TestToggleSelection(t *testing.T) {
 
 func TestToggleSelection_Multiple(t *testing.T) {
 	m := newTestModel(t, []plug.Plugin{
-		{Name: "a", Spec: "user/a"},
-		{Name: "b", Spec: "user/b"},
-		{Name: "c", Spec: "user/c"},
+		testPlugin("a", "user/a"),
+		testPlugin("b", "user/b"),
+		testPlugin("c", "user/c"),
 	})
 
 	m.toggleSelection(0)
@@ -54,8 +54,8 @@ func TestToggleSelection_Multiple(t *testing.T) {
 
 func TestClearSelection(t *testing.T) {
 	m := newTestModel(t, []plug.Plugin{
-		{Name: "a", Spec: "user/a"},
-		{Name: "b", Spec: "user/b"},
+		testPlugin("a", "user/a"),
+		testPlugin("b", "user/b"),
 	})
 
 	m.toggleSelection(0)
@@ -79,10 +79,10 @@ func TestSelection_Empty(t *testing.T) {
 
 func TestSelectedIndices_Order(t *testing.T) {
 	m := newTestModel(t, []plug.Plugin{
-		{Name: "a", Spec: "user/a"},
-		{Name: "b", Spec: "user/b"},
-		{Name: "c", Spec: "user/c"},
-		{Name: "d", Spec: "user/d"},
+		testPlugin("a", "user/a"),
+		testPlugin("b", "user/b"),
+		testPlugin("c", "user/c"),
+		testPlugin("d", "user/d"),
 	})
 
 	// Select in reverse order.

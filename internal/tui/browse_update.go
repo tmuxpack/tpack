@@ -6,12 +6,21 @@ import (
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"github.com/tmuxpack/tpack/internal/config"
+	"github.com/tmuxpack/tpack/internal/plug"
 	"github.com/tmuxpack/tpack/internal/registry"
 )
 
 type registryFetchResultMsg struct {
 	Registry *registry.Registry
 	Err      error
+}
+
+func pluginFromRegistryItem(item registry.RegistryItem) (plug.Plugin, error) {
+	spec := item.Repo
+	if item.Host != "" && item.Host != defaultGitHubHost {
+		spec = "https://" + item.Host + "/" + item.Repo
+	}
+	return plug.ParseSpec(spec, nil)
 }
 
 func (m Model) enterBrowse() (tea.Model, tea.Cmd) {
@@ -174,38 +183,44 @@ func (m Model) installFromBrowse() (tea.Model, tea.Cmd) {
 	}
 
 	selected := m.browseResults[m.browseScroll.cursor]
-
-	spec := selected.Repo
-	if selected.Host != "" && selected.Host != defaultGitHubHost {
-		spec = "https://" + selected.Host + "/" + selected.Repo
+	candidate, err := pluginFromRegistryItem(selected)
+	if err != nil {
+		m.browseStatus = "Failed to install: " + err.Error()
+		return m, nil
 	}
 
 	for _, p := range m.plugins {
-		if p.Spec == spec || p.Name == pluginNameFromRepo(selected.Repo) {
+		if p.Identity == candidate.Identity {
 			return m, nil
 		}
 	}
 
-	name := pluginNameFromRepo(selected.Repo)
-	path, err := m.cfg.PluginPath.Child(name)
+	path, err := m.cfg.PluginPath.Child(candidate.DirName)
 	if err != nil {
 		m.browseStatus = "Failed to install: " + err.Error()
 		return m, nil
 	}
 
 	if m.cfg.TmuxConf != "" {
-		_ = config.AppendPlugin(m.cfg.TmuxConf, spec)
+		_ = config.AppendPlugin(m.cfg.TmuxConf, candidate.Spec)
 	}
 	m.plugins = append(m.plugins, PluginItem{
-		Name:   name,
-		Spec:   spec,
-		Status: StatusNotInstalled,
+		Raw:      candidate.Raw,
+		Name:     candidate.Name,
+		Identity: candidate.Identity,
+		DirName:  candidate.DirName,
+		Spec:     candidate.Spec,
+		Branch:   candidate.Branch,
+		Status:   StatusNotInstalled,
 	})
 
 	ops := []pendingOp{{
-		Name: name,
-		Spec: spec,
-		Path: path,
+		Raw:     candidate.Raw,
+		Name:    candidate.Name,
+		DirName: candidate.DirName,
+		Spec:    candidate.Spec,
+		Branch:  candidate.Branch,
+		Path:    path,
 	}}
 	cmd := m.initProgress(OpInstall, ops)
 	return m, cmd
