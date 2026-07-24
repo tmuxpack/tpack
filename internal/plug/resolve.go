@@ -2,7 +2,6 @@ package plug
 
 import (
 	"fmt"
-	"path/filepath"
 	"strings"
 )
 
@@ -13,8 +12,7 @@ import (
 //	"https://github.com/user/repo.git" → "repo"
 //	"git@github.com:user/repo.git"     → "repo"
 func PluginName(raw string) string {
-	base := filepath.Base(raw)
-	return strings.TrimSuffix(base, ".git")
+	return LegacyPluginName(raw)
 }
 
 // NormalizeURL converts a shorthand plugin name to a full git URL.

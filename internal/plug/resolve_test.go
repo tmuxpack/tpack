@@ -21,8 +21,10 @@ func TestPluginName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.raw, func(t *testing.T) {
-			got := plug.PluginName(tt.raw)
-			if got != tt.want {
+			if got := plug.LegacyPluginName(tt.raw); got != tt.want {
+				t.Errorf("LegacyPluginName(%q) = %q, want %q", tt.raw, got, tt.want)
+			}
+			if got := plug.PluginName(tt.raw); got != tt.want {
 				t.Errorf("PluginName(%q) = %q, want %q", tt.raw, got, tt.want)
 			}
 		})
