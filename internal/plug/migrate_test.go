@@ -24,8 +24,12 @@ func TestMigrateLegacyMovesMatchingCheckout(t *testing.T) {
 	mustWriteFile(t, filepath.Join(legacy, "marker"), "catppuccin")
 	origins := &git.MockOriginReader{URL: "git@github.com:catppuccin/tmux.git"}
 
-	if err := plug.MigrateLegacy(context.Background(), root, []plug.Plugin{p}, origins); err != nil {
+	migrated, err := plug.MigrateLegacy(context.Background(), root, []plug.Plugin{p}, origins)
+	if err != nil {
 		t.Fatal(err)
+	}
+	if !migrated {
+		t.Fatal("MigrateLegacy() migrated = false, want true")
 	}
 	data, err := os.ReadFile(filepath.Join(rootPath, p.DirName, "marker"))
 	if err != nil || string(data) != "catppuccin" {
@@ -49,7 +53,7 @@ func TestMigrateLegacyAcceptsEquivalentOriginURLForm(t *testing.T) {
 	legacy := filepath.Join(rootPath, "tmux")
 	mustMkdir(t, legacy)
 
-	err := plug.MigrateLegacy(context.Background(), mustRoot(t, rootPath), []plug.Plugin{p},
+	_, err := plug.MigrateLegacy(context.Background(), mustRoot(t, rootPath), []plug.Plugin{p},
 		&git.MockOriginReader{URL: "git@github.com:catppuccin/tmux.git"})
 	if err != nil {
 		t.Fatal(err)
@@ -63,7 +67,7 @@ func TestMigrateLegacyAcceptsEquivalentNoUserSCPOrigin(t *testing.T) {
 	legacy := filepath.Join(rootPath, "tmux")
 	mustMkdir(t, legacy)
 
-	err := plug.MigrateLegacy(context.Background(), mustRoot(t, rootPath), []plug.Plugin{p},
+	_, err := plug.MigrateLegacy(context.Background(), mustRoot(t, rootPath), []plug.Plugin{p},
 		&git.MockOriginReader{URL: "github.com:catppuccin/tmux.git"})
 	if err != nil {
 		t.Fatal(err)
@@ -77,10 +81,13 @@ func TestMigrateLegacyOriginMismatchIsNoOp(t *testing.T) {
 	legacy := filepath.Join(rootPath, "tmux")
 	mustMkdir(t, legacy)
 
-	err := plug.MigrateLegacy(context.Background(), mustRoot(t, rootPath), []plug.Plugin{p},
+	migrated, err := plug.MigrateLegacy(context.Background(), mustRoot(t, rootPath), []plug.Plugin{p},
 		&git.MockOriginReader{URL: "git@github.com:someone-else/tmux.git"})
 	if err != nil {
 		t.Fatal(err)
+	}
+	if migrated {
+		t.Fatal("MigrateLegacy() migrated = true, want false")
 	}
 	assertPathExists(t, legacy)
 	assertPathMissing(t, filepath.Join(rootPath, p.DirName))
@@ -93,7 +100,7 @@ func TestMigrateLegacySkipsAlias(t *testing.T) {
 	mustMkdir(t, legacy)
 	origins := &git.MockOriginReader{URL: "git@github.com:catppuccin/tmux.git"}
 
-	if err := plug.MigrateLegacy(context.Background(), mustRoot(t, rootPath), []plug.Plugin{p}, origins); err != nil {
+	if _, err := plug.MigrateLegacy(context.Background(), mustRoot(t, rootPath), []plug.Plugin{p}, origins); err != nil {
 		t.Fatal(err)
 	}
 	assertPathExists(t, legacy)
@@ -112,7 +119,7 @@ func TestMigrateLegacySkipsOccupiedCanonicalPath(t *testing.T) {
 	mustWriteFile(t, filepath.Join(canonical, "marker"), "canonical")
 	origins := &git.MockOriginReader{URL: "git@github.com:catppuccin/tmux.git"}
 
-	if err := plug.MigrateLegacy(context.Background(), mustRoot(t, rootPath), []plug.Plugin{p}, origins); err != nil {
+	if _, err := plug.MigrateLegacy(context.Background(), mustRoot(t, rootPath), []plug.Plugin{p}, origins); err != nil {
 		t.Fatal(err)
 	}
 	assertFileContent(t, filepath.Join(canonical, "marker"), "canonical")
@@ -133,7 +140,7 @@ func TestMigrateLegacyTreatsDanglingCanonicalSymlinkAsOccupied(t *testing.T) {
 	}
 	origins := &git.MockOriginReader{URL: "git@github.com:catppuccin/tmux.git"}
 
-	if err := plug.MigrateLegacy(context.Background(), mustRoot(t, rootPath), []plug.Plugin{p}, origins); err != nil {
+	if _, err := plug.MigrateLegacy(context.Background(), mustRoot(t, rootPath), []plug.Plugin{p}, origins); err != nil {
 		t.Fatal(err)
 	}
 	info, err := os.Lstat(canonical)
@@ -147,7 +154,7 @@ func TestMigrateLegacyDoesNotCreateMissingRoot(t *testing.T) {
 	rootPath := filepath.Join(t.TempDir(), "missing")
 	p := mustParsePlugin(t, "catppuccin/tmux")
 
-	if err := plug.MigrateLegacy(context.Background(), mustRoot(t, rootPath), []plug.Plugin{p}, &git.MockOriginReader{}); err != nil {
+	if _, err := plug.MigrateLegacy(context.Background(), mustRoot(t, rootPath), []plug.Plugin{p}, &git.MockOriginReader{}); err != nil {
 		t.Fatal(err)
 	}
 	assertPathMissing(t, rootPath)
@@ -158,7 +165,7 @@ func TestMigrateLegacyMissingLegacyPathIsNoOp(t *testing.T) {
 	p := mustParsePlugin(t, "catppuccin/tmux")
 	origins := &git.MockOriginReader{}
 
-	if err := plug.MigrateLegacy(context.Background(), mustRoot(t, rootPath), []plug.Plugin{p}, origins); err != nil {
+	if _, err := plug.MigrateLegacy(context.Background(), mustRoot(t, rootPath), []plug.Plugin{p}, origins); err != nil {
 		t.Fatal(err)
 	}
 	if len(origins.Calls) != 0 {
@@ -174,7 +181,7 @@ func TestMigrateLegacyRestrictsExistingLockFileMode(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := plug.MigrateLegacy(context.Background(), mustRoot(t, rootPath), nil, &git.MockOriginReader{}); err != nil {
+	if _, err := plug.MigrateLegacy(context.Background(), mustRoot(t, rootPath), nil, &git.MockOriginReader{}); err != nil {
 		t.Fatal(err)
 	}
 	info, err := os.Stat(lockPath)
@@ -216,7 +223,7 @@ func TestMigrateLegacyLockContentionHonorsContext(t *testing.T) {
 	})
 	defer release.Stop()
 
-	err = plug.MigrateLegacy(ctx, mustRoot(t, rootPath), []plug.Plugin{p}, origins)
+	_, err = plug.MigrateLegacy(ctx, mustRoot(t, rootPath), []plug.Plugin{p}, origins)
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("error = %v, want context deadline exceeded", err)
 	}
@@ -239,7 +246,7 @@ func TestMigrateLegacyRejectsSymlinkLockWithoutTouchingTarget(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err := plug.MigrateLegacy(context.Background(), mustRoot(t, rootPath), nil, &git.MockOriginReader{})
+	_, err := plug.MigrateLegacy(context.Background(), mustRoot(t, rootPath), nil, &git.MockOriginReader{})
 	if err == nil {
 		t.Error("expected symlink lock error")
 	} else if !strings.Contains(err.Error(), lockPath) {
@@ -265,7 +272,7 @@ func TestMigrateLegacyRejectsNonRegularLockWithoutTouchingIt(t *testing.T) {
 	marker := filepath.Join(lockPath, "marker")
 	mustWriteFile(t, marker, "unchanged")
 
-	err := plug.MigrateLegacy(context.Background(), mustRoot(t, rootPath), nil, &git.MockOriginReader{})
+	_, err := plug.MigrateLegacy(context.Background(), mustRoot(t, rootPath), nil, &git.MockOriginReader{})
 	if err == nil {
 		t.Error("expected non-regular lock error")
 	} else if !strings.Contains(err.Error(), lockPath) {
@@ -292,7 +299,7 @@ func TestMigrateLegacyLeavesLegacySymlinkUntouched(t *testing.T) {
 	}
 	origins := &git.MockOriginReader{}
 
-	if err := plug.MigrateLegacy(context.Background(), mustRoot(t, rootPath), []plug.Plugin{p}, origins); err != nil {
+	if _, err := plug.MigrateLegacy(context.Background(), mustRoot(t, rootPath), []plug.Plugin{p}, origins); err != nil {
 		t.Fatal(err)
 	}
 	info, err := os.Lstat(legacy)
@@ -310,7 +317,7 @@ func TestMigrateLegacySkipsLegacyNonDirectory(t *testing.T) {
 	legacy := filepath.Join(rootPath, "tmux")
 	mustWriteFile(t, legacy, "not a checkout")
 
-	if err := plug.MigrateLegacy(context.Background(), mustRoot(t, rootPath), []plug.Plugin{p}, &git.MockOriginReader{}); err != nil {
+	if _, err := plug.MigrateLegacy(context.Background(), mustRoot(t, rootPath), []plug.Plugin{p}, &git.MockOriginReader{}); err != nil {
 		t.Fatal(err)
 	}
 	assertFileContent(t, legacy, "not a checkout")
@@ -323,10 +330,10 @@ func TestMigrateLegacyIsIdempotent(t *testing.T) {
 	origins := &git.MockOriginReader{URL: "git@github.com:catppuccin/tmux.git"}
 	root := mustRoot(t, rootPath)
 
-	if err := plug.MigrateLegacy(context.Background(), root, []plug.Plugin{p}, origins); err != nil {
+	if _, err := plug.MigrateLegacy(context.Background(), root, []plug.Plugin{p}, origins); err != nil {
 		t.Fatal(err)
 	}
-	if err := plug.MigrateLegacy(context.Background(), root, []plug.Plugin{p}, origins); err != nil {
+	if _, err := plug.MigrateLegacy(context.Background(), root, []plug.Plugin{p}, origins); err != nil {
 		t.Fatal(err)
 	}
 	assertPathExists(t, filepath.Join(rootPath, p.DirName))
@@ -343,7 +350,7 @@ func TestMigrateLegacySelectsMatchingSameBasenameDeclaration(t *testing.T) {
 	mustMkdir(t, legacy)
 	origins := &git.MockOriginReader{URL: "git@github.com:second/tmux.git"}
 
-	if err := plug.MigrateLegacy(context.Background(), mustRoot(t, rootPath), []plug.Plugin{first, second}, origins); err != nil {
+	if _, err := plug.MigrateLegacy(context.Background(), mustRoot(t, rootPath), []plug.Plugin{first, second}, origins); err != nil {
 		t.Fatal(err)
 	}
 	assertPathMissing(t, filepath.Join(rootPath, first.DirName))
@@ -361,7 +368,7 @@ func TestMigrateLegacyWrapsOriginFailure(t *testing.T) {
 	mustMkdir(t, legacy)
 	wantErr := errors.New("origin failed")
 
-	err := plug.MigrateLegacy(context.Background(), mustRoot(t, rootPath), []plug.Plugin{p},
+	_, err := plug.MigrateLegacy(context.Background(), mustRoot(t, rootPath), []plug.Plugin{p},
 		&git.MockOriginReader{Err: wantErr})
 	assertMigrationError(t, err, wantErr, p.Name, legacy, canonical)
 	assertPathExists(t, legacy)
@@ -374,7 +381,7 @@ func TestMigrateLegacyWrapsOriginNormalizationFailure(t *testing.T) {
 	canonical := filepath.Join(rootPath, p.DirName)
 	mustMkdir(t, legacy)
 
-	err := plug.MigrateLegacy(context.Background(), mustRoot(t, rootPath), []plug.Plugin{p},
+	_, err := plug.MigrateLegacy(context.Background(), mustRoot(t, rootPath), []plug.Plugin{p},
 		&git.MockOriginReader{URL: "https:///missing-host"})
 	if err == nil {
 		t.Fatal("expected normalization error")
@@ -396,7 +403,7 @@ func TestMigrateLegacyRejectsDestinationCreatedDuringOriginInspection(t *testing
 		return "git@github.com:catppuccin/tmux.git", nil
 	})
 
-	err := plug.MigrateLegacy(context.Background(), mustRoot(t, rootPath), []plug.Plugin{p}, origins)
+	_, err := plug.MigrateLegacy(context.Background(), mustRoot(t, rootPath), []plug.Plugin{p}, origins)
 	if err == nil || !strings.Contains(err.Error(), "occupied") {
 		t.Fatalf("error = %v, want occupied destination error", err)
 	}
@@ -418,7 +425,7 @@ func TestMigrateLegacyWrapsRenameFailure(t *testing.T) {
 		return "git@github.com:catppuccin/tmux.git", nil
 	})
 
-	err := plug.MigrateLegacy(context.Background(), mustRoot(t, rootPath), []plug.Plugin{p}, origins)
+	_, err := plug.MigrateLegacy(context.Background(), mustRoot(t, rootPath), []plug.Plugin{p}, origins)
 	assertMigrationError(t, err, fs.ErrNotExist, p.Name, legacy, canonical)
 }
 
@@ -436,7 +443,10 @@ func TestMigrateLegacyKeepsEarlierMigrationWhenLaterOriginFails(t *testing.T) {
 		return "git@github.com:owner/one.git", nil
 	})
 
-	err := plug.MigrateLegacy(context.Background(), mustRoot(t, rootPath), []plug.Plugin{first, second}, origins)
+	migrated, err := plug.MigrateLegacy(context.Background(), mustRoot(t, rootPath), []plug.Plugin{first, second}, origins)
+	if !migrated {
+		t.Fatal("MigrateLegacy() migrated = false after an earlier rename, want true")
+	}
 	if !errors.Is(err, wantErr) {
 		t.Fatalf("error = %v, want wrapped origin failure", err)
 	}

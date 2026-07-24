@@ -23,7 +23,8 @@ func LoadPlugins(
 	if err != nil {
 		return nil, err
 	}
-	if err := plug.MigrateLegacy(ctx, paths.PluginPath, plugins, origins); err != nil {
+	_, err = plug.MigrateLegacy(ctx, paths.PluginPath, plugins, origins)
+	if err != nil {
 		return nil, fmt.Errorf("migrate legacy plugins: %w", err)
 	}
 	return plugins, nil

@@ -14,48 +14,52 @@ import (
 
 var errMigrationDestinationOccupied = errors.New("migration destination is occupied")
 
-// MigrateLegacy moves matching legacy checkouts to their identity-based paths.
-func MigrateLegacy(ctx context.Context, root Root, plugins []Plugin, origins git.OriginReader) error {
+// MigrateLegacy moves matching legacy checkouts to their identity-based paths
+// and reports whether any checkout was renamed.
+func MigrateLegacy(ctx context.Context, root Root, plugins []Plugin, origins git.OriginReader) (bool, error) {
 	rootPath, err := root.Path()
 	if err != nil {
-		return fmt.Errorf("migrate legacy plugins: %w", err)
+		return false, fmt.Errorf("migrate legacy plugins: %w", err)
 	}
 	rootInfo, err := os.Stat(rootPath)
 	if errors.Is(err, os.ErrNotExist) {
-		return nil
+		return false, nil
 	}
 	if err != nil {
-		return fmt.Errorf("inspect plugin root %s: %w", rootPath, err)
+		return false, fmt.Errorf("inspect plugin root %s: %w", rootPath, err)
 	}
 	if !rootInfo.IsDir() {
-		return fmt.Errorf("inspect plugin root %s: not a directory", rootPath)
+		return false, fmt.Errorf("inspect plugin root %s: not a directory", rootPath)
 	}
 
 	lockPath := filepath.Join(rootPath, ".tpack-migrate.lock")
 	lock, err := openMigrationLock(lockPath)
 	if err != nil {
-		return fmt.Errorf("open migration lock %s: %w", lockPath, err)
+		return false, fmt.Errorf("open migration lock %s: %w", lockPath, err)
 	}
 	defer func() {
 		_ = syscall.Flock(int(lock.Fd()), syscall.LOCK_UN)
 		_ = lock.Close()
 	}()
 	if err := lock.Chmod(0o600); err != nil {
-		return fmt.Errorf("secure migration lock %s: %w", lockPath, err)
+		return false, fmt.Errorf("secure migration lock %s: %w", lockPath, err)
 	}
 	if err := acquireMigrationLock(ctx, lock); err != nil {
-		return fmt.Errorf("lock plugin root %s: %w", rootPath, err)
+		return false, fmt.Errorf("lock plugin root %s: %w", rootPath, err)
 	}
 
+	migrated := false
 	for _, plugin := range plugins {
 		if plugin.Alias != "" {
 			continue
 		}
-		if err := migrateLegacyPlugin(ctx, root, plugin, origins); err != nil {
-			return err
+		changed, migrateErr := migrateLegacyPlugin(ctx, root, plugin, origins)
+		migrated = migrated || changed
+		if migrateErr != nil {
+			return migrated, migrateErr
 		}
 	}
-	return nil
+	return migrated, nil
 }
 
 const migrationLockRetryInterval = 10 * time.Millisecond
@@ -152,58 +156,58 @@ func closeRejectedLock(lock *os.File, validationErr error) error {
 	return validationErr
 }
 
-func migrateLegacyPlugin(ctx context.Context, root Root, plugin Plugin, origins git.OriginReader) error {
+func migrateLegacyPlugin(ctx context.Context, root Root, plugin Plugin, origins git.OriginReader) (bool, error) {
 	legacy, err := root.Child(LegacyPluginName(plugin.Spec))
 	if err != nil {
-		return migrationError(plugin, LegacyPluginName(plugin.Spec), plugin.DirName, "derive legacy path", err)
+		return false, migrationError(plugin, LegacyPluginName(plugin.Spec), plugin.DirName, "derive legacy path", err)
 	}
 	canonical, err := root.Child(plugin.DirName)
 	if err != nil {
-		return migrationError(plugin, legacy, plugin.DirName, "derive canonical path", err)
+		return false, migrationError(plugin, legacy, plugin.DirName, "derive canonical path", err)
 	}
 
 	occupied, err := pathOccupied(canonical)
 	if err != nil {
-		return migrationError(plugin, legacy, canonical, "inspect destination", err)
+		return false, migrationError(plugin, legacy, canonical, "inspect destination", err)
 	}
 	if occupied {
-		return nil
+		return false, nil
 	}
 
 	legacyInfo, err := os.Lstat(legacy)
 	if errors.Is(err, os.ErrNotExist) {
-		return nil
+		return false, nil
 	}
 	if err != nil {
-		return migrationError(plugin, legacy, canonical, "inspect source", err)
+		return false, migrationError(plugin, legacy, canonical, "inspect source", err)
 	}
 	if legacyInfo.Mode()&os.ModeSymlink != 0 || !legacyInfo.IsDir() {
-		return nil
+		return false, nil
 	}
 
 	origin, err := origins.Origin(ctx, legacy)
 	if err != nil {
-		return migrationError(plugin, legacy, canonical, "read Git origin", err)
+		return false, migrationError(plugin, legacy, canonical, "read Git origin", err)
 	}
 	originIdentity, err := NormalizeIdentity(origin)
 	if err != nil {
-		return migrationError(plugin, legacy, canonical, "normalize Git origin", err)
+		return false, migrationError(plugin, legacy, canonical, "normalize Git origin", err)
 	}
 	if originIdentity != plugin.Identity {
-		return nil
+		return false, nil
 	}
 
 	occupied, err = pathOccupied(canonical)
 	if err != nil {
-		return migrationError(plugin, legacy, canonical, "recheck destination", err)
+		return false, migrationError(plugin, legacy, canonical, "recheck destination", err)
 	}
 	if occupied {
-		return migrationError(plugin, legacy, canonical, "recheck destination", errMigrationDestinationOccupied)
+		return false, migrationError(plugin, legacy, canonical, "recheck destination", errMigrationDestinationOccupied)
 	}
 	if err := os.Rename(legacy, canonical); err != nil {
-		return migrationError(plugin, legacy, canonical, "rename checkout", err)
+		return false, migrationError(plugin, legacy, canonical, "rename checkout", err)
 	}
-	return nil
+	return true, nil
 }
 
 func pathOccupied(path string) (bool, error) {
