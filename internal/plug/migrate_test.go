@@ -170,6 +170,60 @@ func TestMigrateLegacyRestrictsExistingLockFileMode(t *testing.T) {
 	}
 }
 
+func TestMigrateLegacyRejectsSymlinkLockWithoutTouchingTarget(t *testing.T) {
+	rootPath := t.TempDir()
+	target := filepath.Join(rootPath, "unrelated")
+	mustWriteFile(t, target, "unchanged")
+	if err := os.Chmod(target, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	lockPath := filepath.Join(rootPath, ".tpack-migrate.lock")
+	if err := os.Symlink(target, lockPath); err != nil {
+		t.Fatal(err)
+	}
+
+	err := plug.MigrateLegacy(context.Background(), mustRoot(t, rootPath), nil, &git.MockOriginReader{})
+	if err == nil {
+		t.Error("expected symlink lock error")
+	} else if !strings.Contains(err.Error(), lockPath) {
+		t.Errorf("error = %q, want lock path %q", err, lockPath)
+	}
+	assertFileContent(t, target, "unchanged")
+	info, statErr := os.Stat(target)
+	if statErr != nil {
+		t.Fatal(statErr)
+	}
+	if got := info.Mode().Perm(); got != 0o644 {
+		t.Errorf("target mode = %o, want 644", got)
+	}
+}
+
+func TestMigrateLegacyRejectsNonRegularLockWithoutTouchingIt(t *testing.T) {
+	rootPath := t.TempDir()
+	lockPath := filepath.Join(rootPath, ".tpack-migrate.lock")
+	mustMkdir(t, lockPath)
+	if err := os.Chmod(lockPath, 0o751); err != nil {
+		t.Fatal(err)
+	}
+	marker := filepath.Join(lockPath, "marker")
+	mustWriteFile(t, marker, "unchanged")
+
+	err := plug.MigrateLegacy(context.Background(), mustRoot(t, rootPath), nil, &git.MockOriginReader{})
+	if err == nil {
+		t.Error("expected non-regular lock error")
+	} else if !strings.Contains(err.Error(), lockPath) {
+		t.Errorf("error = %q, want lock path %q", err, lockPath)
+	}
+	assertFileContent(t, marker, "unchanged")
+	info, statErr := os.Stat(lockPath)
+	if statErr != nil {
+		t.Fatal(statErr)
+	}
+	if got := info.Mode().Perm(); got != 0o751 {
+		t.Errorf("lock directory mode = %o, want 751", got)
+	}
+}
+
 func TestMigrateLegacyLeavesLegacySymlinkUntouched(t *testing.T) {
 	rootPath := t.TempDir()
 	p := mustParsePlugin(t, "catppuccin/tmux")

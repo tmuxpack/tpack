@@ -31,7 +31,7 @@ func MigrateLegacy(ctx context.Context, root Root, plugins []Plugin, origins git
 	}
 
 	lockPath := filepath.Join(rootPath, ".tpack-migrate.lock")
-	lock, err := os.OpenFile(lockPath, os.O_CREATE|os.O_RDWR, 0o600)
+	lock, err := openMigrationLock(lockPath)
 	if err != nil {
 		return fmt.Errorf("open migration lock %s: %w", lockPath, err)
 	}
@@ -55,6 +55,74 @@ func MigrateLegacy(ctx context.Context, root Root, plugins []Plugin, origins git
 		}
 	}
 	return nil
+}
+
+func openMigrationLock(path string) (*os.File, error) {
+	for {
+		inspected, err := os.Lstat(path)
+		if errors.Is(err, os.ErrNotExist) {
+			lock, openErr := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_RDWR, 0o600)
+			if errors.Is(openErr, os.ErrExist) {
+				continue
+			}
+			if openErr != nil {
+				return nil, openErr
+			}
+			if validateErr := validateMigrationLock(lock, path, nil); validateErr != nil {
+				return nil, closeRejectedLock(lock, validateErr)
+			}
+			return lock, nil
+		}
+		if err != nil {
+			return nil, err
+		}
+		if !inspected.Mode().IsRegular() {
+			return nil, fmt.Errorf("lock path is not a regular file (mode %s)", inspected.Mode())
+		}
+
+		lock, openErr := os.OpenFile(path, os.O_RDWR, 0)
+		if errors.Is(openErr, os.ErrNotExist) {
+			continue
+		}
+		if openErr != nil {
+			return nil, openErr
+		}
+		if validateErr := validateMigrationLock(lock, path, inspected); validateErr != nil {
+			return nil, closeRejectedLock(lock, validateErr)
+		}
+		return lock, nil
+	}
+}
+
+func validateMigrationLock(lock *os.File, path string, inspected os.FileInfo) error {
+	opened, err := lock.Stat()
+	if err != nil {
+		return fmt.Errorf("inspect opened lock: %w", err)
+	}
+	if !opened.Mode().IsRegular() {
+		return fmt.Errorf("opened lock is not a regular file (mode %s)", opened.Mode())
+	}
+	current, err := os.Lstat(path)
+	if err != nil {
+		return fmt.Errorf("reinspect lock path: %w", err)
+	}
+	if !current.Mode().IsRegular() {
+		return fmt.Errorf("lock path is not a regular file (mode %s)", current.Mode())
+	}
+	if inspected != nil && !os.SameFile(inspected, opened) {
+		return errors.New("lock path changed while opening")
+	}
+	if !os.SameFile(opened, current) {
+		return errors.New("opened lock does not match lock path")
+	}
+	return nil
+}
+
+func closeRejectedLock(lock *os.File, validationErr error) error {
+	if err := lock.Close(); err != nil {
+		return errors.Join(validationErr, fmt.Errorf("close rejected lock: %w", err))
+	}
+	return validationErr
 }
 
 func migrateLegacyPlugin(ctx context.Context, root Root, plugin Plugin, origins git.OriginReader) error {
