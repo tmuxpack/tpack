@@ -2,6 +2,7 @@ package config_test
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -11,6 +12,14 @@ import (
 	"github.com/tmuxpack/tpack/internal/plug"
 	"github.com/tmuxpack/tpack/internal/tmux"
 )
+
+const wantMigrationWarning = "Plugin paths changed during migration; restart tmux and update scripts that use old plugin paths if needed."
+
+type originReaderFunc func(context.Context, string) (string, error)
+
+func (f originReaderFunc) Origin(ctx context.Context, dir string) (string, error) {
+	return f(ctx, dir)
+}
 
 func TestGatherPluginsDoesNotMigrate(t *testing.T) {
 	paths, legacyPath := migrationTestPaths(t, `set -g @plugin "catppuccin/tmux"`)
@@ -57,6 +66,87 @@ func TestLoadPluginsInvalidConfigDoesNotInspectOrigins(t *testing.T) {
 	}
 	if len(origins.Calls) != 0 {
 		t.Fatalf("origin calls = %v, want none", origins.Calls)
+	}
+}
+
+func TestLoadPluginsWarnsOnceAfterMultipleRenames(t *testing.T) {
+	paths, _ := migrationTestPaths(t, `set -g @plugin "catppuccin/tmux"
+set -g @plugin "tmux-plugins/tmux-sensible"`)
+	secondLegacy, err := paths.PluginPath.Child(plug.LegacyPluginName("tmux-plugins/tmux-sensible"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = os.MkdirAll(secondLegacy, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	origins := originReaderFunc(func(_ context.Context, dir string) (string, error) {
+		urls := map[string]string{
+			"tmux":          "git@github.com:catppuccin/tmux.git",
+			"tmux-sensible": "git@github.com:tmux-plugins/tmux-sensible.git",
+		}
+		return urls[filepath.Base(dir)], nil
+	})
+	var warnings []string
+
+	plugins, err := config.LoadPlugins(context.Background(), tmux.NewMockRunner(), config.RealFS{}, paths, origins,
+		func(message string) { warnings = append(warnings, message) })
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(plugins) != 2 {
+		t.Fatalf("plugins = %v, want two", plugins)
+	}
+	if len(warnings) != 1 || warnings[0] != wantMigrationWarning {
+		t.Fatalf("warnings = %q, want [%q]", warnings, wantMigrationWarning)
+	}
+}
+
+func TestLoadPluginsDoesNotWarnWithoutRename(t *testing.T) {
+	paths, legacyPath := migrationTestPaths(t, `set -g @plugin "catppuccin/tmux"`)
+	if err := os.RemoveAll(legacyPath); err != nil {
+		t.Fatal(err)
+	}
+	var warnings []string
+
+	_, err := config.LoadPlugins(context.Background(), tmux.NewMockRunner(), config.RealFS{}, paths,
+		&git.MockOriginReader{}, func(message string) { warnings = append(warnings, message) })
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(warnings) != 0 {
+		t.Fatalf("warnings = %q, want none", warnings)
+	}
+}
+
+func TestLoadPluginsWarnsWhenEarlierRenamePrecedesFailure(t *testing.T) {
+	paths, _ := migrationTestPaths(t, `set -g @plugin "catppuccin/tmux"
+set -g @plugin "tmux-plugins/tmux-sensible"`)
+	secondLegacy, err := paths.PluginPath.Child(plug.LegacyPluginName("tmux-plugins/tmux-sensible"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = os.MkdirAll(secondLegacy, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	wantErr := errors.New("origin failed")
+	origins := originReaderFunc(func(_ context.Context, dir string) (string, error) {
+		if filepath.Base(dir) == "tmux-sensible" {
+			return "", wantErr
+		}
+		return "git@github.com:catppuccin/tmux.git", nil
+	})
+	var warnings []string
+
+	plugins, err := config.LoadPlugins(context.Background(), tmux.NewMockRunner(), config.RealFS{}, paths, origins,
+		func(message string) { warnings = append(warnings, message) })
+	if plugins != nil {
+		t.Fatalf("plugins = %v, want nil", plugins)
+	}
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("error = %v, want wrapped %v", err, wantErr)
+	}
+	if len(warnings) != 1 || warnings[0] != wantMigrationWarning {
+		t.Fatalf("warnings = %q, want [%q]", warnings, wantMigrationWarning)
 	}
 }
 
