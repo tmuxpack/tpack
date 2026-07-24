@@ -43,6 +43,11 @@ type Fetcher interface {
 	IsOutdated(ctx context.Context, dir string) (bool, error)
 }
 
+// OriginReader reads a repository's configured origin URL.
+type OriginReader interface {
+	Origin(ctx context.Context, dir string) (string, error)
+}
+
 // Commit represents a single git commit.
 type Commit struct {
 	Hash    string

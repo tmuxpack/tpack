@@ -63,6 +63,21 @@ type MockFetcher struct {
 	Outdated map[string]bool
 }
 
+// MockOriginReader returns a configurable origin and records directories.
+type MockOriginReader struct {
+	mu    sync.Mutex
+	Calls []string
+	URL   string
+	Err   error
+}
+
+func (m *MockOriginReader) Origin(_ context.Context, dir string) (string, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.Calls = append(m.Calls, dir)
+	return m.URL, m.Err
+}
+
 func NewMockFetcher() *MockFetcher {
 	return &MockFetcher{Outdated: make(map[string]bool)}
 }
