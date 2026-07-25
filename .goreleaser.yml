@@ -73,7 +73,7 @@ nfpms:
     bindir: /usr/bin
     section: utils
     priority: optional
-    dependencies:
+    suggests:
       - tmux
 
   - id: tpack-termux
