@@ -4,8 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/tmuxpack/tpack/internal/config"
 	"github.com/tmuxpack/tpack/internal/git"
 	"github.com/tmuxpack/tpack/internal/tmux"
@@ -231,10 +234,15 @@ func TestCleanPluginCmd_NonExistentDir(t *testing.T) {
 }
 
 func TestUninstallPluginCmd_Success(t *testing.T) {
-	dir := t.TempDir()
+	rootDir := t.TempDir()
+	dir := filepath.Join(rootDir, "test-plugin")
+	if err := os.Mkdir(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
 	op := pendingOp{
 		Name: "test-plugin",
 		Path: dir,
+		Root: mustRoot(t, rootDir),
 	}
 
 	cmd := uninstallPluginCmd(op)
@@ -253,10 +261,15 @@ func TestUninstallPluginCmd_Success(t *testing.T) {
 }
 
 func TestRemovePluginDirCmd_Success(t *testing.T) {
-	dir := t.TempDir()
+	rootDir := t.TempDir()
+	dir := filepath.Join(rootDir, "test-plugin")
+	if err := os.Mkdir(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
 	op := pendingOp{
 		Name: "test-plugin",
 		Path: dir,
+		Root: mustRoot(t, rootDir),
 	}
 
 	cmd := removePluginDirCmd(op)
@@ -275,9 +288,11 @@ func TestRemovePluginDirCmd_Success(t *testing.T) {
 }
 
 func TestRemovePluginDirCmd_NonExistentDir(t *testing.T) {
+	rootDir := t.TempDir()
 	op := pendingOp{
 		Name: "ghost-plugin",
-		Path: "/tmp/nonexistent-tpack-remove-test/",
+		Path: filepath.Join(rootDir, "ghost-plugin"),
+		Root: mustRoot(t, rootDir),
 	}
 
 	cmd := removePluginDirCmd(op)
@@ -354,6 +369,99 @@ func TestBuildUninstallOps_SkipsNotInstalled(t *testing.T) {
 	ops := m.buildUninstallOps()
 	if len(ops) != 0 {
 		t.Errorf("expected 0 uninstall ops for not-installed plugin, got %d", len(ops))
+	}
+}
+
+func TestDestructiveOpsRejectRootSymlinkBeforeScheduling(t *testing.T) {
+	rootLink := filepath.Join(t.TempDir(), "plugins")
+	if err := os.Symlink(string(filepath.Separator), rootLink); err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		name  string
+		build func(*Model) []pendingOp
+	}{
+		{name: "remove", build: (*Model).buildRemoveOps},
+		{name: "uninstall", build: (*Model).buildUninstallOps},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := newTestModel(t, nil)
+			m.cfg.PluginPath = mustRoot(t, rootLink)
+			m.plugins = []PluginItem{{Name: "repo", Status: StatusInstalled}}
+
+			if ops := tt.build(&m); len(ops) != 0 {
+				t.Fatalf("scheduled %d destructive operations through root symlink", len(ops))
+			}
+			if m.plugins[0].Status != StatusLoadFailed {
+				t.Fatalf("status = %v, want %v", m.plugins[0].Status, StatusLoadFailed)
+			}
+		})
+	}
+}
+
+func TestDestructiveOpsResolveRootImmediatelyBeforeRemoval(t *testing.T) {
+	tests := []struct {
+		name  string
+		build func(*Model) []pendingOp
+		run   func(pendingOp) tea.Cmd
+		ok    func(tea.Msg) bool
+	}{
+		{
+			name:  "remove",
+			build: (*Model).buildRemoveOps,
+			run:   removePluginDirCmd,
+			ok: func(msg tea.Msg) bool {
+				result, isResult := msg.(pluginRemoveResultMsg)
+				return isResult && result.Success
+			},
+		},
+		{
+			name:  "uninstall",
+			build: (*Model).buildUninstallOps,
+			run:   uninstallPluginCmd,
+			ok: func(msg tea.Msg) bool {
+				result, isResult := msg.(pluginUninstallResultMsg)
+				return isResult && result.Success
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			base := t.TempDir()
+			pluginRoot := filepath.Join(base, "real-plugins")
+			pluginDir := filepath.Join(pluginRoot, "repo")
+			if err := os.MkdirAll(pluginDir, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			marker := filepath.Join(pluginDir, "keep")
+			if err := os.WriteFile(marker, []byte("safe"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			rootLink := filepath.Join(base, "plugins")
+			if err := os.Symlink(pluginRoot, rootLink); err != nil {
+				t.Fatal(err)
+			}
+
+			m := newTestModel(t, nil)
+			m.cfg.PluginPath = mustRoot(t, rootLink)
+			m.plugins = []PluginItem{{Name: "repo", Status: StatusInstalled}}
+			ops := tt.build(&m)
+			if len(ops) != 1 {
+				t.Fatalf("operations = %d, want 1", len(ops))
+			}
+			if err := os.Remove(rootLink); err != nil {
+				t.Fatal(err)
+			}
+
+			if msg := tt.run(ops[0])(); tt.ok(msg) {
+				t.Fatalf("destructive operation succeeded after plugin root became unresolved: %#v", msg)
+			}
+			if _, err := os.Stat(marker); err != nil {
+				t.Fatalf("fixture changed after root resolution failure: %v", err)
+			}
+		})
 	}
 }
 
@@ -478,7 +586,7 @@ func TestBuildAutoUpdateOps_NoneInstalled(t *testing.T) {
 
 func TestDispatchNext_WithRunner_SourcesOnInstall(t *testing.T) {
 	runner := tmux.NewMockRunner()
-	cfg := &config.Config{PluginPath: t.TempDir() + "/", TmuxConf: "/tmp/test.conf"}
+	cfg := &config.Config{PluginPath: mustRoot(t, t.TempDir()), TmuxConf: "/tmp/test.conf"}
 	deps := Deps{
 		Cloner:    git.NewMockCloner(),
 		Puller:    git.NewMockPuller(),
@@ -515,7 +623,7 @@ func TestDispatchNext_WithRunner_SourcesOnInstall(t *testing.T) {
 
 func TestDispatchNext_WithRunner_SourcesOnUpdate(t *testing.T) {
 	runner := tmux.NewMockRunner()
-	cfg := &config.Config{PluginPath: t.TempDir() + "/", TmuxConf: "/tmp/test.conf"}
+	cfg := &config.Config{PluginPath: mustRoot(t, t.TempDir()), TmuxConf: "/tmp/test.conf"}
 	deps := Deps{
 		Cloner:    git.NewMockCloner(),
 		Puller:    git.NewMockPuller(),
@@ -535,7 +643,7 @@ func TestDispatchNext_WithRunner_SourcesOnUpdate(t *testing.T) {
 
 func TestDispatchNext_WithRunner_NoSourceOnClean(t *testing.T) {
 	runner := tmux.NewMockRunner()
-	cfg := &config.Config{PluginPath: t.TempDir() + "/", TmuxConf: "/tmp/test.conf"}
+	cfg := &config.Config{PluginPath: mustRoot(t, t.TempDir()), TmuxConf: "/tmp/test.conf"}
 	deps := Deps{
 		Cloner:    git.NewMockCloner(),
 		Puller:    git.NewMockPuller(),

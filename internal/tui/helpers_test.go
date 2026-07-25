@@ -9,6 +9,15 @@ import (
 	"github.com/tmuxpack/tpack/internal/plug"
 )
 
+func mustRoot(t *testing.T, path string) plug.Root {
+	t.Helper()
+	root, err := plug.NewRoot("test", path, "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return root
+}
+
 func TestBuildPluginItems_AllNotInstalled(t *testing.T) {
 	pluginPath := t.TempDir() + "/"
 	validator := git.NewMockValidator()
@@ -17,7 +26,7 @@ func TestBuildPluginItems_AllNotInstalled(t *testing.T) {
 		{Name: "tmux-yank", Spec: "tmux-plugins/tmux-yank"},
 	}
 
-	items := buildPluginItems(plugins, pluginPath, validator, nil)
+	items := buildPluginItems(plugins, mustRoot(t, pluginPath), validator, nil)
 
 	if len(items) != 2 {
 		t.Fatalf("expected 2 items, got %d", len(items))
@@ -45,7 +54,7 @@ func TestBuildPluginItems_Installed(t *testing.T) {
 		{Name: "tmux-sensible", Spec: "tmux-plugins/tmux-sensible"},
 	}
 
-	items := buildPluginItems(plugins, pluginPath, validator, nil)
+	items := buildPluginItems(plugins, mustRoot(t, pluginPath), validator, nil)
 
 	if len(items) != 1 {
 		t.Fatalf("expected 1 item, got %d", len(items))
@@ -62,7 +71,7 @@ func TestBuildPluginItems_PreservesFields(t *testing.T) {
 		{Name: "tmux-yank", Spec: "tmux-plugins/tmux-yank", Branch: "main"},
 	}
 
-	items := buildPluginItems(plugins, pluginPath, validator, nil)
+	items := buildPluginItems(plugins, mustRoot(t, pluginPath), validator, nil)
 
 	if items[0].Name != "tmux-yank" {
 		t.Errorf("expected name tmux-yank, got %s", items[0].Name)
@@ -84,7 +93,10 @@ func TestFindOrphans_NoOrphans(t *testing.T) {
 	// Create only the listed plugin directory.
 	os.MkdirAll(filepath.Join(pluginPath, "tmux-sensible"), 0o755)
 
-	orphans := findOrphans(plugins, pluginPath)
+	orphans, err := findOrphans(plugins, mustRoot(t, pluginPath))
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(orphans) != 0 {
 		t.Errorf("expected 0 orphans, got %d", len(orphans))
 	}
@@ -100,7 +112,10 @@ func TestFindOrphans_WithOrphans(t *testing.T) {
 	os.MkdirAll(filepath.Join(pluginPath, "tmux-sensible"), 0o755)
 	os.MkdirAll(filepath.Join(pluginPath, "tmux-old"), 0o755)
 
-	orphans := findOrphans(plugins, pluginPath)
+	orphans, err := findOrphans(plugins, mustRoot(t, pluginPath))
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(orphans) != 1 {
 		t.Fatalf("expected 1 orphan, got %d", len(orphans))
 	}
@@ -111,13 +126,18 @@ func TestFindOrphans_WithOrphans(t *testing.T) {
 
 func TestFindOrphans_SkipsTpm(t *testing.T) {
 	pluginPath := t.TempDir() + "/"
-	plugins := []plug.Plugin{}
+	plugins := []plug.Plugin{
+		{Name: "declared", Spec: "user/declared"},
+	}
 
 	// tpm directory should always be skipped.
 	os.MkdirAll(filepath.Join(pluginPath, "tpm"), 0o755)
 	os.MkdirAll(filepath.Join(pluginPath, "orphan"), 0o755)
 
-	orphans := findOrphans(plugins, pluginPath)
+	orphans, err := findOrphans(plugins, mustRoot(t, pluginPath))
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(orphans) != 1 {
 		t.Fatalf("expected 1 orphan (tpm skipped), got %d", len(orphans))
 	}
@@ -132,9 +152,43 @@ func TestFindOrphans_EmptyDir(t *testing.T) {
 		{Name: "test", Spec: "user/test"},
 	}
 
-	orphans := findOrphans(plugins, pluginPath)
+	orphans, err := findOrphans(plugins, mustRoot(t, pluginPath))
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(orphans) != 0 {
 		t.Errorf("expected 0 orphans for empty dir, got %d", len(orphans))
+	}
+}
+
+func TestFindOrphansResolvesRootBeforeEnumeration(t *testing.T) {
+	realTarget := t.TempDir()
+	target := filepath.Join(t.TempDir(), "target")
+	if err := os.Symlink(realTarget, target); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(filepath.Join(target, "orphan"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(t.TempDir(), "plugins")
+	if err := os.Symlink(target, link); err != nil {
+		t.Fatal(err)
+	}
+
+	orphans, err := findOrphans(nil, mustRoot(t, link))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(orphans) != 1 {
+		t.Fatalf("orphans = %v, want one", orphans)
+	}
+	resolvedTarget, err := filepath.EvalSymlinks(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := filepath.Join(resolvedTarget, "orphan")
+	if orphans[0].Path != want {
+		t.Errorf("orphan path = %q, want resolved path %q", orphans[0].Path, want)
 	}
 }
 
@@ -151,7 +205,7 @@ func TestBuildPluginItems_LoadFailed(t *testing.T) {
 	plugins := []plug.Plugin{{Name: "tmux-statusline", Spec: "x/tmux-statusline"}}
 	loadErrors := map[string]string{"tmux-statusline": "exec format error"}
 
-	items := buildPluginItems(plugins, pluginPath, validator, loadErrors)
+	items := buildPluginItems(plugins, mustRoot(t, pluginPath), validator, loadErrors)
 
 	if items[0].Status != StatusLoadFailed {
 		t.Errorf("expected StatusLoadFailed, got %s", items[0].Status)
@@ -168,7 +222,7 @@ func TestBuildPluginItems_LoadErrorIgnoredWhenNotInstalled(t *testing.T) {
 	plugins := []plug.Plugin{{Name: "ghost", Spec: "x/ghost"}}
 	loadErrors := map[string]string{"ghost": "stale error"}
 
-	items := buildPluginItems(plugins, pluginPath, validator, loadErrors)
+	items := buildPluginItems(plugins, mustRoot(t, pluginPath), validator, loadErrors)
 
 	if items[0].Status != StatusNotInstalled {
 		t.Errorf("expected StatusNotInstalled for uninstalled plugin, got %s", items[0].Status)

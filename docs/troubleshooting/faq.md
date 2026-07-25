@@ -10,11 +10,11 @@ Minimum: tmux 1.9. For TUI popup support, tmux 3.2 or later is recommended. On o
 
 ## Where are plugins installed?
 
-By default, plugins are installed to `~/.tmux/plugins/`. This can be changed — see [Plugin Directory](../configuration/plugin-directory.md).
+Existing installs use `~/.tmux/plugins/` or `$XDG_CONFIG_HOME/tmux/plugins/`; fresh installs default to `~/.local/share/tmux/plugins/`. This can be changed with the `@tpack-plugin-path` option — see [Plugin Directory](../configuration/plugin-directory.md).
 
 ## How do I check which plugins are installed?
 
-Open the TUI with ++prefix+shift+t++ to see all installed plugins. Or list the plugins directory: `ls ~/.tmux/plugins/`.
+Open the TUI with ++prefix+shift+t++ to see all installed plugins. Or list your plugins directory (see [Plugin Directory](../configuration/plugin-directory.md) for where it is on your setup).
 
 ## Does tpack work with existing TPM plugins?
 
@@ -27,6 +27,18 @@ Use the `#branch` suffix: `set -g @plugin 'user/repo#branch'`
 ## How do I discover new plugins?
 
 Open the TUI with ++prefix+shift+t++ and press ++b++ to browse a curated plugin registry. You can search by name with ++slash++ and filter by category with ++tab++. Press ++i++ on any plugin to install it — the entry is added to your `tmux.conf` automatically.
+
+## Why does clean remove everything when I removed all @plugin lines?
+
+If the complete configuration is readable and declares zero `@plugin` lines, `clean` removes every non-protected installed plugin directory. The `tpm` and `tpack` directories remain protected. This matches TPM's original behavior: a readable, empty declared-plugin list means "I want nothing installed," not a missing config.
+
+A missing or unreadable `tmux.conf`, or an unreadable required source in its source graph, is a different, explicit case: tpack aborts before cleanup and reports a config error instead of guessing.
+
+## What happens when a sourced configuration file is missing?
+
+A missing required `source` or `source-file` aborts plugin operations. This prevents an incomplete plugin declaration graph from being mistaken for an intentionally empty configuration.
+
+Use `source-file -q` for intentionally optional configuration. If that file is missing or unreadable, tpack continues without it; a non-quiet `source` or `source-file` remains required.
 
 ## How do I update tpack itself?
 

@@ -30,7 +30,7 @@ func TestInstallNewPlugin(t *testing.T) {
 	validator := git.NewMockValidator()
 	output := ui.NewMockOutput()
 
-	mgr := manager.New(pluginDir, cloner, puller, validator, output)
+	mgr := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, output)
 
 	plugins := []plug.Plugin{
 		{Raw: "tmux-plugins/tmux-sensible", Name: "tmux-sensible", Spec: "tmux-plugins/tmux-sensible"},
@@ -68,7 +68,7 @@ func TestInstallAlreadyInstalled(t *testing.T) {
 	validator.Valid[pluginPath] = true
 	output := ui.NewMockOutput()
 
-	mgr := manager.New(pluginDir, cloner, puller, validator, output)
+	mgr := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, output)
 
 	plugins := []plug.Plugin{
 		{Raw: "tmux-plugins/tmux-sensible", Name: "tmux-sensible", Spec: "tmux-plugins/tmux-sensible"},
@@ -103,7 +103,7 @@ func TestInstallCloneFailsWithFallback(t *testing.T) {
 	validator := git.NewMockValidator()
 	output := ui.NewMockOutput()
 
-	mgr := manager.New(pluginDir, cloner, puller, validator, output)
+	mgr := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, output)
 
 	plugins := []plug.Plugin{
 		{Raw: "user/plugin", Name: "plugin", Spec: "user/plugin"},
@@ -135,7 +135,7 @@ func TestInstallBothClonesFail(t *testing.T) {
 	validator := git.NewMockValidator()
 	output := ui.NewMockOutput()
 
-	mgr := manager.New(pluginDir, cloner, puller, validator, output)
+	mgr := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, output)
 
 	plugins := []plug.Plugin{
 		{Raw: "user/plugin", Name: "plugin", Spec: "user/plugin"},
@@ -161,7 +161,7 @@ func TestInstallWithBranch(t *testing.T) {
 	validator := git.NewMockValidator()
 	output := ui.NewMockOutput()
 
-	mgr := manager.New(pluginDir, cloner, puller, validator, output)
+	mgr := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, output)
 
 	plugins := []plug.Plugin{
 		{Raw: "user/repo", Name: "repo", Spec: "user/repo", Branch: "develop"},

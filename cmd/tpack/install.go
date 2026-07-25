@@ -2,15 +2,15 @@ package main
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/tmuxpack/tpack/internal/config"
 	gitcli "github.com/tmuxpack/tpack/internal/git/cli"
 	"github.com/tmuxpack/tpack/internal/manager"
+	"github.com/tmuxpack/tpack/internal/plug"
 	"github.com/tmuxpack/tpack/internal/tmux"
 	"github.com/tmuxpack/tpack/internal/ui"
 )
@@ -20,15 +20,13 @@ var installCmd = &cobra.Command{
 	Short: "Install all plugins declared in tmux.conf",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		tmuxEcho, _ := cmd.Flags().GetBool("tmux-echo")
-
 		runner := tmux.NewRealRunner()
+		output := newCommandOutput(tmuxEcho, runner)
 		cfg, err := config.Resolve(runner)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "tpack: config error:", err)
-			return errSilent
+			output.Err("config: " + err.Error())
+			return outputResult(output)
 		}
-
-		output := newOutput(tmuxEcho, runner)
 
 		if tmuxEcho {
 			_ = runner.SourceFile(cfg.TmuxConf)
@@ -36,7 +34,11 @@ var installCmd = &cobra.Command{
 
 		mgr := newManagerDeps(cfg.PluginPath, output)
 
-		plugins := config.GatherPlugins(runner, config.RealFS{}, cfg.TmuxConf, cfg.Home, xdgConfigHome(cfg.Home))
+		plugins, err := config.GatherPlugins(runner, config.RealFS{}, cfg.Paths, output.Warn)
+		if err != nil {
+			output.Err("config: " + err.Error())
+			return outputResult(output)
+		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 		defer cancel()
@@ -47,10 +49,7 @@ var installCmd = &cobra.Command{
 			output.EndMessage()
 		}
 
-		if output.HasFailed() {
-			return errSilent
-		}
-		return nil
+		return outputResult(output)
 	},
 }
 
@@ -58,28 +57,33 @@ func init() {
 	installCmd.Flags().Bool("tmux-echo", false, "output via tmux display-message")
 }
 
-func newOutput(tmuxEcho bool, runner tmux.Runner) ui.Output {
+func newCommandOutput(tmuxEcho bool, runner tmux.Runner) ui.Output {
 	if tmuxEcho {
-		return ui.NewTmuxOutput(runner)
+		return ui.NewReporter(ui.NewTmuxSink(runner))
 	}
-	return ui.NewShellOutput()
+	return ui.NewReporter(ui.NewShellSink(os.Stdout, os.Stderr))
+}
+
+func outputResult(output ui.Output) error {
+	result := output.Result()
+	if result == nil {
+		return nil
+	}
+	var transport *ui.TransportError
+	if errors.As(result, &transport) {
+		return result
+	}
+	return errSilent
 }
 
 func exitCode(output ui.Output) int {
-	if output.HasFailed() {
+	if output.Result() != nil {
 		return 1
 	}
 	return 0
 }
 
-func xdgConfigHome(home string) string {
-	if v := os.Getenv("XDG_CONFIG_HOME"); v != "" {
-		return v
-	}
-	return filepath.Join(home, ".config")
-}
-
-func newManagerDeps(pluginPath string, output ui.Output) *manager.Manager {
+func newManagerDeps(pluginPath plug.Root, output ui.Output) *manager.Manager {
 	return manager.New(pluginPath,
 		gitcli.NewCloner(),
 		gitcli.NewPuller(),
@@ -96,7 +100,10 @@ func completePluginNames(cmd *cobra.Command, args []string, toComplete string) (
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
 
-	plugins := config.GatherPlugins(runner, config.RealFS{}, cfg.TmuxConf, cfg.Home, xdgConfigHome(cfg.Home))
+	plugins, err := config.GatherPlugins(runner, config.RealFS{}, cfg.Paths, nil)
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
 
 	var names []string
 	for _, p := range plugins {

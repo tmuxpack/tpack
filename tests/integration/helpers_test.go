@@ -5,6 +5,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"testing"
+
+	"github.com/tmuxpack/tpack/internal/plug"
 )
 
 const tmuxExamplePlugin = "tmux-plugins/tmux-example-plugin"
@@ -14,6 +16,15 @@ func skipIfNoGit(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git not found, skipping integration test")
 	}
+}
+
+func mustRoot(t *testing.T, path string) plug.Root {
+	t.Helper()
+	root, err := plug.NewRoot("test", path, "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return root
 }
 
 func setupIntegrationDir(t *testing.T) (pluginDir, confFile string) {

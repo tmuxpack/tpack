@@ -1,6 +1,6 @@
 # Auto-download tpack binary from GitHub Releases.
 # Usage: source this file, then call _download_tpack <tpm_root_dir>
-# Returns the path to the downloaded binary on success, empty on failure.
+# Returns 0 on success (binary installed at <tpm_root_dir>/tpack), non-zero on failure.
 
 _TPACK_GITHUB_REPO="tmuxpack/tpack"
 
@@ -9,7 +9,7 @@ _download_tpack() {
 
 	# Opt-out via environment variable (current or legacy)
 	if [ "${TPACK_AUTO_DOWNLOAD:-}" = "0" ] || [ "${TPM_AUTO_DOWNLOAD:-}" = "0" ]; then
-		return
+		return 1
 	fi
 
 	# Detect OS
@@ -18,7 +18,7 @@ _download_tpack() {
 		Linux)  os="linux" ;;
 		Darwin) os="darwin" ;;
 		FreeBSD) os="freebsd" ;;
-		*) return ;;
+		*) return 1 ;;
 	esac
 
 	# Detect architecture
@@ -26,7 +26,7 @@ _download_tpack() {
 	case "$(uname -m)" in
 		x86_64)  arch="amd64" ;;
 		aarch64|arm64) arch="arm64" ;;
-		*) return ;;
+		*) return 1 ;;
 	esac
 
 	# Determine download tool
@@ -36,7 +36,7 @@ _download_tpack() {
 	elif command -v wget >/dev/null 2>&1; then
 		download_cmd="wget"
 	else
-		return
+		return 1
 	fi
 
 	# Find latest release version via GitHub redirect
@@ -50,40 +50,39 @@ _download_tpack() {
 	fi
 
 	if [ -z "$version" ]; then
-		return
+		return 1
 	fi
 
 	# Download archive to temp file
 	local archive_name="tpack_${version}_${os}_${arch}.tar.gz"
 	local url="https://github.com/${_TPACK_GITHUB_REPO}/releases/download/v${version}/${archive_name}"
 	local tmp_dir
-	tmp_dir=$(mktemp -d 2>/dev/null) || return
+	tmp_dir=$(mktemp -d 2>/dev/null) || return 1
 	local tmp_archive="${tmp_dir}/${archive_name}"
 
 	if [ "$download_cmd" = "curl" ]; then
-		curl -sL -o "$tmp_archive" "$url" 2>/dev/null || { rm -rf "$tmp_dir"; return; }
+		curl -sL -o "$tmp_archive" "$url" 2>/dev/null || { rm -rf "$tmp_dir"; return 1; }
 	else
-		wget -q -O "$tmp_archive" "$url" 2>/dev/null || { rm -rf "$tmp_dir"; return; }
+		wget -q -O "$tmp_archive" "$url" 2>/dev/null || { rm -rf "$tmp_dir"; return 1; }
 	fi
 
 	# Verify we got a real file (not an HTML error page)
 	if [ ! -s "$tmp_archive" ]; then
 		rm -rf "$tmp_dir"
-		return
+		return 1
 	fi
 
 	# Extract tpack binary
-	tar -xzf "$tmp_archive" -C "$tmp_dir" tpack 2>/dev/null || { rm -rf "$tmp_dir"; return; }
+	tar -xzf "$tmp_archive" -C "$tmp_dir" tpack 2>/dev/null || { rm -rf "$tmp_dir"; return 1; }
 
 	if [ ! -f "$tmp_dir/tpack" ]; then
 		rm -rf "$tmp_dir"
-		return
+		return 1
 	fi
 
 	# Move binary into place
-	mv "$tmp_dir/tpack" "$root_dir/tpack" 2>/dev/null || { rm -rf "$tmp_dir"; return; }
+	mv "$tmp_dir/tpack" "$root_dir/tpack" 2>/dev/null || { rm -rf "$tmp_dir"; return 1; }
 	chmod +x "$root_dir/tpack" 2>/dev/null
 	rm -rf "$tmp_dir"
-
-	echo "$root_dir/tpack"
+	return 0
 }

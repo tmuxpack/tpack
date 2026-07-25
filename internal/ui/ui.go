@@ -16,6 +16,6 @@ type Output interface {
 	// EndMessage displays the completion message with instructions.
 	EndMessage()
 
-	// HasFailed returns true if any Err calls were made.
-	HasFailed() bool
+	// Result returns semantic and output delivery failures recorded so far.
+	Result() error
 }

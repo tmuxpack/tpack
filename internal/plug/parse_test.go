@@ -1,6 +1,7 @@
 package plug_test
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/tmuxpack/tpack/internal/plug"
@@ -110,59 +111,23 @@ set -g @plugin "tmux-plugins/tmux-yank"`,
 	}
 }
 
-func TestExtractSourcedFiles(t *testing.T) {
+func TestExtractSourceDirectives(t *testing.T) {
 	tests := []struct {
 		name    string
 		content string
-		want    []string
+		want    []plug.SourceDirective
 	}{
-		{
-			name:    "source with path",
-			content: `source ~/.tmux/theme.conf`,
-			want:    []string{"~/.tmux/theme.conf"},
-		},
-		{
-			name:    "source-file with path",
-			content: `source-file ~/.tmux/theme.conf`,
-			want:    []string{"~/.tmux/theme.conf"},
-		},
-		{
-			name:    "source-file with -q flag",
-			content: `source-file -q ~/.tmux/local.conf`,
-			want:    []string{"~/.tmux/local.conf"},
-		},
-		{
-			name:    "quoted path",
-			content: `source-file "~/.tmux/theme.conf"`,
-			want:    []string{"~/.tmux/theme.conf"},
-		},
-		{
-			name:    "single quoted path",
-			content: `source-file '~/.tmux/theme.conf'`,
-			want:    []string{"~/.tmux/theme.conf"},
-		},
-		{
-			name:    "comment ignored",
-			content: `# source ~/.tmux/theme.conf`,
-			want:    nil,
-		},
-		{
-			name:    "unquoted path with inline comment",
-			content: `source ~/.tmux/theme.conf # my theme`,
-			want:    []string{"~/.tmux/theme.conf"},
-		},
+		{name: "source required", content: `source ~/.tmux/theme.conf`, want: []plug.SourceDirective{{Path: "~/.tmux/theme.conf"}}},
+		{name: "source-file required", content: `source-file ~/.tmux/theme.conf`, want: []plug.SourceDirective{{Path: "~/.tmux/theme.conf"}}},
+		{name: "quiet optional", content: `source-file -q ~/.tmux/local.conf`, want: []plug.SourceDirective{{Path: "~/.tmux/local.conf", Optional: true}}},
+		{name: "quoted optional", content: `source-file -q "~/.tmux/local.conf"`, want: []plug.SourceDirective{{Path: "~/.tmux/local.conf", Optional: true}}},
+		{name: "comment ignored", content: `# source ~/.tmux/theme.conf`},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := plug.ExtractSourcedFiles(tt.content)
-			if len(got) != len(tt.want) {
-				t.Fatalf("got %d files %v, want %d %v", len(got), got, len(tt.want), tt.want)
-			}
-			for i := range got {
-				if got[i] != tt.want[i] {
-					t.Errorf("file[%d] = %q, want %q", i, got[i], tt.want[i])
-				}
+			if got := plug.ExtractSourceDirectives(tt.content); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("directives = %#v, want %#v", got, tt.want)
 			}
 		})
 	}

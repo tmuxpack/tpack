@@ -58,11 +58,12 @@ type sourceCompleteMsg struct{ Err error }
 
 // Model is the main Bubble Tea model for the TUI.
 type Model struct {
-	cfg     *config.Config
-	plugins []PluginItem
-	orphans []OrphanItem
-	deps    Deps
-	theme   Theme
+	cfg       *config.Config
+	plugins   []PluginItem
+	orphans   []OrphanItem
+	orphanErr error
+	deps      Deps
+	theme     Theme
 
 	screen    Screen
 	operation Operation
@@ -118,8 +119,8 @@ type Model struct {
 
 // NewModel creates a new Model from the resolved config and gathered plugins.
 func NewModel(cfg *config.Config, plugins []plug.Plugin, deps Deps, opts ...ModelOption) Model {
-	items := buildPluginItems(plugins, cfg.PluginPath, deps.Validator, loadErrorMap(state.LoadLoadErrors(cfg.StatePath)))
-	orphans := findOrphans(plugins, cfg.PluginPath)
+	items := buildPluginItems(plugins, cfg.PluginPath, deps.Validator, loadErrorMap(state.LoadLoadErrors(cfg.StatePath, nil)))
+	orphans, orphanErr := findOrphans(plugins, cfg.PluginPath)
 
 	s := spinner.New()
 	s.Spinner = spinner.Dot
@@ -128,6 +129,7 @@ func NewModel(cfg *config.Config, plugins []plug.Plugin, deps Deps, opts ...Mode
 		cfg:          cfg,
 		plugins:      items,
 		orphans:      orphans,
+		orphanErr:    orphanErr,
 		deps:         deps,
 		theme:        DefaultTheme(),
 		screen:       ScreenList,
@@ -158,7 +160,12 @@ func (m Model) Init() tea.Cmd {
 	cmds = append(cmds, tea.RequestBackgroundColor)
 	for _, p := range m.plugins {
 		if p.Status == StatusChecking {
-			dir := plug.PluginPath(p.Name, m.cfg.PluginPath)
+			dir, err := m.cfg.PluginPath.Child(p.Name)
+			if err != nil {
+				name := p.Name
+				cmds = append(cmds, func() tea.Msg { return pluginCheckResultMsg{Name: name, Err: err} })
+				continue
+			}
 			cmds = append(cmds, checkPluginCmd(m.deps.Fetcher, p.Name, dir))
 		}
 	}
@@ -457,6 +464,19 @@ func (m *Model) initProgress(op Operation, ops []pendingOp) tea.Cmd {
 	return m.dispatchNext()
 }
 
+func (m *Model) initFailedOperation(op Operation, name, message string) {
+	m.screen = ScreenProgress
+	m.operation = op
+	m.pendingItems = nil
+	m.totalItems = 1
+	m.completedItems = 1
+	m.results = []ResultItem{{Name: name, Success: false, Message: message}}
+	m.processing = false
+	m.inFlight = 0
+	m.inFlightNames = nil
+	m.resultScroll.reset()
+}
+
 // startOperation transitions to the progress screen and begins an operation.
 func (m Model) startOperation(op Operation) (tea.Model, tea.Cmd) {
 	var ops []pendingOp
@@ -479,6 +499,10 @@ func (m Model) startOperation(op Operation) (tea.Model, tea.Cmd) {
 	case OpUpdate:
 		ops = m.buildUpdateOps()
 	case OpClean:
+		if m.orphanErr != nil {
+			m.initFailedOperation(OpClean, "plugin directory", m.orphanErr.Error())
+			return m, nil
+		}
 		ops = m.buildCleanOps()
 	case OpUninstall:
 		ops = m.buildUninstallOps()
@@ -504,6 +528,10 @@ func (m Model) startAutoOperation() (tea.Model, tea.Cmd) {
 	case OpUpdate:
 		ops = m.buildAutoUpdateOps()
 	case OpClean:
+		if m.orphanErr != nil {
+			m.initFailedOperation(OpClean, "plugin directory", m.orphanErr.Error())
+			return m, nil
+		}
 		ops = m.buildCleanOps()
 	}
 

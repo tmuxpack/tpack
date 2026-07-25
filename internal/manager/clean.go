@@ -6,8 +6,7 @@ import (
 	"github.com/tmuxpack/tpack/internal/plug"
 )
 
-func (m *Manager) cleanPlugins(plugins []plug.Plugin) {
-	orphans := plug.FindOrphans(plugins, m.pluginPath)
+func (m *Manager) removeOrphans(orphans []plug.Orphan) {
 	for _, o := range orphans {
 		m.output.Ok("Removing \"" + o.Name + "\"")
 		if err := os.RemoveAll(o.Path); err != nil {

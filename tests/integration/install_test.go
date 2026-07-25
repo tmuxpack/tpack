@@ -2,6 +2,7 @@ package integration_test
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -11,6 +12,7 @@ import (
 	gitcli "github.com/tmuxpack/tpack/internal/git/cli"
 	"github.com/tmuxpack/tpack/internal/manager"
 	"github.com/tmuxpack/tpack/internal/plug"
+	"github.com/tmuxpack/tpack/internal/tmux"
 	"github.com/tmuxpack/tpack/internal/ui"
 )
 
@@ -27,10 +29,10 @@ func TestInstallRealPlugin(t *testing.T) {
 	validator := gitcli.NewValidator()
 	output := ui.NewMockOutput()
 
-	mgr := manager.New(pluginDir, cloner, puller, validator, output)
+	mgr := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, output)
 
 	plugins := []plug.Plugin{
-		plug.ParseSpec(tmuxExamplePlugin),
+		plug.ParseSpec(tmuxExamplePlugin, nil),
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
@@ -43,13 +45,13 @@ func TestInstallRealPlugin(t *testing.T) {
 		t.Errorf("plugin directory not created: %v", err)
 	}
 
-	if output.HasFailed() {
+	if output.Result() != nil {
 		t.Errorf("install reported failure: %v", output.ErrMsgs)
 	}
 
 	// Install again should say "already installed".
 	output2 := ui.NewMockOutput()
-	mgr2 := manager.New(pluginDir, cloner, puller, validator, output2)
+	mgr2 := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, output2)
 	mgr2.Install(ctx, plugins)
 
 	found := false
@@ -76,11 +78,11 @@ func TestInstallMultiplePlugins(t *testing.T) {
 	validator := gitcli.NewValidator()
 	output := ui.NewMockOutput()
 
-	mgr := manager.New(pluginDir, cloner, puller, validator, output)
+	mgr := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, output)
 
 	plugins := []plug.Plugin{
-		plug.ParseSpec(tmuxExamplePlugin),
-		plug.ParseSpec("tmux-plugins/tmux-sensible"),
+		plug.ParseSpec(tmuxExamplePlugin, nil),
+		plug.ParseSpec("tmux-plugins/tmux-sensible", nil),
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
@@ -108,23 +110,23 @@ func TestInstallNonexistentPlugin(t *testing.T) {
 	validator := gitcli.NewValidator()
 	output := ui.NewMockOutput()
 
-	mgr := manager.New(pluginDir, cloner, puller, validator, output)
+	mgr := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, output)
 
 	plugins := []plug.Plugin{
-		plug.ParseSpec("nonexistent-user/nonexistent-plugin-xyz-abc-123"),
+		plug.ParseSpec("nonexistent-user/nonexistent-plugin-xyz-abc-123", nil),
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	mgr.Install(ctx, plugins)
 
-	if !output.HasFailed() {
+	if !errors.Is(output.Result(), ui.ErrReported) {
 		t.Error("expected failure for nonexistent plugin")
 	}
 }
 
 func TestConfigGatherPluginsFromFile(t *testing.T) {
-	_, confFile := setupIntegrationDir(t)
+	pluginDir, confFile := setupIntegrationDir(t)
 
 	writeConf(t, confFile, `
 set -g @plugin "tmux-plugins/tpm"
@@ -133,13 +135,19 @@ set -g @plugin "user/repo#develop"
 `)
 
 	fs := config.RealFS{}
-	plugins := config.GatherPlugins(
+	plugins, err := config.GatherPlugins(
 		&noopRunner{},
 		fs,
-		confFile,
-		os.Getenv("HOME"),
-		"",
+		config.Paths{
+			TmuxConf:   confFile,
+			PluginPath: mustRoot(t, pluginDir),
+			Home:       os.Getenv("HOME"),
+		},
+		nil,
 	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 	if len(plugins) != 3 {
 		t.Fatalf("expected 3 plugins, got %d", len(plugins))
 	}
@@ -151,8 +159,8 @@ set -g @plugin "user/repo#develop"
 // noopRunner is a tmux.Runner that returns empty values.
 type noopRunner struct{}
 
-func (n *noopRunner) ShowOption(string) (string, error)       { return "", nil }
-func (n *noopRunner) ShowEnvironment(string) (string, error)  { return "", nil }
+func (n *noopRunner) ShowOption(string) (string, bool, error) { return "", false, nil }
+func (n *noopRunner) ShowEnvironment(string) (string, error)  { return "", tmux.ErrNotSet }
 func (n *noopRunner) SetEnvironment(string, string) error     { return nil }
 func (n *noopRunner) BindKey(string, string, string) error    { return nil }
 func (n *noopRunner) SourceFile(string) error                 { return nil }

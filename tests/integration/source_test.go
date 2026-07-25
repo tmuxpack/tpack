@@ -37,7 +37,7 @@ func TestSourceExecutesTmuxFiles(t *testing.T) {
 	validator := gitcli.NewValidator()
 	output := ui.NewMockOutput()
 
-	mgr := manager.New(pluginDir, cloner, puller, validator, output)
+	mgr := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, output)
 
 	plugins := []plug.Plugin{
 		{Raw: "test-plugin", Name: "test-plugin", Spec: "test-plugin"},
@@ -57,7 +57,7 @@ func TestSourceSkipsNonExistentPluginDir(t *testing.T) {
 	validator := gitcli.NewValidator()
 	output := ui.NewMockOutput()
 
-	mgr := manager.New(pluginDir, cloner, puller, validator, output)
+	mgr := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, output)
 
 	plugins := []plug.Plugin{
 		{Raw: "nonexistent-plugin", Name: "nonexistent-plugin", Spec: "nonexistent-plugin"},
@@ -66,7 +66,7 @@ func TestSourceSkipsNonExistentPluginDir(t *testing.T) {
 	// Should not panic or error.
 	mgr.Source(context.Background(), plugins)
 
-	if output.HasFailed() {
+	if output.Result() != nil {
 		t.Errorf("expected no errors for non-existent plugin dir, got: %v", output.ErrMsgs)
 	}
 }

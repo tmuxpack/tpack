@@ -1,6 +1,7 @@
 package config_test
 
 import (
+	"errors"
 	"testing"
 	"time"
 
@@ -12,18 +13,22 @@ import (
 func testOpts(fs config.FS) []config.Option {
 	return []config.Option{
 		config.WithFS(fs),
-		config.WithHome("/home/user"),
-		config.WithXDG("/home/user/.config"),
+		config.WithEnv(config.Env{Home: "/home/user", XDGConfigHome: "/home/user/.config"}),
 	}
+}
+
+// newTestFS returns a MockFS with a tmux.conf seeded so Resolve succeeds.
+func newTestFS() *config.MockFS {
+	fs := config.NewMockFS()
+	fs.Files["/home/user/.tmux.conf"] = ""
+	return fs
 }
 
 func TestResolveEmptyHomeReturnsError(t *testing.T) {
 	m := tmux.NewMockRunner()
 	fs := config.NewMockFS()
 
-	t.Setenv("HOME", "")
-
-	_, err := config.Resolve(m, config.WithFS(fs), config.WithHome(""))
+	_, err := config.Resolve(m, config.WithFS(fs), config.WithEnv(config.Env{}))
 	if err == nil {
 		t.Fatal("expected error for empty home, got nil")
 	}
@@ -31,7 +36,7 @@ func TestResolveEmptyHomeReturnsError(t *testing.T) {
 
 func TestResolveDefaults(t *testing.T) {
 	m := tmux.NewMockRunner()
-	fs := config.NewMockFS()
+	fs := newTestFS()
 
 	cfg, err := config.Resolve(m, testOpts(fs)...)
 	if err != nil {
@@ -53,8 +58,11 @@ func TestResolveDefaults(t *testing.T) {
 	if cfg.TmuxConf != "/home/user/.tmux.conf" {
 		t.Errorf("TmuxConf = %q, want default", cfg.TmuxConf)
 	}
-	if cfg.PluginPath != "/home/user/.tmux/plugins/" {
-		t.Errorf("PluginPath = %q, want default", cfg.PluginPath)
+	if cfg.PluginPath.String() != "/home/user/.local/share/tmux/plugins/" {
+		t.Errorf("PluginPath = %q, want XDG data default", cfg.PluginPath)
+	}
+	if cfg.Paths.PluginPathSource != config.SourceDefaultXDGData {
+		t.Errorf("PluginPathSource = %d, want SourceDefaultXDGData", cfg.Paths.PluginPathSource)
 	}
 	if cfg.PinnedVersion != "" {
 		t.Errorf("PinnedVersion = %q, want empty", cfg.PinnedVersion)
@@ -68,7 +76,7 @@ func TestResolveCustomKeybindings(t *testing.T) {
 	m.Options["@tpack-clean"] = "M-y"
 	m.Options["@tpack-tui"] = "P"
 
-	fs := config.NewMockFS()
+	fs := newTestFS()
 
 	cfg, err := config.Resolve(m, testOpts(fs)...)
 	if err != nil {
@@ -95,7 +103,7 @@ func TestResolveLegacyKeybindings(t *testing.T) {
 	m.Options["@tpm-update"] = "Z"
 	m.Options["@tpm-clean"] = "M-z"
 
-	fs := config.NewMockFS()
+	fs := newTestFS()
 
 	cfg, err := config.Resolve(m, testOpts(fs)...)
 	if err != nil {
@@ -123,7 +131,7 @@ func TestResolveCurrentKeybindingsOverrideLegacy(t *testing.T) {
 	m.Options["@tpm-clean"] = "M-z"
 	m.Options["@tpack-clean"] = "M-y"
 
-	fs := config.NewMockFS()
+	fs := newTestFS()
 
 	cfg, err := config.Resolve(m, testOpts(fs)...)
 	if err != nil {
@@ -145,6 +153,7 @@ func TestResolveXDGTmuxConf(t *testing.T) {
 	m := tmux.NewMockRunner()
 	fs := config.NewMockFS()
 	fs.Files["/home/user/.config/tmux/tmux.conf"] = ""
+	fs.Files["/home/user/.config/tmux/plugins"] = ""
 
 	cfg, err := config.Resolve(m, testOpts(fs)...)
 	if err != nil {
@@ -154,7 +163,7 @@ func TestResolveXDGTmuxConf(t *testing.T) {
 	if cfg.TmuxConf != "/home/user/.config/tmux/tmux.conf" {
 		t.Errorf("TmuxConf = %q, want XDG path", cfg.TmuxConf)
 	}
-	if cfg.PluginPath != "/home/user/.config/tmux/plugins/" {
+	if cfg.PluginPath.String() != "/home/user/.config/tmux/plugins/" {
 		t.Errorf("PluginPath = %q, want XDG plugins path", cfg.PluginPath)
 	}
 }
@@ -162,14 +171,14 @@ func TestResolveXDGTmuxConf(t *testing.T) {
 func TestResolvePluginPathFromEnv(t *testing.T) {
 	m := tmux.NewMockRunner()
 	m.Environment["TMUX_PLUGIN_MANAGER_PATH"] = "/custom/path/"
-	fs := config.NewMockFS()
+	fs := newTestFS()
 
 	cfg, err := config.Resolve(m, testOpts(fs)...)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if cfg.PluginPath != "/custom/path/" {
+	if cfg.PluginPath.String() != "/custom/path/" {
 		t.Errorf("PluginPath = %q, want %q", cfg.PluginPath, "/custom/path/")
 	}
 }
@@ -177,23 +186,21 @@ func TestResolvePluginPathFromEnv(t *testing.T) {
 func TestResolvePluginPathTrailingSlash(t *testing.T) {
 	m := tmux.NewMockRunner()
 	m.Environment["TMUX_PLUGIN_MANAGER_PATH"] = "/custom/path"
-	fs := config.NewMockFS()
+	fs := newTestFS()
 
 	cfg, err := config.Resolve(m, testOpts(fs)...)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if cfg.PluginPath != "/custom/path/" {
+	if cfg.PluginPath.String() != "/custom/path/" {
 		t.Errorf("PluginPath = %q, want trailing slash", cfg.PluginPath)
 	}
 }
 
 func TestResolveStatePath(t *testing.T) {
 	m := tmux.NewMockRunner()
-	fs := config.NewMockFS()
-
-	t.Setenv("XDG_STATE_HOME", "")
+	fs := newTestFS()
 
 	cfg, err := config.Resolve(m, testOpts(fs)...)
 	if err != nil {
@@ -208,11 +215,16 @@ func TestResolveStatePath(t *testing.T) {
 
 func TestResolveStatePathWithXDGState(t *testing.T) {
 	m := tmux.NewMockRunner()
-	fs := config.NewMockFS()
+	fs := newTestFS()
 
-	t.Setenv("XDG_STATE_HOME", "/custom/state")
-
-	cfg, err := config.Resolve(m, testOpts(fs)...)
+	cfg, err := config.Resolve(m,
+		config.WithFS(fs),
+		config.WithEnv(config.Env{
+			Home:          "/home/user",
+			XDGConfigHome: "/home/user/.config",
+			XDGStateHome:  "/custom/state",
+		}),
+	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -272,7 +284,7 @@ func TestResolveColors(t *testing.T) {
 			for k, v := range tt.options {
 				m.Options[k] = v
 			}
-			fs := config.NewMockFS()
+			fs := newTestFS()
 
 			cfg, err := config.Resolve(m, testOpts(fs)...)
 			if err != nil {
@@ -350,7 +362,7 @@ func TestResolveUpdateSettings(t *testing.T) {
 			for k, v := range tt.options {
 				m.Options[k] = v
 			}
-			fs := config.NewMockFS()
+			fs := newTestFS()
 
 			cfg, err := config.Resolve(m, testOpts(fs)...)
 			if err != nil {
@@ -393,7 +405,7 @@ func TestResolvePinnedVersion(t *testing.T) {
 			for k, v := range tt.options {
 				m.Options[k] = v
 			}
-			fs := config.NewMockFS()
+			fs := newTestFS()
 
 			cfg, err := config.Resolve(m, testOpts(fs)...)
 			if err != nil {
@@ -409,7 +421,7 @@ func TestResolvePinnedVersion(t *testing.T) {
 
 func TestResolveDefaultsNoColors(t *testing.T) {
 	m := tmux.NewMockRunner()
-	fs := config.NewMockFS()
+	fs := newTestFS()
 
 	cfg, err := config.Resolve(m, testOpts(fs)...)
 	if err != nil {
@@ -451,7 +463,7 @@ func TestResolveHiddenCategories(t *testing.T) {
 			if tt.value != "" {
 				m.Options["@tpack-hidden-categories"] = tt.value
 			}
-			fs := config.NewMockFS()
+			fs := newTestFS()
 
 			cfg, err := config.Resolve(m, testOpts(fs)...)
 			if err != nil {
@@ -467,5 +479,36 @@ func TestResolveHiddenCategories(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestResolveFailsClosedWithoutTmuxConf(t *testing.T) {
+	m := tmux.NewMockRunner()
+	fs := config.NewMockFS() // deliberately empty: no tmux.conf anywhere
+
+	_, err := config.Resolve(m, testOpts(fs)...)
+
+	var noConf *config.ErrNoTmuxConf
+	if !errors.As(err, &noConf) {
+		t.Fatalf("expected ErrNoTmuxConf, got %v", err)
+	}
+}
+
+func TestResolvePluginPathOption(t *testing.T) {
+	m := tmux.NewMockRunner()
+	m.Options["@tpack-plugin-path"] = "/opt/plugins"
+	m.Environment["TMUX_PLUGIN_MANAGER_PATH"] = "/env/legacy/"
+	fs := newTestFS()
+
+	cfg, err := config.Resolve(m, testOpts(fs)...)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if cfg.PluginPath.String() != "/opt/plugins/" {
+		t.Errorf("PluginPath = %q, want option value to win", cfg.PluginPath)
+	}
+	if cfg.Paths.PluginPathSource != config.SourceOption {
+		t.Errorf("PluginPathSource = %d, want SourceOption", cfg.Paths.PluginPathSource)
 	}
 }

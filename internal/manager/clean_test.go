@@ -2,6 +2,7 @@ package manager_test
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -23,7 +24,7 @@ func TestCleanRemovesUnlisted(t *testing.T) {
 	validator := git.NewMockValidator()
 	output := ui.NewMockOutput()
 
-	mgr := manager.New(pluginDir, cloner, puller, validator, output)
+	mgr := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, output)
 
 	plugins := []plug.Plugin{
 		{Name: "tmux-sensible"},
@@ -69,7 +70,7 @@ func TestCleanNeverRemovesTpm(t *testing.T) {
 	validator := git.NewMockValidator()
 	output := ui.NewMockOutput()
 
-	mgr := manager.New(pluginDir, cloner, puller, validator, output)
+	mgr := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, output)
 
 	// Only list tmux-sensible (not tpm).
 	plugins := []plug.Plugin{
@@ -93,7 +94,7 @@ func TestCleanNoPluginsToRemove(t *testing.T) {
 	validator := git.NewMockValidator()
 	output := ui.NewMockOutput()
 
-	mgr := manager.New(pluginDir, cloner, puller, validator, output)
+	mgr := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, output)
 
 	plugins := []plug.Plugin{
 		{Name: "tmux-sensible"},
@@ -107,4 +108,22 @@ func TestCleanNoPluginsToRemove(t *testing.T) {
 			t.Error("no plugins should be removed")
 		}
 	}
+}
+
+func TestCleanRejectsZeroRootBeforeEnumeration(t *testing.T) {
+	out := ui.NewMockOutput()
+	mgr := manager.New(plug.Root{}, git.NewMockCloner(), git.NewMockPuller(), git.NewMockValidator(), out)
+	mgr.Clean(context.Background(), nil)
+	if !errors.Is(out.Result(), ui.ErrReported) {
+		t.Fatal("clean did not report the invalid root")
+	}
+}
+
+func mustRoot(t *testing.T, path string) plug.Root {
+	t.Helper()
+	root, err := plug.NewRoot("test", path, "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return root
 }

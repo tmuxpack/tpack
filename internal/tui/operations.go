@@ -168,9 +168,20 @@ func appendWarnings(base string, warnings []string) string {
 	return base + " (with warnings: " + strings.Join(warnings, "; ") + ")"
 }
 
-func removeDirCmd(op pendingOp, msgFactory func(name string, success bool, message string) tea.Msg) tea.Cmd {
+func removeDirCmd(op pendingOp, resolveRoot bool, msgFactory func(name string, success bool, message string) tea.Msg) tea.Cmd {
 	return func() tea.Msg {
-		if err := os.RemoveAll(op.Path); err != nil {
+		path := op.Path
+		if resolveRoot {
+			root, err := op.Root.Resolved()
+			if err != nil {
+				return msgFactory(op.Name, false, err.Error())
+			}
+			path, err = root.Child(op.Name)
+			if err != nil {
+				return msgFactory(op.Name, false, err.Error())
+			}
+		}
+		if err := os.RemoveAll(path); err != nil {
 			return msgFactory(op.Name, false, err.Error())
 		}
 		return msgFactory(op.Name, true, "removed successfully")
@@ -179,19 +190,19 @@ func removeDirCmd(op pendingOp, msgFactory func(name string, success bool, messa
 
 // removes orphaned directories
 func cleanPluginCmd(op pendingOp) tea.Cmd {
-	return removeDirCmd(op, func(name string, success bool, message string) tea.Msg {
+	return removeDirCmd(op, false, func(name string, success bool, message string) tea.Msg {
 		return pluginCleanResultMsg{Name: name, Success: success, Message: message}
 	})
 }
 
 func uninstallPluginCmd(op pendingOp) tea.Cmd {
-	return removeDirCmd(op, func(name string, success bool, message string) tea.Msg {
+	return removeDirCmd(op, true, func(name string, success bool, message string) tea.Msg {
 		return pluginUninstallResultMsg{Name: name, Success: success, Message: message}
 	})
 }
 
 func removePluginDirCmd(op pendingOp) tea.Cmd {
-	return removeDirCmd(op, func(name string, success bool, message string) tea.Msg {
+	return removeDirCmd(op, true, func(name string, success bool, message string) tea.Msg {
 		return pluginRemoveResultMsg{Name: name, Success: success, Message: message}
 	})
 }
@@ -256,6 +267,10 @@ func (m *Model) dispatchNext() tea.Cmd {
 // buildOpsFromTargeted builds pending operations from the targeted plugins (selected or cursor),
 // filtered by the given predicate. Pass nil to include all targeted plugins.
 func (m *Model) buildOpsFromTargeted(filter func(PluginItem) bool) []pendingOp {
+	return m.buildOpsFromTargetedWithRoot(filter, false)
+}
+
+func (m *Model) buildOpsFromTargetedWithRoot(filter func(PluginItem) bool, resolveRoot bool) []pendingOp {
 	indices := m.targetIndices()
 	var ops []pendingOp
 	for _, i := range indices {
@@ -263,11 +278,27 @@ func (m *Model) buildOpsFromTargeted(filter func(PluginItem) bool) []pendingOp {
 		if filter != nil && !filter(p) {
 			continue
 		}
+		root := m.cfg.PluginPath
+		pathRoot := root
+		var err error
+		if resolveRoot {
+			pathRoot, err = root.Resolved()
+		}
+		var path string
+		if err == nil {
+			path, err = pathRoot.Child(p.Name)
+		}
+		if err != nil {
+			m.plugins[i].Status = StatusLoadFailed
+			m.plugins[i].LoadErr = err.Error()
+			continue
+		}
 		ops = append(ops, pendingOp{
 			Name:   p.Name,
 			Spec:   p.Spec,
 			Branch: p.Branch,
-			Path:   plug.PluginPath(p.Name, m.cfg.PluginPath),
+			Path:   path,
+			Root:   root,
 		})
 	}
 	return ops
@@ -276,15 +307,21 @@ func (m *Model) buildOpsFromTargeted(filter func(PluginItem) bool) []pendingOp {
 // buildOpsFromAll builds pending operations from all plugins matching the given predicate.
 func (m *Model) buildOpsFromAll(filter func(PluginItem) bool) []pendingOp {
 	var ops []pendingOp
-	for _, p := range m.plugins {
+	for i, p := range m.plugins {
 		if !filter(p) {
+			continue
+		}
+		path, err := m.cfg.PluginPath.Child(p.Name)
+		if err != nil {
+			m.plugins[i].Status = StatusLoadFailed
+			m.plugins[i].LoadErr = err.Error()
 			continue
 		}
 		ops = append(ops, pendingOp{
 			Name:   p.Name,
 			Spec:   p.Spec,
 			Branch: p.Branch,
-			Path:   plug.PluginPath(p.Name, m.cfg.PluginPath),
+			Path:   path,
 		})
 	}
 	return ops
@@ -298,7 +335,7 @@ func (m *Model) buildInstallOps() []pendingOp {
 }
 
 func (m *Model) buildRemoveOps() []pendingOp {
-	return m.buildOpsFromTargeted(nil)
+	return m.buildOpsFromTargetedWithRoot(nil, true)
 }
 
 func (m *Model) buildUpdateOps() []pendingOp {
@@ -322,7 +359,7 @@ func (m *Model) buildCleanOps() []pendingOp {
 }
 
 func (m *Model) buildUninstallOps() []pendingOp {
-	return m.buildOpsFromTargeted(isInstalled)
+	return m.buildOpsFromTargetedWithRoot(isInstalled, true)
 }
 
 func (m *Model) buildAutoInstallOps() []pendingOp {

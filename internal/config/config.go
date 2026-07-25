@@ -1,6 +1,10 @@
 package config
 
-import "time"
+import (
+	"time"
+
+	"github.com/tmuxpack/tpack/internal/plug"
+)
 
 const (
 	// Default keybinds
@@ -9,9 +13,9 @@ const (
 	DefaultCleanKey   = "M-u"
 	DefaultTuiKey     = "T"
 
-	DefaultPluginPath      = ".tmux/plugins/"
 	PluginPathEnvVar       = "TPACK_PLUGIN_PATH"
 	LegacyPluginPathEnvVar = "TMUX_PLUGIN_MANAGER_PATH"
+	PluginPathOption       = "@tpack-plugin-path"
 	// SupportedTmuxVersion is the minimum tmux version encoded as major*100+minor.
 	SupportedTmuxVersion = 109
 
@@ -51,7 +55,7 @@ const (
 // Config holds resolved tpack configuration.
 type Config struct {
 	// Absolute path where plugins are installed.
-	PluginPath string
+	PluginPath plug.Root
 	// User's tmux.conf.
 	TmuxConf string
 
@@ -75,4 +79,6 @@ type Config struct {
 	StatePath string
 	// User's home directory
 	Home string
+	// Paths carries every resolved path with its provenance.
+	Paths Paths
 }

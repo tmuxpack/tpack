@@ -18,7 +18,7 @@ See [Interactive TUI — Browse Screen](interactive-tui.md#browse-screen) for th
 
 2. Press ++prefix+shift+i++ (capital I, as in **I**nstall).
 
-3. The plugin is cloned to `~/.tmux/plugins/` and sourced automatically.
+3. The plugin is cloned to your plugin directory (see [Plugin Directory](../configuration/plugin-directory.md)) and sourced automatically.
 
 !!! tip
     You can also install plugins directly from the [browse screen](interactive-tui.md#browse-screen) without manually editing your config.
@@ -49,6 +49,8 @@ To uninstall a plugin while keeping its entry in your config, select it in the T
 ## Cleaning orphaned directories
 
 If you manually remove a plugin line from your config, the plugin directory may still exist on disk. Press ++prefix+alt+u++ or use `tpack clean` to remove these orphaned directories. In the TUI, press ++c++ to run the same cleanup.
+
+If your config declares no plugins at all (but is still readable), `clean` removes everything installed — see the FAQ entry [Why does clean remove everything when I removed all @plugin lines?](../troubleshooting/faq.md#why-does-clean-remove-everything-when-i-removed-all-plugin-lines).
 
 !!! note "Remove vs Uninstall vs Clean"
     | Operation | Deletes directory | Removes from config | Plugin stays in list |

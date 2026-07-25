@@ -1,8 +1,6 @@
 package config
 
 import (
-	"errors"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -14,10 +12,9 @@ import (
 type Option func(*resolveOpts)
 
 type resolveOpts struct {
-	fs       FS
-	home     string
-	xdg      string // XDG_CONFIG_HOME override
-	xdgState string // XDG_STATE_HOME override
+	fs     FS
+	env    Env
+	envSet bool
 }
 
 // WithFS overrides the filesystem
@@ -25,66 +22,25 @@ func WithFS(fs FS) Option {
 	return func(o *resolveOpts) { o.fs = fs }
 }
 
-// WithHome overrides the home directory
-func WithHome(home string) Option {
-	return func(o *resolveOpts) { o.home = home }
+// WithEnv overrides the process environment used for path resolution.
+func WithEnv(env Env) Option {
+	return func(o *resolveOpts) { o.env = env; o.envSet = true }
 }
 
-// WithXDG overrides XDG_CONFIG_HOME
-func WithXDG(xdg string) Option {
-	return func(o *resolveOpts) { o.xdg = xdg }
-}
-
-// WithXDGState overrides XDG_STATE_HOME
-func WithXDGState(xdgState string) Option {
-	return func(o *resolveOpts) { o.xdgState = xdgState }
-}
-
-func (o *resolveOpts) xdgConfigHome() string {
-	if o.xdg != "" {
-		return o.xdg
-	}
-	if v := os.Getenv("XDG_CONFIG_HOME"); v != "" {
-		return v
-	}
-	return filepath.Join(o.home, ".config")
-}
-
-func (o *resolveOpts) xdgStateHome() string {
-	if o.xdgState != "" {
-		return o.xdgState
-	}
-	if v := os.Getenv("XDG_STATE_HOME"); v != "" {
-		return v
-	}
-	return filepath.Join(o.home, ".local", "state")
-}
-
-// Resolve builds a Config by reading tmux options and checking filesystem paths.
-// Priority for plugin path:
-//  1. TPACK_PLUGIN_PATH / TMUX_PLUGIN_MANAGER_PATH env var already set in tmux
-//  2. XDG config home (~/.config/tmux/tmux.conf exists → ~/.config/tmux/plugins/)
-//  3. Default (~/.tmux/plugins/)
+// Resolve builds a Config by reading tmux options and resolving paths.
+// Path precedence and tmux.conf discovery are documented on ResolvePaths.
 func Resolve(runner tmux.Runner, opts ...Option) (*Config, error) {
-	home := os.Getenv("HOME")
-
-	if home == "" {
-		if h, err := os.UserHomeDir(); err == nil {
-			home = h
-		}
-	}
-
-	o := &resolveOpts{
-		fs:   RealFS{},
-		home: home,
-	}
-
+	o := &resolveOpts{fs: RealFS{}}
 	for _, opt := range opts {
 		opt(o)
 	}
+	if !o.envSet {
+		o.env = EnvFromOS()
+	}
 
-	if o.home == "" {
-		return nil, errors.New("could not determine home directory")
+	paths, err := ResolvePaths(runner, o.fs, o.env)
+	if err != nil {
+		return nil, err
 	}
 
 	cfg := &Config{
@@ -100,53 +56,21 @@ func Resolve(runner tmux.Runner, opts ...Option) (*Config, error) {
 	cfg.CleanKey = resolveOptionWithLegacyAndFallback(runner, CleanKeyOption, LegacyCleanKeyOption, cfg.CleanKey)
 	cfg.TuiKey = resolveOptionWithFallback(runner, TuiKeyOption, cfg.TuiKey)
 
-	cfg.TmuxConf = getUserTmuxConf(o)
-	cfg.PluginPath = resolvePluginPath(runner, o)
+	cfg.Paths = paths
+	cfg.TmuxConf = paths.TmuxConf
+	cfg.PluginPath = paths.PluginPath
+	cfg.Home = paths.Home
 	cfg.Colors = resolveColors(runner)
 	cfg.UpdateCheckInterval, cfg.UpdateMode = resolveUpdateSettings(runner)
 
-	if v, err := runner.ShowOption(VersionOption); err == nil && v != "" {
+	if v, set, err := runner.ShowOption(VersionOption); err == nil && set && v != "" {
 		cfg.PinnedVersion = v
 	}
 
 	cfg.HiddenCategories = resolveHiddenCategories(runner)
-	cfg.StatePath = filepath.Join(o.xdgStateHome(), "tpack")
-	cfg.Home = o.home
+	cfg.StatePath = filepath.Join(paths.XDGStateHome, "tpack")
 
 	return cfg, nil
-}
-
-// getUserTmuxConf returns the user's tmux.conf path (XDG first, then default).
-func getUserTmuxConf(o *resolveOpts) string {
-	xdgConf := filepath.Join(o.xdgConfigHome(), "tmux", "tmux.conf")
-	if o.fs.FileExists(xdgConf) {
-		return xdgConf
-	}
-	return filepath.Join(o.home, ".tmux.conf")
-}
-
-// Determines the plugin installation directory.
-func resolvePluginPath(runner tmux.Runner, o *resolveOpts) string {
-	// Check current env var first, then legacy.
-	if val, err := runner.ShowEnvironment(PluginPathEnvVar); err == nil && val != "" && val != "/" {
-		if val[len(val)-1] != '/' {
-			val += "/"
-		}
-		return val
-	}
-	if val, err := runner.ShowEnvironment(LegacyPluginPathEnvVar); err == nil && val != "" && val != "/" {
-		if val[len(val)-1] != '/' {
-			val += "/"
-		}
-		return val
-	}
-
-	xdgConf := filepath.Join(o.xdgConfigHome(), "tmux", "tmux.conf")
-	if o.fs.FileExists(xdgConf) {
-		return filepath.Join(o.xdgConfigHome(), "tmux", "plugins") + "/"
-	}
-
-	return filepath.Join(o.home, DefaultPluginPath) + "/"
 }
 
 // Reads per-color tmux options into a ColorConfig.
@@ -164,7 +88,7 @@ func resolveColors(runner tmux.Runner) ColorConfig {
 		{ColorMutedOption, &c.Muted},
 		{ColorTextOption, &c.Text},
 	} {
-		if v, err := runner.ShowOption(entry.option); err == nil && v != "" {
+		if v, set, err := runner.ShowOption(entry.option); err == nil && set && v != "" {
 			*entry.field = v
 		}
 	}
@@ -176,10 +100,10 @@ func resolveColors(runner tmux.Runner) ColorConfig {
 func resolveUpdateSettings(runner tmux.Runner) (time.Duration, string) {
 	var interval time.Duration
 	var mode string
-	if v, err := runner.ShowOption(UpdateIntervalOption); err == nil && v != "" {
+	if v, set, err := runner.ShowOption(UpdateIntervalOption); err == nil && set && v != "" {
 		interval = parseCheckInterval(v)
 	}
-	if v, err := runner.ShowOption(UpdateModeOption); err == nil && v != "" {
+	if v, set, err := runner.ShowOption(UpdateModeOption); err == nil && set && v != "" {
 		mode = parseUpdateMode(v)
 	}
 	return interval, mode
@@ -215,12 +139,12 @@ func parseCheckInterval(s string) time.Duration {
 // Reads a tmux option, falling back to a legacy name.
 // Returns the default if neither is set.
 func resolveOptionWithLegacyAndFallback(runner tmux.Runner, current, legacy, def string) string {
-	if v, err := runner.ShowOption(current); err == nil && v != "" {
+	if v, set, err := runner.ShowOption(current); err == nil && set && v != "" {
 		return v
 	}
 
 	if legacy != "" {
-		if v, err := runner.ShowOption(legacy); err == nil && v != "" {
+		if v, set, err := runner.ShowOption(legacy); err == nil && set && v != "" {
 			return v
 		}
 	}
@@ -229,7 +153,7 @@ func resolveOptionWithLegacyAndFallback(runner tmux.Runner, current, legacy, def
 }
 
 func resolveOptionWithFallback(runner tmux.Runner, current, def string) string {
-	if v, err := runner.ShowOption(current); err == nil && v != "" {
+	if v, set, err := runner.ShowOption(current); err == nil && set && v != "" {
 		return v
 	}
 
@@ -238,8 +162,8 @@ func resolveOptionWithFallback(runner tmux.Runner, current, def string) string {
 
 // resolveHiddenCategories reads a comma-separated list of category names to hide.
 func resolveHiddenCategories(runner tmux.Runner) []string {
-	v, err := runner.ShowOption(HiddenCategoriesOption)
-	if err != nil || v == "" {
+	v, set, err := runner.ShowOption(HiddenCategoriesOption)
+	if err != nil || !set || v == "" {
 		return nil
 	}
 	var cats []string

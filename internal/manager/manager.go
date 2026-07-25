@@ -12,16 +12,16 @@ import (
 
 // Coordinates plugin install, update, clean, and source operations.
 type Manager struct {
-	pluginPath string
+	pluginRoot plug.Root
 	cloner     git.Cloner
 	puller     git.Puller
 	validator  git.Validator
 	output     ui.Output
 }
 
-func New(pluginPath string, cloner git.Cloner, puller git.Puller, validator git.Validator, output ui.Output) *Manager {
+func New(pluginRoot plug.Root, cloner git.Cloner, puller git.Puller, validator git.Validator, output ui.Output) *Manager {
 	return &Manager{
-		pluginPath: pluginPath,
+		pluginRoot: pluginRoot,
 		cloner:     cloner,
 		puller:     puller,
 		validator:  validator,
@@ -30,12 +30,19 @@ func New(pluginPath string, cloner git.Cloner, puller git.Puller, validator git.
 }
 
 func (m *Manager) EnsurePathExists() error {
-	return os.MkdirAll(m.pluginPath, 0o755)
+	pluginPath, err := m.pluginRoot.Path()
+	if err != nil {
+		return err
+	}
+	return os.MkdirAll(pluginPath, 0o755)
 }
 
 // Checks if a plugin directory exists and is a git repo.
 func (m *Manager) IsPluginInstalled(name string) bool {
-	dir := plug.PluginPath(name, m.pluginPath)
+	dir, err := m.pluginRoot.Child(name)
+	if err != nil {
+		return false
+	}
 	info, err := os.Stat(dir)
 	if err != nil || !info.IsDir() {
 		return false
@@ -75,5 +82,15 @@ func (m *Manager) Clean(_ context.Context, plugins []plug.Plugin) {
 		m.output.Err("Failed to create plugin directory: " + err.Error())
 		return
 	}
-	m.cleanPlugins(plugins)
+	resolved, err := m.pluginRoot.Resolved()
+	if err != nil {
+		m.output.Err("unsafe plugin directory: " + err.Error())
+		return
+	}
+	orphans, err := plug.FindOrphans(plugins, resolved)
+	if err != nil {
+		m.output.Err("failed to inspect plugin directory: " + err.Error())
+		return
+	}
+	m.removeOrphans(orphans)
 }

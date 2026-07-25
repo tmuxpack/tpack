@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/tmuxpack/tpack/internal/plug"
@@ -9,12 +10,16 @@ import (
 
 // Collects all plugin definitions from:
 // 1. Legacy @tpm_plugins tmux option
-// 2. New @plugin syntax in tmux.conf + /etc/tmux.conf + sourced files (one level deep)
+// 2. New @plugin syntax in tmux.conf + /etc/tmux.conf + recursively sourced files
+//
+// Returns a non-nil error if the resolved user tmux.conf or any required source
+// cannot be read. /etc/tmux.conf and source-file -q directives are optional.
 // TODO: Move to a separate config structure down the line, mayybe something akin to LazyVim
-func GatherPlugins(runner tmux.Runner, fs FS, tmuxConf, home, xdgConfigHome string) []plug.Plugin {
+// warn, if non-nil, receives non-fatal parse warnings; a nil warn drops them.
+func GatherPlugins(runner tmux.Runner, fs FS, paths Paths, warn func(string)) ([]plug.Plugin, error) {
 	var specs []string
 
-	if legacy, err := runner.ShowOption("@tpm_plugins"); err == nil && legacy != "" {
+	if legacy, set, err := runner.ShowOption("@tpm_plugins"); err == nil && set && legacy != "" {
 		for s := range strings.FieldsSeq(legacy) {
 			s = strings.TrimSpace(s)
 			if s != "" {
@@ -23,45 +28,22 @@ func GatherPlugins(runner tmux.Runner, fs FS, tmuxConf, home, xdgConfigHome stri
 		}
 	}
 
-	// New syntax: read config content.
-	content := configContent(fs, tmuxConf, home, xdgConfigHome)
-	specs = append(specs, plug.ExtractPluginsFromConfig(content)...)
+	graph, err := LoadSourceGraph(fs, paths)
+	if err != nil {
+		return nil, err
+	}
+	for _, document := range graph.Documents() {
+		specs = append(specs, plug.ExtractPluginsFromConfig(document.Content)...)
+	}
 
 	// Parse all specs into Plugin structs.
 	var plugins []plug.Plugin
 	for _, raw := range specs {
-		plugins = append(plugins, plug.ParseSpec(raw))
-	}
-	return plugins
-}
-
-// configContent reads /etc/tmux.conf + user tmux.conf + one level of sourced files.
-func configContent(fs FS, tmuxConf, home, xdgConfigHome string) string {
-	var b strings.Builder
-
-	// /etc/tmux.conf (system config)
-	if data, err := fs.ReadFile("/etc/tmux.conf"); err == nil {
-		b.Write(data)
-	}
-
-	// User tmux.conf
-	if data, err := fs.ReadFile(tmuxConf); err == nil {
-		if b.Len() > 0 {
-			b.WriteByte('\n')
+		plugin := plug.ParseSpec(raw, warn)
+		if _, err := paths.PluginPath.Child(plugin.Name); err != nil {
+			return nil, fmt.Errorf("invalid plugin %q: %w", raw, err)
 		}
-		b.Write(data)
+		plugins = append(plugins, plugin)
 	}
-
-	base := b.String()
-
-	// Sourced files (one level deep, not recursive).
-	for _, file := range plug.ExtractSourcedFiles(base) {
-		expanded := plug.ManualExpansion(file, home, xdgConfigHome)
-		if data, err := fs.ReadFile(expanded); err == nil {
-			b.WriteByte('\n')
-			b.Write(data)
-		}
-	}
-
-	return b.String()
+	return plugins, nil
 }

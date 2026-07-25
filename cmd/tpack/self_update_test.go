@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -21,6 +22,7 @@ import (
 
 	"github.com/tmuxpack/tpack/internal/state"
 	"github.com/tmuxpack/tpack/internal/tmux"
+	"github.com/tmuxpack/tpack/internal/ui"
 )
 
 // sha256Hex returns the hex-encoded SHA-256 digest of data.
@@ -102,7 +104,7 @@ func TestSelfUpdateSkipsWhenRecent(t *testing.T) {
 		skipGitSync: true,
 	}
 
-	result := selfUpdateCheck(p, runner)
+	result := selfUpdateCheck(p, ui.NewStatusOutput(runner))
 	if result != selfUpdateSkipped {
 		t.Errorf("expected selfUpdateSkipped, got %d", result)
 	}
@@ -112,6 +114,28 @@ func TestSelfUpdateSkipsWhenRecent(t *testing.T) {
 		if call.Method == "DisplayMessage" {
 			t.Errorf("unexpected DisplayMessage call: %v", call.Args)
 		}
+	}
+}
+
+func TestSelfUpdateResultReturnsTransportFailure(t *testing.T) {
+	sink := ui.NewMockSink()
+	sink.Err = errors.New("tmux unavailable")
+	output := ui.NewReporter(sink)
+	output.Ok("updated")
+
+	err := selfUpdateCommandResult(selfUpdateSuccess, output)
+	var transport *ui.TransportError
+	if !errors.As(err, &transport) {
+		t.Fatalf("selfUpdateCommandResult() = %v, want transport error", err)
+	}
+}
+
+func TestSelfUpdateResultUsesErrSilentForDeliveredFailure(t *testing.T) {
+	output := ui.NewReporter(ui.NewMockSink())
+	output.Err("self-update failed")
+
+	if err := selfUpdateCommandResult(selfUpdateFailed, output); !errors.Is(err, errSilent) {
+		t.Fatalf("selfUpdateCommandResult() = %v, want errSilent", err)
 	}
 }
 
@@ -138,7 +162,7 @@ func TestSelfUpdateSkipsWhenAlreadyLatest(t *testing.T) {
 		skipGitSync: true,
 	}
 
-	result := selfUpdateCheck(p, runner)
+	result := selfUpdateCheck(p, ui.NewStatusOutput(runner))
 	if result != selfUpdateSkipped {
 		t.Errorf("expected selfUpdateSkipped, got %d", result)
 	}
@@ -166,7 +190,7 @@ func TestSelfUpdateSkipsDevVersion(t *testing.T) {
 		skipGitSync: true,
 	}
 
-	result := selfUpdateCheck(p, runner)
+	result := selfUpdateCheck(p, ui.NewStatusOutput(runner))
 	if result != selfUpdateSkipped {
 		t.Errorf("expected selfUpdateSkipped for dev version, got %d", result)
 	}
@@ -207,7 +231,7 @@ func TestSelfUpdateDownloadsNewVersion(t *testing.T) {
 		skipGitSync: true,
 	}
 
-	result := selfUpdateCheck(p, runner)
+	result := selfUpdateCheck(p, ui.NewStatusOutput(runner))
 	if result != selfUpdateSuccess {
 		t.Errorf("expected selfUpdateSuccess, got %d", result)
 	}
@@ -230,6 +254,58 @@ func TestSelfUpdateDownloadsNewVersion(t *testing.T) {
 	}
 	if !found {
 		t.Error("expected success DisplayMessage 'tpack: updated to v2.0.0'")
+	}
+}
+
+func TestSelfUpdateRepoSyncFailureWarns(t *testing.T) {
+	dir := t.TempDir()
+	statePath := filepath.Join(dir, "state")
+
+	// Create the existing binary file.
+	binaryPath := filepath.Join(dir, "tpack")
+	if err := os.WriteFile(binaryPath, []byte("old-binary"), 0o755); err != nil {
+		t.Fatalf("failed to create binary: %v", err)
+	}
+
+	archive := createTestArchive(t, "new-binary-v2.0.0")
+
+	// Mock GitHub API returning newer version.
+	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		release := githubRelease{TagName: "v2.0.0"}
+		json.NewEncoder(w).Encode(release)
+	}))
+	defer apiServer.Close()
+
+	downloadServer := newDownloadServer(t, "2.0.0", archive)
+	defer downloadServer.Close()
+
+	runner := tmux.NewMockRunner()
+
+	p := selfUpdateParams{
+		statePath:   statePath,
+		version:     "1.0.0",
+		binaryPath:  binaryPath,
+		apiURL:      apiServer.URL,
+		downloadURL: downloadServer.URL,
+		repoDir:     t.TempDir(), // not a git repo, so the tag checkout fails
+	}
+
+	result := selfUpdateCheck(p, ui.NewStatusOutput(runner))
+	if result != selfUpdateSuccess {
+		t.Errorf("expected selfUpdateSuccess, got %d", result)
+	}
+
+	// The update succeeded but the repo sync failed: expect the warning form.
+	want := "tpack: warning: updated to v2.0.0 (repo sync failed)"
+	found := false
+	for _, call := range runner.Calls {
+		if call.Method == "DisplayMessage" && len(call.Args) > 0 && call.Args[0] == want {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("expected DisplayMessage %q", want)
 	}
 }
 
@@ -309,7 +385,7 @@ func TestSelfUpdateDisplaysDownloadError(t *testing.T) {
 		skipGitSync: true,
 	}
 
-	result := selfUpdateCheck(p, runner)
+	result := selfUpdateCheck(p, ui.NewStatusOutput(runner))
 	if result != selfUpdateFailed {
 		t.Errorf("expected selfUpdateFailed, got %d", result)
 	}
@@ -317,12 +393,12 @@ func TestSelfUpdateDisplaysDownloadError(t *testing.T) {
 	// Verify the download error message was displayed.
 	found := false
 	for _, call := range runner.Calls {
-		if call.Method == "DisplayMessage" && len(call.Args) > 0 && call.Args[0] == "tpack: self-update failed (download error)" {
+		if call.Method == "DisplayMessage" && len(call.Args) > 0 && call.Args[0] == "tpack: error: self-update failed (download error)" {
 			found = true
 		}
 	}
 	if !found {
-		t.Error("expected DisplayMessage 'tpack: self-update failed (download error)'")
+		t.Error("expected DisplayMessage 'tpack: error: self-update failed (download error)'")
 	}
 }
 
@@ -354,7 +430,7 @@ func TestSelfUpdateDisplaysExtractError(t *testing.T) {
 		skipGitSync: true,
 	}
 
-	result := selfUpdateCheck(p, runner)
+	result := selfUpdateCheck(p, ui.NewStatusOutput(runner))
 	if result != selfUpdateFailed {
 		t.Errorf("expected selfUpdateFailed, got %d", result)
 	}
@@ -362,12 +438,12 @@ func TestSelfUpdateDisplaysExtractError(t *testing.T) {
 	// Verify the extract error message was displayed.
 	found := false
 	for _, call := range runner.Calls {
-		if call.Method == "DisplayMessage" && len(call.Args) > 0 && call.Args[0] == "tpack: self-update failed (extract error)" {
+		if call.Method == "DisplayMessage" && len(call.Args) > 0 && call.Args[0] == "tpack: error: self-update failed (extract error)" {
 			found = true
 		}
 	}
 	if !found {
-		t.Error("expected DisplayMessage 'tpack: self-update failed (extract error)'")
+		t.Error("expected DisplayMessage 'tpack: error: self-update failed (extract error)'")
 	}
 }
 
@@ -401,7 +477,7 @@ func TestSelfUpdateDisplaysPermissionError(t *testing.T) {
 		skipGitSync: true,
 	}
 
-	result := selfUpdateCheck(p, runner)
+	result := selfUpdateCheck(p, ui.NewStatusOutput(runner))
 	if result != selfUpdateFailed {
 		t.Errorf("expected selfUpdateFailed, got %d", result)
 	}
@@ -409,12 +485,12 @@ func TestSelfUpdateDisplaysPermissionError(t *testing.T) {
 	// Verify the permission error message was displayed.
 	found := false
 	for _, call := range runner.Calls {
-		if call.Method == "DisplayMessage" && len(call.Args) > 0 && call.Args[0] == "tpack: self-update failed (permission error)" {
+		if call.Method == "DisplayMessage" && len(call.Args) > 0 && call.Args[0] == "tpack: error: self-update failed (permission error)" {
 			found = true
 		}
 	}
 	if !found {
-		t.Error("expected DisplayMessage 'tpack: self-update failed (permission error)'")
+		t.Error("expected DisplayMessage 'tpack: error: self-update failed (permission error)'")
 	}
 }
 
@@ -440,10 +516,10 @@ func TestSelfUpdateTimestampSavedBeforeCheck(t *testing.T) {
 	}
 
 	before := time.Now()
-	selfUpdateCheck(p, runner)
+	selfUpdateCheck(p, ui.NewStatusOutput(runner))
 
 	// Verify the timestamp was saved.
-	st := state.Load(statePath)
+	st := state.Load(statePath, nil)
 	if st.LastSelfUpdateCheck.IsZero() {
 		t.Error("expected LastSelfUpdateCheck to be set")
 	}
@@ -476,7 +552,7 @@ func TestSelfUpdateVersionWithVPrefix(t *testing.T) {
 		skipGitSync: true,
 	}
 
-	result := selfUpdateCheck(p, runner)
+	result := selfUpdateCheck(p, ui.NewStatusOutput(runner))
 	if result != selfUpdateSkipped {
 		t.Errorf("expected selfUpdateSkipped, got %d", result)
 	}
@@ -522,7 +598,7 @@ func TestSelfUpdateIntegration(t *testing.T) {
 	}
 
 	// Run the self-update.
-	result := selfUpdateCheck(p, runner)
+	result := selfUpdateCheck(p, ui.NewStatusOutput(runner))
 	if result != selfUpdateSuccess {
 		t.Fatalf("expected selfUpdateSuccess, got %d", result)
 	}
@@ -557,14 +633,14 @@ func TestSelfUpdateIntegration(t *testing.T) {
 	}
 
 	// Verify state was saved.
-	st := state.Load(statePath)
+	st := state.Load(statePath, nil)
 	if st.LastSelfUpdateCheck.IsZero() {
 		t.Error("expected LastSelfUpdateCheck to be set")
 	}
 
 	// Run again -- should skip because timestamp was saved recently.
 	runner2 := tmux.NewMockRunner()
-	result2 := selfUpdateCheck(p, runner2)
+	result2 := selfUpdateCheck(p, ui.NewStatusOutput(runner2))
 	if result2 != selfUpdateSkipped {
 		t.Errorf("second run: expected selfUpdateSkipped, got %d", result2)
 	}
@@ -856,19 +932,19 @@ func TestSelfUpdateChecksumFetchError(t *testing.T) {
 		skipGitSync: true,
 	}
 
-	result := selfUpdateCheck(p, runner)
+	result := selfUpdateCheck(p, ui.NewStatusOutput(runner))
 	if result != selfUpdateFailed {
 		t.Errorf("expected selfUpdateFailed, got %d", result)
 	}
 
 	found := false
 	for _, call := range runner.Calls {
-		if call.Method == "DisplayMessage" && len(call.Args) > 0 && call.Args[0] == "tpack: self-update failed (checksum fetch error)" {
+		if call.Method == "DisplayMessage" && len(call.Args) > 0 && call.Args[0] == "tpack: error: self-update failed (checksum fetch error)" {
 			found = true
 		}
 	}
 	if !found {
-		t.Error("expected DisplayMessage 'tpack: self-update failed (checksum fetch error)'")
+		t.Error("expected DisplayMessage 'tpack: error: self-update failed (checksum fetch error)'")
 	}
 }
 
@@ -903,19 +979,19 @@ func TestSelfUpdateNoChecksumForArchive(t *testing.T) {
 		skipGitSync: true,
 	}
 
-	result := selfUpdateCheck(p, runner)
+	result := selfUpdateCheck(p, ui.NewStatusOutput(runner))
 	if result != selfUpdateFailed {
 		t.Errorf("expected selfUpdateFailed, got %d", result)
 	}
 
 	found := false
 	for _, call := range runner.Calls {
-		if call.Method == "DisplayMessage" && len(call.Args) > 0 && call.Args[0] == "tpack: self-update failed (no checksum for archive)" {
+		if call.Method == "DisplayMessage" && len(call.Args) > 0 && call.Args[0] == "tpack: error: self-update failed (no checksum for archive)" {
 			found = true
 		}
 	}
 	if !found {
-		t.Error("expected DisplayMessage 'tpack: self-update failed (no checksum for archive)'")
+		t.Error("expected DisplayMessage 'tpack: error: self-update failed (no checksum for archive)'")
 	}
 }
 

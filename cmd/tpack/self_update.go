@@ -22,17 +22,14 @@ import (
 	"github.com/tmuxpack/tpack/internal/config"
 	"github.com/tmuxpack/tpack/internal/state"
 	"github.com/tmuxpack/tpack/internal/tmux"
+	"github.com/tmuxpack/tpack/internal/ui"
 )
 
 var selfUpdateCmd = &cobra.Command{
 	Use:   "self-update",
 	Short: "Update the tpack binary to the latest release",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		code := runSelfUpdate()
-		if code != 0 {
-			return errSilent
-		}
-		return nil
+		return runSelfUpdate()
 	},
 }
 
@@ -70,13 +67,14 @@ type githubRelease struct {
 }
 
 // Entry point for the `tpack self-update` command.
-func runSelfUpdate() int {
+func runSelfUpdate() error {
 	runner := tmux.NewRealRunner()
+	output := ui.NewStatusOutput(runner)
 
 	cfg, err := config.Resolve(runner)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "tpack: config error:", err)
-		return 1
+		output.Err("config: " + err.Error())
+		return selfUpdateCommandResult(selfUpdateFailed, output)
 	}
 
 	binary := findBinary()
@@ -91,22 +89,28 @@ func runSelfUpdate() int {
 		repoDir:     repoDir,
 	}
 
-	result := selfUpdateCheck(p, runner)
+	result := selfUpdateCheck(p, output)
+	return selfUpdateCommandResult(result, output)
+}
 
+func selfUpdateCommandResult(result selfUpdateResult, output ui.Output) error {
+	if err := outputResult(output); err != nil {
+		return err
+	}
 	switch result {
 	case selfUpdateSuccess, selfUpdateSkipped:
-		return 0
+		return nil
 	case selfUpdateFailed:
-		return 1
+		return errSilent
 	}
 
-	return 1
+	return errSilent
 }
 
 // Orchestrates the self-update flow.
-func selfUpdateCheck(p selfUpdateParams, runner tmux.Runner) selfUpdateResult {
+func selfUpdateCheck(p selfUpdateParams, output ui.Output) selfUpdateResult {
 	// 1. Load state, check LastSelfUpdateCheck -- if <24h ago, skip.
-	st := state.Load(p.statePath)
+	st := state.Load(p.statePath, nil)
 	if !st.LastSelfUpdateCheck.IsZero() && time.Since(st.LastSelfUpdateCheck) < selfUpdateInterval {
 		return selfUpdateSkipped
 	}
@@ -118,7 +122,7 @@ func selfUpdateCheck(p selfUpdateParams, runner tmux.Runner) selfUpdateResult {
 	// 3. Fetch latest release version from GitHub API.
 	latest, err := fetchLatestVersion(p.apiURL)
 	if err != nil {
-		_ = runner.DisplayMessage("tpack: self-update failed (download error)")
+		output.Err("self-update failed (download error)")
 		return selfUpdateFailed
 	}
 
@@ -134,27 +138,27 @@ func selfUpdateCheck(p selfUpdateParams, runner tmux.Runner) selfUpdateResult {
 
 	checksums, err := fetchChecksums(p.downloadURL, latest)
 	if err != nil {
-		_ = runner.DisplayMessage("tpack: self-update failed (checksum fetch error)")
+		output.Err("self-update failed (checksum fetch error)")
 		return selfUpdateFailed
 	}
 
 	expectedHash, ok := checksums[archiveName]
 	if !ok {
-		_ = runner.DisplayMessage("tpack: self-update failed (no checksum for archive)")
+		output.Err("self-update failed (no checksum for archive)")
 		return selfUpdateFailed
 	}
 
 	// 6. Download, verify integrity, and extract the new binary.
 	newBinaryPath, cleanup, err := downloadVerifyExtract(archiveURL, expectedHash)
 	if err != nil {
-		_ = runner.DisplayMessage("tpack: self-update failed (extract error)")
+		output.Err("self-update failed (extract error)")
 		return selfUpdateFailed
 	}
 	defer cleanup()
 
 	// 7. Atomic replace: rename temp binary over current binary.
 	if err := os.Rename(newBinaryPath, p.binaryPath); err != nil {
-		_ = runner.DisplayMessage("tpack: self-update failed (permission error)")
+		output.Err("self-update failed (permission error)")
 		return selfUpdateFailed
 	}
 
@@ -162,13 +166,13 @@ func selfUpdateCheck(p selfUpdateParams, runner tmux.Runner) selfUpdateResult {
 	tag := "v" + latest
 	if !p.skipGitSync {
 		if err := syncGitRepo(p.repoDir, tag); err != nil {
-			_ = runner.DisplayMessage(fmt.Sprintf("tpack: updated to %s (warning: repo sync failed)", tag))
+			output.Warn("updated to " + tag + " (repo sync failed)")
 			return selfUpdateSuccess
 		}
 	}
 
 	// 9. Display success message.
-	_ = runner.DisplayMessage(fmt.Sprintf("tpack: updated to %s", tag))
+	output.Ok("updated to " + tag)
 	return selfUpdateSuccess
 }
 

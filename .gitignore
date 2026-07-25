@@ -5,8 +5,11 @@ tests/helpers/helpers.sh
 
 # Go build artifacts
 dist/
-tpack
+/tpack
 coverage.out
 
 # MkDocs build output
 site/
+
+# Isolated development worktrees
+.worktrees/

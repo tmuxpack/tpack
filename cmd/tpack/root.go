@@ -3,9 +3,9 @@ package main
 import (
 	"errors"
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
+	"github.com/tmuxpack/tpack/internal/ui"
 )
 
 // errSilent signals that the command has already printed errors to stderr.
@@ -59,7 +59,7 @@ func Execute(v string) int {
 	rootCmd.Version = v
 	if err := rootCmd.Execute(); err != nil {
 		if !errors.Is(err, errSilent) {
-			fmt.Fprintln(os.Stderr, "Error:", err)
+			ui.NewShellOutput().Err(err.Error())
 		}
 		return 1
 	}

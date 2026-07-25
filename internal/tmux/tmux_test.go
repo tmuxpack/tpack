@@ -18,9 +18,12 @@ func TestMockRunnerRecordsCalls(t *testing.T) {
 	m := tmux.NewMockRunner()
 	m.Options["@foo"] = "bar"
 
-	val, err := m.ShowOption("@foo")
+	val, set, err := m.ShowOption("@foo")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
+	}
+	if !set {
+		t.Fatal("option reported as unset")
 	}
 	if val != "bar" {
 		t.Errorf("got %q, want %q", val, "bar")
@@ -30,6 +33,18 @@ func TestMockRunnerRecordsCalls(t *testing.T) {
 	}
 	if m.Calls[0].Method != "ShowOption" {
 		t.Errorf("got method %q, want %q", m.Calls[0].Method, "ShowOption")
+	}
+}
+
+func TestMockRunnerDistinguishesUnsetAndEmptyOptions(t *testing.T) {
+	m := tmux.NewMockRunner()
+
+	if value, set, err := m.ShowOption("@foo"); err != nil || set || value != "" {
+		t.Fatalf("unset option = (%q, %v, %v), want empty, false, nil", value, set, err)
+	}
+	m.Options["@foo"] = ""
+	if value, set, err := m.ShowOption("@foo"); err != nil || !set || value != "" {
+		t.Fatalf("empty option = (%q, %v, %v), want empty, true, nil", value, set, err)
 	}
 }
 

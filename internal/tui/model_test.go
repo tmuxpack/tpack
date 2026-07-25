@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
@@ -9,9 +10,55 @@ import (
 	"github.com/tmuxpack/tpack/internal/plug"
 )
 
+func TestStartCleanReportsOrphanDiscoveryFailureWithoutScheduling(t *testing.T) {
+	m := NewModel(&config.Config{}, nil, Deps{})
+	if m.orphanErr == nil {
+		t.Fatal("NewModel did not retain orphan discovery failure")
+	}
+
+	result, cmd := m.startOperation(OpClean)
+	m = result.(Model)
+
+	if cmd != nil {
+		t.Fatal("clean returned a command for an invalid root")
+	}
+	if m.screen != ScreenProgress {
+		t.Fatalf("screen = %v, want ScreenProgress", m.screen)
+	}
+	if m.processing || m.inFlight != 0 || len(m.pendingItems) != 0 {
+		t.Fatalf("cleanup was scheduled: processing=%v inFlight=%d pending=%d", m.processing, m.inFlight, len(m.pendingItems))
+	}
+	if len(m.results) != 1 || m.results[0].Success {
+		t.Fatalf("results = %+v, want one failure", m.results)
+	}
+	if !strings.Contains(m.results[0].Message, "unsafe plugin directory") {
+		t.Fatalf("failure message = %q", m.results[0].Message)
+	}
+}
+
+func TestStartAutoCleanReportsOrphanDiscoveryFailureWithoutScheduling(t *testing.T) {
+	m := NewModel(&config.Config{}, nil, Deps{}, WithAutoOp(OpClean))
+
+	result, cmd := m.startAutoOperation()
+	m = result.(Model)
+
+	if cmd != nil {
+		t.Fatal("automatic clean returned a command for an invalid root")
+	}
+	if m.screen != ScreenProgress {
+		t.Fatalf("screen = %v, want ScreenProgress", m.screen)
+	}
+	if m.processing || m.inFlight != 0 || len(m.pendingItems) != 0 {
+		t.Fatalf("cleanup was scheduled: processing=%v inFlight=%d pending=%d", m.processing, m.inFlight, len(m.pendingItems))
+	}
+	if len(m.results) != 1 || m.results[0].Success {
+		t.Fatalf("results = %+v, want one failure", m.results)
+	}
+}
+
 func newTestModel(t *testing.T, plugins []plug.Plugin) Model {
 	t.Helper()
-	cfg := &config.Config{PluginPath: t.TempDir() + "/"}
+	cfg := &config.Config{PluginPath: mustRoot(t, t.TempDir())}
 	deps := Deps{
 		Cloner:    git.NewMockCloner(),
 		Puller:    git.NewMockPuller(),
@@ -214,7 +261,7 @@ func TestNewModel_WithAutoOp(t *testing.T) {
 	plugins := []plug.Plugin{
 		{Name: "tmux-sensible", Spec: "tmux-plugins/tmux-sensible"},
 	}
-	cfg := &config.Config{PluginPath: t.TempDir() + "/"}
+	cfg := &config.Config{PluginPath: mustRoot(t, t.TempDir())}
 	deps := Deps{
 		Cloner:    git.NewMockCloner(),
 		Puller:    git.NewMockPuller(),
@@ -233,7 +280,7 @@ func TestNewModel_WithAutoOp(t *testing.T) {
 }
 
 func TestInit_WithAutoOp_SendsAutoStartMsg(t *testing.T) {
-	cfg := &config.Config{PluginPath: t.TempDir() + "/"}
+	cfg := &config.Config{PluginPath: mustRoot(t, t.TempDir())}
 	deps := Deps{
 		Cloner:    git.NewMockCloner(),
 		Puller:    git.NewMockPuller(),
@@ -251,7 +298,7 @@ func TestInit_WithAutoOp_SendsAutoStartMsg(t *testing.T) {
 func TestInit_WithoutAutoOp_NoAutoStartMsg(t *testing.T) {
 	// With no plugins (nothing to check), Init should still return a command
 	// (for background color detection) but no autoStartMsg.
-	cfg := &config.Config{PluginPath: t.TempDir() + "/"}
+	cfg := &config.Config{PluginPath: mustRoot(t, t.TempDir())}
 	deps := Deps{
 		Cloner:    git.NewMockCloner(),
 		Puller:    git.NewMockPuller(),

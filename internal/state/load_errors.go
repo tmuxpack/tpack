@@ -42,8 +42,9 @@ func SaveLoadErrors(statePath string, failures []plug.LoadFailure) error {
 }
 
 // LoadLoadErrors reads plugin load failures from statePath/load-errors.yml.
-// Returns nil on any error (missing or corrupt file).
-func LoadLoadErrors(statePath string) []plug.LoadFailure {
+// Returns nil on any error (missing or corrupt file). warn, if non-nil,
+// receives a message when the file exists but cannot be parsed.
+func LoadLoadErrors(statePath string, warn func(string)) []plug.LoadFailure {
 	if statePath == "" {
 		return nil
 	}
@@ -54,7 +55,9 @@ func LoadLoadErrors(statePath string) []plug.LoadFailure {
 	}
 	var doc loadErrorsDoc
 	if err := yaml.Unmarshal(data, &doc); err != nil {
-		fmt.Fprintf(os.Stderr, "tpack: warning: corrupt load-errors file %s: %v\n", p, err)
+		if warn != nil {
+			warn(fmt.Sprintf("corrupt load-errors file %s: %v", p, err))
+		}
 		return nil
 	}
 	return doc.LoadErrors

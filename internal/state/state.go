@@ -21,8 +21,9 @@ type State struct {
 }
 
 // Load reads state from statePath/state.yml.
-// Returns zero-value State on any error.
-func Load(statePath string) State {
+// Returns zero-value State on any error. warn, if non-nil, receives a
+// message when the file exists but cannot be parsed.
+func Load(statePath string, warn func(string)) State {
 	p := filepath.Join(statePath, stateFile)
 	data, err := os.ReadFile(p)
 	if err != nil {
@@ -31,7 +32,9 @@ func Load(statePath string) State {
 
 	var s State
 	if err := yaml.Unmarshal(data, &s); err != nil {
-		fmt.Fprintf(os.Stderr, "tpack: warning: corrupt state file %s: %v\n", p, err)
+		if warn != nil {
+			warn(fmt.Sprintf("corrupt state file %s: %v", p, err))
+		}
 		return State{}
 	}
 	return s
@@ -72,7 +75,7 @@ func LoadAndSave(statePath string, fn func(*State)) error {
 		return fmt.Errorf("acquire lock: %w", err)
 	}
 
-	s := Load(statePath)
+	s := Load(statePath, nil)
 	fn(&s)
 	return Save(statePath, s)
 }
