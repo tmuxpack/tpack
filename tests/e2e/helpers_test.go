@@ -3,6 +3,7 @@ package e2e_test
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -11,6 +12,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/tmuxpack/tpack/internal/plug"
 )
 
 var (
@@ -18,6 +21,14 @@ var (
 	builtBinPath string
 	buildErr     error
 )
+
+var e2eRepositories = []string{
+	"tmux-plugins/tmux-example-plugin",
+	"tmux-plugins/tmux-copycat",
+	"tmux-plugins/tmux-sensible",
+}
+
+const nonexistentE2ERepository = "tmux-plugins/non-existing-plugin"
 
 // projectRoot returns the absolute path to the repository root.
 // Since this file lives at tests/e2e/, we go two levels up.
@@ -99,6 +110,7 @@ func e2eEnv(t *testing.T, tmuxConf string) (home, socket string) {
 	if err := os.MkdirAll(pluginDir, 0o755); err != nil {
 		t.Fatalf("failed to create plugin directory: %v", err)
 	}
+	createE2ERepositories(t, home)
 
 	return home, socket
 }
@@ -113,13 +125,78 @@ func cleanEnv(home string) []string {
 	var env []string
 	for _, e := range os.Environ() {
 		key := e[:strings.Index(e, "=")+1]
+		if strings.HasPrefix(key, "GIT_CONFIG_KEY_") || strings.HasPrefix(key, "GIT_CONFIG_VALUE_") {
+			continue
+		}
 		switch key {
-		case "HOME=", "TMUX=", "TMUX_PANE=", "TPACK_PLUGIN_PATH=", "TMUX_PLUGIN_MANAGER_PATH=":
+		case "HOME=", "TMUX=", "TMUX_PANE=", "TPACK_PLUGIN_PATH=", "TMUX_PLUGIN_MANAGER_PATH=",
+			"GIT_ALLOW_PROTOCOL=", "GIT_CONFIG_COUNT=", "GIT_CONFIG_GLOBAL=", "GIT_CONFIG_SYSTEM=":
 			continue
 		}
 		env = append(env, e)
 	}
-	return append(env, "HOME="+home)
+	env = append(env,
+		"HOME="+home,
+		"GIT_ALLOW_PROTOCOL=file",
+		"GIT_CONFIG_GLOBAL=/dev/null",
+		"GIT_CONFIG_SYSTEM=/dev/null",
+	)
+	return append(env, gitRewriteEnv(home)...)
+}
+
+func createE2ERepositories(t *testing.T, home string) {
+	t.Helper()
+	for _, repository := range e2eRepositories {
+		barePath := e2eRepositoryPath(home, repository)
+		if err := os.MkdirAll(filepath.Dir(barePath), 0o755); err != nil {
+			t.Fatalf("create E2E repository directory: %v", err)
+		}
+
+		workPath := filepath.Join(home, ".e2e-git-work", strings.ReplaceAll(repository, "/", "-"))
+		runGitCommand(t, "", "init", "--initial-branch=main", workPath)
+		if err := os.WriteFile(filepath.Join(workPath, "marker"), []byte(repository), 0o644); err != nil {
+			t.Fatalf("write E2E repository marker: %v", err)
+		}
+		runGitCommand(t, workPath, "add", "marker")
+		runGitCommand(t, workPath, "-c", "user.name=tpack e2e", "-c", "user.email=e2e@tpack.test", "commit", "-m", "initial fixture")
+		runGitCommand(t, "", "clone", "--bare", workPath, barePath)
+	}
+}
+
+func e2eRepositoryPath(home, repository string) string {
+	return filepath.Join(home, ".e2e-git", strings.ReplaceAll(repository, "/", "-")+".git")
+}
+
+func gitRewriteEnv(home string) []string {
+	repositories := append(append([]string{}, e2eRepositories...), nonexistentE2ERepository)
+	env := []string{"GIT_CONFIG_COUNT=" + strconv.Itoa(len(repositories)*2)}
+	index := 0
+	for _, repository := range repositories {
+		localURL := (&url.URL{Scheme: "file", Path: e2eRepositoryPath(home, repository)}).String()
+		for _, cloneURL := range []string{
+			"https://github.com/" + repository,
+			"https://git::@github.com/" + repository,
+		} {
+			env = append(env,
+				"GIT_CONFIG_KEY_"+strconv.Itoa(index)+"=url."+localURL+".insteadOf",
+				"GIT_CONFIG_VALUE_"+strconv.Itoa(index)+"="+cloneURL,
+			)
+			index++
+		}
+	}
+	return env
+}
+
+func runGitCommand(t *testing.T, dir string, args ...string) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "git", args...)
+	cmd.Dir = dir
+	cmd.Env = append(os.Environ(), "GIT_ALLOW_PROTOCOL=file")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("git %v: %v\n%s", args, err, out)
+	}
 }
 
 // startTmux starts a tmux server with the given socket and HOME.
@@ -248,26 +325,53 @@ func tmuxListKeys(t *testing.T, socket string) string {
 
 // installPluginManually clones a GitHub repository into the plugin directory.
 // The repo should be in "owner/name" format (e.g., "tmux-plugins/tmux-example-plugin").
-func installPluginManually(t *testing.T, pluginDir, repo string) {
+func installPluginManually(t *testing.T, home, pluginDir, repo string) {
 	t.Helper()
-
-	parts := strings.SplitN(repo, "/", 2)
-	if len(parts) != 2 {
-		t.Fatalf("invalid repo format %q, expected owner/name", repo)
-	}
-	name := parts[1]
-
-	destDir := filepath.Join(pluginDir, name)
+	p := mustParsePlugin(t, repo)
+	destDir := filepath.Join(pluginDir, p.DirName)
 	url := "https://github.com/" + repo
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, "git", "clone", url, destDir)
+	cmd.Env = cleanEnv(home)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("failed to clone %s: %v\n%s", repo, err, out)
 	}
+}
+
+func mustParsePlugin(t *testing.T, raw string) plug.Plugin {
+	t.Helper()
+	p, err := plug.ParseSpec(raw, nil)
+	if err != nil {
+		t.Fatalf("ParseSpec(%q): %v", raw, err)
+	}
+	return p
+}
+
+func canonicalPluginDir(t *testing.T, pluginDir, raw string) string {
+	t.Helper()
+	return filepath.Join(pluginDir, mustParsePlugin(t, raw).DirName)
+}
+
+func prepareLegacyRepository(t *testing.T, pluginDir, raw string) string {
+	t.Helper()
+	p := mustParsePlugin(t, raw)
+	destDir := filepath.Join(pluginDir, plug.LegacyPluginName(p.Spec))
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	for _, args := range [][]string{
+		{"init", destDir},
+		{"-C", destDir, "remote", "add", "origin", plug.NormalizeURL(p.Spec)},
+	} {
+		cmd := exec.CommandContext(ctx, "git", args...)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+	return destDir
 }
 
 // assertContains checks that output contains the expected substring.

@@ -14,9 +14,24 @@
 
 > **[Full Documentation](https://tmuxpack.github.io/tpack/)** - Mostly AI-generated
 
-A modern tmux plugin manager written in Go. **Drop-in replacement for
-[TPM](https://github.com/tmux-plugins/tpm)** — fully backward compatible with
-existing TPM configurations, plugins, and key bindings.
+A modern tmux plugin manager written in Go. It accepts existing
+[TPM](https://github.com/tmux-plugins/tpm) configuration syntax and key
+bindings, while adding repository-aware plugin management.
+
+> [!IMPORTANT]
+> tpack stores plugins in repository-specific directories such as
+> `tmux-87a1216f1f68` (always ASCII and at most 64 bytes), so repositories with
+> the same basename can coexist. On the first operational command, tpack
+> identifies a legacy basename checkout by its Git origin and renames an exact
+> match once. Automatic migration never guesses, deletes, or moves a mismatched
+> or unreadable checkout, and concurrent tpack runs cannot overwrite a canonical
+> directory. A later explicit `tpack clean` can remove an unmatched legacy
+> directory under normal orphan-cleanup semantics. Explicit `alias=` values keep
+> their configured directory instead.
+>
+> This means switching back to TPM is not seamless. Running tpack and TPM
+> against the same plugin root is unsupported, and scripts or configuration
+> with hard-coded plugin paths may need updating.
 
 Works on Linux, macOS, and FreeBSD.
 
@@ -111,11 +126,11 @@ set -g @plugin 'tmux-plugins/tmux-sensible'
 run 'tpack init'
 ```
 
-### Option B: Git clone (TPM drop-in replacement)
+### Option B: Git clone (TPM-compatible setup)
 
-Clone tpack into the TPM directory. This is fully backward compatible with
-existing TPM configurations — no `tmux.conf` changes needed if you're switching
-from TPM.
+Clone tpack into the TPM directory. Existing TPM declaration syntax remains
+valid, so no `tmux.conf` syntax changes are needed when switching from TPM. The
+plugin directory migration described above still applies.
 
 ```bash
 git clone https://github.com/tmuxpack/tpack ~/.tmux/plugins/tpm
@@ -144,7 +159,7 @@ guide for full setup instructions.
 
 ## Features
 
-- **Drop-in TPM replacement** — no config changes needed when switching from TPM
+- **TPM-compatible configuration** — existing declarations and key bindings work
 - **Interactive TUI** — browse, install, update, remove, and uninstall plugins visually
   (`prefix` + <kbd>T</kbd>)
 - **CLI** — `tpack install`, `tpack update`, `tpack clean`, and more
@@ -165,7 +180,7 @@ configuration, usage, and the CLI reference.
 
 ## Migrating from TPM
 
-tpack is a drop-in replacement for TPM. Two ways to switch:
+tpack accepts TPM configuration syntax. Two ways to switch:
 
 - **Git remote** — if you `git clone`d TPM, just point the remote at tpack and
   pull. No `tmux.conf` changes needed:

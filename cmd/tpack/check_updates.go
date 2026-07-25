@@ -61,16 +61,15 @@ func checkUpdates(runner tmux.Runner, diag, operation, status ui.Output) int {
 		return 0
 	}
 
-	// Save timestamp before checking to prevent retry storms.
-	st.LastUpdateCheck = time.Now()
-	_ = state.Save(cfg.StatePath, st)
-
-	// Gather plugins from config.
-	plugins, err := config.GatherPlugins(runner, config.RealFS{}, cfg.Paths, diag.Warn)
+	plugins, err := loadPlugins(runner, cfg, diag)
 	if err != nil {
 		diag.Err("config: " + err.Error())
 		return 1
 	}
+
+	// Save timestamp before checking to prevent retry storms.
+	st.LastUpdateCheck = time.Now()
+	_ = state.Save(cfg.StatePath, st)
 
 	outdated := findOutdatedPlugins(plugins, cfg.PluginPath)
 	if len(outdated) == 0 {
@@ -112,7 +111,7 @@ func findOutdatedPlugins(plugins []plug.Plugin, pluginPath plug.Root) []string {
 
 	var targets []target
 	for _, p := range plugins {
-		dir, err := pluginPath.Child(p.Name)
+		dir, err := pluginPath.Child(p.DirName)
 		if err != nil {
 			continue
 		}

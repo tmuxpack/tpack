@@ -28,14 +28,14 @@ func TestInstallLegacySyntaxViaCLI(t *testing.T) {
 	if exitCode != 0 {
 		t.Fatalf("expected exit code 0, got %d\noutput: %s", exitCode, output)
 	}
-	assertContains(t, output, `"tmux-example-plugin" download success`)
+	assertContains(t, output, `"tmux-plugins/tmux-example-plugin" download success`)
 
-	pluginDir := filepath.Join(home, ".tmux", "plugins", "tmux-example-plugin")
+	pluginDir := canonicalPluginDir(t, filepath.Join(home, ".tmux", "plugins"), "tmux-plugins/tmux-example-plugin")
 	assertDirExists(t, pluginDir)
 
 	// Second install: expect already installed.
 	output, _ = runInTmux(t, home, socket, binary+" install", 60*time.Second)
-	assertContains(t, output, `Already installed "tmux-example-plugin"`)
+	assertContains(t, output, `Already installed "tmux-plugins/tmux-example-plugin"`)
 }
 
 func TestInstallLegacyAndNewSyntaxViaCLI(t *testing.T) {
@@ -60,14 +60,15 @@ func TestInstallLegacyAndNewSyntaxViaCLI(t *testing.T) {
 		t.Fatalf("expected exit code 0, got %d\noutput: %s", exitCode, output)
 	}
 
-	exampleDir := filepath.Join(home, ".tmux", "plugins", "tmux-example-plugin")
-	copycatDir := filepath.Join(home, ".tmux", "plugins", "tmux-copycat")
+	pluginRoot := filepath.Join(home, ".tmux", "plugins")
+	exampleDir := canonicalPluginDir(t, pluginRoot, "tmux-plugins/tmux-example-plugin")
+	copycatDir := canonicalPluginDir(t, pluginRoot, "tmux-plugins/tmux-copycat")
 	assertDirExists(t, exampleDir)
 	assertDirExists(t, copycatDir)
 
 	// Second install: expect already installed.
 	output, _ = runInTmux(t, home, socket, binary+" install", 120*time.Second)
-	assertContains(t, output, `Already installed "tmux-copycat"`)
+	assertContains(t, output, `Already installed "tmux-plugins/tmux-copycat"`)
 }
 
 func TestInitBindsKeysWithLegacySyntax(t *testing.T) {

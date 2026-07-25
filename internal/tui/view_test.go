@@ -7,12 +7,27 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/tmuxpack/tpack/internal/git"
 	"github.com/tmuxpack/tpack/internal/plug"
+	"github.com/tmuxpack/tpack/internal/registry"
 )
+
+func TestBrowseMarksOnlyMatchingRepositoryInstalled(t *testing.T) {
+	installed := mustParsePlugin(t, "catppuccin/tmux")
+	m := newTestModel(t, []plug.Plugin{installed})
+	m.browseResults = []registry.RegistryItem{
+		{Repo: "catppuccin/tmux"},
+		{Repo: "dracula/tmux"},
+		{Repo: "nordtheme/tmux"},
+	}
+	view := m.renderBrowseResults()
+	if strings.Count(stripANSI(view), "(installed)") != 1 {
+		t.Fatalf("view marks wrong repositories installed:\n%s", stripANSI(view))
+	}
+}
 
 func TestViewList_ContainsPluginNames(t *testing.T) {
 	plugins := []plug.Plugin{
-		{Name: "tmux-sensible", Spec: "tmux-plugins/tmux-sensible"},
-		{Name: "tmux-yank", Spec: "tmux-plugins/tmux-yank"},
+		testPlugin("tmux-sensible", "tmux-plugins/tmux-sensible"),
+		testPlugin("tmux-yank", "tmux-plugins/tmux-yank"),
 	}
 	m := newTestModel(t, plugins)
 	m.width = 100

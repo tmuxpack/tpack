@@ -25,6 +25,8 @@ type Deps struct {
 	RevParser git.RevParser
 	Logger    git.Logger
 	Runner    tmux.Runner // optional, for post-op tmux sourcing
+	// AppendPlugin persists browser installs before they are queued.
+	AppendPlugin func(confPath, spec string) error
 }
 
 // ModelOption configures optional Model behavior.
@@ -119,6 +121,9 @@ type Model struct {
 
 // NewModel creates a new Model from the resolved config and gathered plugins.
 func NewModel(cfg *config.Config, plugins []plug.Plugin, deps Deps, opts ...ModelOption) Model {
+	if deps.AppendPlugin == nil {
+		deps.AppendPlugin = config.AppendPlugin
+	}
 	items := buildPluginItems(plugins, cfg.PluginPath, deps.Validator, loadErrorMap(state.LoadLoadErrors(cfg.StatePath, nil)))
 	orphans, orphanErr := findOrphans(plugins, cfg.PluginPath)
 
@@ -160,13 +165,13 @@ func (m Model) Init() tea.Cmd {
 	cmds = append(cmds, tea.RequestBackgroundColor)
 	for _, p := range m.plugins {
 		if p.Status == StatusChecking {
-			dir, err := m.cfg.PluginPath.Child(p.Name)
+			dir, err := m.cfg.PluginPath.Child(p.DirName)
 			if err != nil {
-				name := p.Name
-				cmds = append(cmds, func() tea.Msg { return pluginCheckResultMsg{Name: name, Err: err} })
+				name, dirName := p.Name, p.DirName
+				cmds = append(cmds, func() tea.Msg { return pluginCheckResultMsg{Name: name, DirName: dirName, Err: err} })
 				continue
 			}
-			cmds = append(cmds, checkPluginCmd(m.deps.Fetcher, p.Name, dir))
+			cmds = append(cmds, checkPluginCmd(m.deps.Fetcher, p.Name, p.DirName, dir))
 		}
 	}
 	if len(cmds) > 0 {
@@ -491,7 +496,7 @@ func (m Model) startOperation(op Operation) (tea.Model, tea.Cmd) {
 		if m.cfg.TmuxConf != "" {
 			var kept []pendingOp
 			for _, op := range ops {
-				_ = config.RemovePlugin(m.cfg.TmuxConf, op.Spec)
+				_ = config.RemovePlugin(m.cfg.TmuxConf, op.Raw)
 				kept = append(kept, op)
 			}
 			ops = kept
@@ -562,20 +567,20 @@ func (m *Model) handleOpResult(result ResultItem, updateStatus func()) tea.Cmd {
 	return m.dispatchNext()
 }
 
-// setPluginStatus updates the status of the plugin with the given name.
-func (m *Model) setPluginStatus(name string, status PluginStatus) {
+// setPluginStatus updates the status of the plugin with the given directory key.
+func (m *Model) setPluginStatus(dirName string, status PluginStatus) {
 	for i := range m.plugins {
-		if m.plugins[i].Name == name {
+		if m.plugins[i].DirName == dirName {
 			m.plugins[i].Status = status
 			return
 		}
 	}
 }
 
-// removePlugin removes the plugin with the given name from the list.
-func (m *Model) removePlugin(name string) {
+// removePlugin removes the plugin with the given directory key from the list.
+func (m *Model) removePlugin(dirName string) {
 	for i := range m.plugins {
-		if m.plugins[i].Name == name {
+		if m.plugins[i].DirName == dirName {
 			m.plugins = append(m.plugins[:i], m.plugins[i+1:]...)
 			return
 		}
@@ -584,8 +589,8 @@ func (m *Model) removePlugin(name string) {
 
 // handleInstallResult processes an install result and dispatches next.
 func (m Model) handleInstallResult(msg pluginInstallResultMsg) (tea.Model, tea.Cmd) {
-	cmd := m.handleOpResult(ResultItem{Name: msg.Name, Success: msg.Success, Message: msg.Message}, func() {
-		m.setPluginStatus(msg.Name, StatusInstalled)
+	cmd := m.handleOpResult(ResultItem{Name: msg.Name, DirName: msg.DirName, Success: msg.Success, Message: msg.Message}, func() {
+		m.setPluginStatus(msg.DirName, StatusInstalled)
 	})
 	return m, cmd
 }
@@ -593,21 +598,21 @@ func (m Model) handleInstallResult(msg pluginInstallResultMsg) (tea.Model, tea.C
 // handleUpdateResult processes an update result and dispatches next.
 func (m Model) handleUpdateResult(msg pluginUpdateResultMsg) (tea.Model, tea.Cmd) {
 	cmd := m.handleOpResult(ResultItem(msg), func() {
-		m.setPluginStatus(msg.Name, StatusInstalled)
+		m.setPluginStatus(msg.DirName, StatusInstalled)
 	})
 	return m, cmd
 }
 
 // handleCleanResult processes a clean result and dispatches next.
 func (m Model) handleCleanResult(msg pluginCleanResultMsg) (tea.Model, tea.Cmd) {
-	cmd := m.handleOpResult(ResultItem{Name: msg.Name, Success: msg.Success, Message: msg.Message}, nil)
+	cmd := m.handleOpResult(ResultItem{Name: msg.Name, DirName: msg.DirName, Success: msg.Success, Message: msg.Message}, nil)
 	return m, cmd
 }
 
 // handleUninstallResult processes an uninstall result and dispatches next.
 func (m Model) handleUninstallResult(msg pluginUninstallResultMsg) (tea.Model, tea.Cmd) {
-	cmd := m.handleOpResult(ResultItem{Name: msg.Name, Success: msg.Success, Message: msg.Message}, func() {
-		m.setPluginStatus(msg.Name, StatusNotInstalled)
+	cmd := m.handleOpResult(ResultItem{Name: msg.Name, DirName: msg.DirName, Success: msg.Success, Message: msg.Message}, func() {
+		m.setPluginStatus(msg.DirName, StatusNotInstalled)
 	})
 	return m, cmd
 }
@@ -616,8 +621,8 @@ func (m Model) handleUninstallResult(msg pluginUninstallResultMsg) (tea.Model, t
 // The config entry was already removed synchronously before dispatch, so the plugin
 // is removed from the list regardless of whether directory removal succeeded.
 func (m Model) handleRemoveResult(msg pluginRemoveResultMsg) (tea.Model, tea.Cmd) {
-	m.removePlugin(msg.Name)
-	cmd := m.handleOpResult(ResultItem{Name: msg.Name, Success: msg.Success, Message: msg.Message}, nil)
+	m.removePlugin(msg.DirName)
+	cmd := m.handleOpResult(ResultItem{Name: msg.Name, DirName: msg.DirName, Success: msg.Success, Message: msg.Message}, nil)
 	return m, cmd
 }
 
@@ -634,7 +639,7 @@ func (m Model) handleSpinnerTick(msg spinner.TickMsg) (tea.Model, tea.Cmd) {
 // handleCheckResult processes a background update check result.
 func (m Model) handleCheckResult(msg pluginCheckResultMsg) (tea.Model, tea.Cmd) {
 	for i := range m.plugins {
-		if m.plugins[i].Name == msg.Name {
+		if m.plugins[i].DirName == msg.DirName {
 			switch {
 			case msg.Err != nil:
 				m.plugins[i].Status = StatusCheckFailed
@@ -671,12 +676,12 @@ func (m Model) returnToList() Model {
 		removedSet := make(map[string]bool)
 		for _, r := range m.results {
 			if r.Success {
-				removedSet[r.Name] = true
+				removedSet[r.DirName] = true
 			}
 		}
 		var remaining []OrphanItem
 		for _, o := range m.orphans {
-			if !removedSet[o.Name] {
+			if !removedSet[o.DirName] {
 				remaining = append(remaining, o)
 			}
 		}

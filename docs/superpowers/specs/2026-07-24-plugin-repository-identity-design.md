@@ -133,6 +133,10 @@ either. Normal orphan behavior can clean the legacy directory later.
 ## Error Handling and Safety
 
 - Migration never deletes or overwrites a directory.
+- A root-scoped migration lock plus destination rechecks prevent concurrent
+  tpack processes from overwriting a canonical directory. Arbitrary external
+  writers that create a destination during the final atomic-rename window are
+  outside this guarantee.
 - A failed migration prevents subsequent operations in that command.
 - Errors identify the source, destination, and underlying Git or filesystem
   failure where applicable.

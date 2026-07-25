@@ -2,20 +2,8 @@ package plug
 
 import (
 	"fmt"
-	"path/filepath"
 	"strings"
 )
-
-// PluginName extracts the plugin name from a raw specification.
-// Examples:
-//
-//	"user/repo"                         → "repo"
-//	"https://github.com/user/repo.git" → "repo"
-//	"git@github.com:user/repo.git"     → "repo"
-func PluginName(raw string) string {
-	base := filepath.Base(raw)
-	return strings.TrimSuffix(base, ".git")
-}
 
 // NormalizeURL converts a shorthand plugin name to a full git URL.
 // If the input already has a protocol prefix or contains ":", it is returned as-is.
@@ -23,7 +11,10 @@ func PluginName(raw string) string {
 // The "git::@" prefix is a credential placeholder used by the original TPM
 // to prevent git from prompting for authentication on non-existent repos.
 func NormalizeURL(shorthand string) string {
-	if strings.Contains(shorthand, "://") || strings.Contains(shorthand, "git@") {
+	if strings.Contains(shorthand, "://") {
+		return shorthand
+	}
+	if _, _, ok := parseSCPIdentity(shorthand); ok {
 		return shorthand
 	}
 	return "https://git::@github.com/" + shorthand
@@ -31,12 +22,15 @@ func NormalizeURL(shorthand string) string {
 
 // ParseSpec parses a raw plugin specification into a Plugin struct.
 // The format is "spec#branch" where #branch is optional.
-// An optional "alias=X" token may follow the spec to override the plugin name.
+// An optional "alias=X" token may follow the spec to override DirName.
 // The branch suffix "#branch" may appear on either the spec or the alias token.
 // Example: "catppuccin/tmux alias=catppuccin-tmux#v2"
 // warn, if non-nil, receives a message for unexpected extra tokens; a nil
 // warn silently drops it.
-func ParseSpec(raw string, warn func(string)) Plugin {
+func ParseSpec(raw string, warn func(string)) (Plugin, error) {
+	if containsControl(raw) || strings.ContainsAny(raw, `\'";`+"`$|&<>") {
+		return Plugin{}, fmt.Errorf("parse plugin %q: repository spec contains unsafe characters", raw)
+	}
 	raw = strings.TrimSpace(raw)
 	original := raw
 
@@ -81,16 +75,17 @@ func ParseSpec(raw string, warn func(string)) Plugin {
 		}
 	}
 
-	name := PluginName(spec)
+	identity, err := NormalizeIdentity(spec)
+	if err != nil {
+		return Plugin{}, fmt.Errorf("parse plugin %q: %w", original, err)
+	}
+	dirName := GeneratedDirName(identity)
 	if alias != "" {
-		name = alias
+		dirName = alias
 	}
 
 	return Plugin{
-		Raw:    original,
-		Name:   name,
-		Spec:   spec,
-		Branch: branch,
-		Alias:  alias,
-	}
+		Raw: original, Name: RepositoryName(identity), Identity: identity, DirName: dirName,
+		Spec: spec, Branch: branch, Alias: alias,
+	}, nil
 }

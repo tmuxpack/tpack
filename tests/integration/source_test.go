@@ -19,9 +19,10 @@ func TestSourceExecutesTmuxFiles(t *testing.T) {
 
 	pluginDir, _ := setupIntegrationDir(t)
 	markerFile := filepath.Join(t.TempDir(), "source-marker")
+	p := mustParsePlugin(t, "example/test-plugin")
 
 	// Create plugin directory and an executable .tmux file inside it.
-	pluginSubDir := filepath.Join(pluginDir, "test-plugin")
+	pluginSubDir := pluginPath(t, pluginDir, p)
 	if err := os.MkdirAll(pluginSubDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -39,9 +40,7 @@ func TestSourceExecutesTmuxFiles(t *testing.T) {
 
 	mgr := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, output)
 
-	plugins := []plug.Plugin{
-		{Raw: "test-plugin", Name: "test-plugin", Spec: "test-plugin"},
-	}
+	plugins := []plug.Plugin{p}
 	mgr.Source(context.Background(), plugins)
 
 	if _, err := os.Stat(markerFile); err != nil {
@@ -59,9 +58,7 @@ func TestSourceSkipsNonExistentPluginDir(t *testing.T) {
 
 	mgr := manager.New(mustRoot(t, pluginDir), cloner, puller, validator, output)
 
-	plugins := []plug.Plugin{
-		{Raw: "nonexistent-plugin", Name: "nonexistent-plugin", Spec: "nonexistent-plugin"},
-	}
+	plugins := []plug.Plugin{mustParsePlugin(t, "example/nonexistent-plugin")}
 
 	// Should not panic or error.
 	mgr.Source(context.Background(), plugins)

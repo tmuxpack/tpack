@@ -34,7 +34,7 @@ var installCmd = &cobra.Command{
 
 		mgr := newManagerDeps(cfg.PluginPath, output)
 
-		plugins, err := config.GatherPlugins(runner, config.RealFS{}, cfg.Paths, output.Warn)
+		plugins, err := loadPlugins(runner, cfg, output)
 		if err != nil {
 			output.Err("config: " + err.Error())
 			return outputResult(output)
@@ -92,6 +92,14 @@ func newManagerDeps(pluginPath plug.Root, output ui.Output) *manager.Manager {
 	)
 }
 
+const pluginLoadTimeout = 30 * time.Second
+
+func loadPlugins(runner tmux.Runner, cfg *config.Config, output ui.Output) ([]plug.Plugin, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), pluginLoadTimeout)
+	defer cancel()
+	return config.LoadPlugins(ctx, runner, config.RealFS{}, cfg.Paths, gitcli.NewOriginReader(), output.Warn)
+}
+
 // completePluginNames returns a list of plugin names for shell completion.
 func completePluginNames(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 	runner := tmux.NewRealRunner()
@@ -100,14 +108,21 @@ func completePluginNames(cmd *cobra.Command, args []string, toComplete string) (
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
 
-	plugins, err := config.GatherPlugins(runner, config.RealFS{}, cfg.Paths, nil)
+	names, err := pluginNamesForCompletion(runner, config.RealFS{}, cfg.Paths)
 	if err != nil {
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
+	return names, cobra.ShellCompDirectiveNoFileComp
+}
 
-	var names []string
+func pluginNamesForCompletion(runner tmux.Runner, fs config.FS, paths config.Paths) ([]string, error) {
+	plugins, err := config.GatherPlugins(runner, fs, paths, nil)
+	if err != nil {
+		return nil, err
+	}
+	names := make([]string, 0, len(plugins))
 	for _, p := range plugins {
 		names = append(names, p.Name)
 	}
-	return names, cobra.ShellCompDirectiveNoFileComp
+	return names, nil
 }

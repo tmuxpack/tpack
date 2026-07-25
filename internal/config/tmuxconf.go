@@ -38,11 +38,19 @@ func GatherPlugins(runner tmux.Runner, fs FS, paths Paths, warn func(string)) ([
 
 	// Parse all specs into Plugin structs.
 	var plugins []plug.Plugin
+	seenDirs := make(map[string]string)
 	for _, raw := range specs {
-		plugin := plug.ParseSpec(raw, warn)
-		if _, err := paths.PluginPath.Child(plugin.Name); err != nil {
+		plugin, err := plug.ParseSpec(raw, warn)
+		if err != nil {
 			return nil, fmt.Errorf("invalid plugin %q: %w", raw, err)
 		}
+		if _, err := paths.PluginPath.Child(plugin.DirName); err != nil {
+			return nil, fmt.Errorf("invalid plugin %q: %w", raw, err)
+		}
+		if identity, exists := seenDirs[plugin.DirName]; exists && identity != plugin.Identity {
+			return nil, fmt.Errorf("plugin directory %q is shared by %q and %q", plugin.DirName, identity, plugin.Identity)
+		}
+		seenDirs[plugin.DirName] = plugin.Identity
 		plugins = append(plugins, plugin)
 	}
 	return plugins, nil

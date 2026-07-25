@@ -1,12 +1,15 @@
 package tui
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/tmuxpack/tpack/internal/git"
+	"github.com/tmuxpack/tpack/internal/plug"
 	"github.com/tmuxpack/tpack/internal/registry"
 )
 
@@ -421,14 +424,56 @@ func TestInstallFromBrowse_AddsToPluginsAndStartsInstall(t *testing.T) {
 	}
 }
 
-func TestInstallFromBrowse_InvalidNameDoesNotChangeConfig(t *testing.T) {
+func TestInstallFromBrowse_AllowsSameBasenameRepository(t *testing.T) {
+	rootDir := t.TempDir()
+	m := newTestModel(t, []plug.Plugin{mustParsePlugin(t, "catppuccin/tmux")})
+	m.cfg.PluginPath = mustRoot(t, rootDir)
+	m.cfg.TmuxConf = filepath.Join(t.TempDir(), "tmux.conf")
+	if err := os.WriteFile(m.cfg.TmuxConf, []byte("set -g @plugin \"catppuccin/tmux\"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	m.screen = ScreenBrowse
+	m.browseResults = []registry.RegistryItem{{Repo: "dracula/tmux"}}
+
+	updated, cmd := m.installFromBrowse()
+	m = updated.(Model)
+	if cmd == nil {
+		t.Fatal("same-basename repository did not queue an install")
+	}
+	if len(m.plugins) != 2 {
+		t.Fatalf("plugins = %+v, want two repositories", m.plugins)
+	}
+	added := m.plugins[1]
+	if added.Raw != "dracula/tmux" || added.Name != "dracula/tmux" || added.Identity != "github.com/dracula/tmux" || added.DirName != "tmux-e74ab6318c07" {
+		t.Fatalf("added plugin fields = %+v", added)
+	}
+	data, err := os.ReadFile(m.cfg.TmuxConf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), `set -g @plugin "dracula/tmux"`) {
+		t.Fatalf("tmux.conf did not gain dracula/tmux:\n%s", data)
+	}
+
+	msg := cmd()
+	result, ok := msg.(pluginInstallResultMsg)
+	if !ok || result.DirName != "tmux-e74ab6318c07" {
+		t.Fatalf("install result correlation = %#v", msg)
+	}
+	cloner, ok := m.deps.Cloner.(*git.MockCloner)
+	if !ok || len(cloner.Calls) != 1 || cloner.Calls[0].Dir != filepath.Join(rootDir, "tmux-e74ab6318c07") {
+		t.Fatalf("clone calls = %+v", cloner)
+	}
+}
+
+func TestInstallFromBrowse_ParseFailureDoesNotChangeConfig(t *testing.T) {
 	m := newBrowseModel(t)
 	m.cfg.TmuxConf = filepath.Join(t.TempDir(), "tmux.conf")
 	const original = "# tmux config\n"
 	if err := os.WriteFile(m.cfg.TmuxConf, []byte(original), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	m.browseRegistry = &registry.Registry{Plugins: []registry.RegistryItem{{Repo: ".."}}}
+	m.browseRegistry = &registry.Registry{Plugins: []registry.RegistryItem{{Repo: ""}}}
 	m.browseResults = m.browseRegistry.Plugins
 
 	result, cmd := m.installFromBrowse()
@@ -446,5 +491,81 @@ func TestInstallFromBrowse_InvalidNameDoesNotChangeConfig(t *testing.T) {
 	}
 	if !strings.Contains(m.browseStatus, "Failed to install") {
 		t.Fatalf("browseStatus = %q, want install failure", m.browseStatus)
+	}
+}
+
+func TestInstallFromBrowse_HostileRegistryEntryDoesNotChangeConfigOrQueueClone(t *testing.T) {
+	tests := []registry.RegistryItem{
+		{Repo: `owner/repo"; run-shell "touch /tmp/tpack-injected"; #`},
+		{Repo: `owner/repo#main"; run-shell "touch /tmp/tpack-injected"; #`},
+		{Host: `github.com"; run-shell "touch /tmp/tpack-injected"; #`, Repo: "owner/repo"},
+		{Host: `attacker";@github.com`, Repo: "owner/repo"},
+		{Host: "github.com/../attacker.example", Repo: "owner/repo"},
+		{Host: "github.com/attacker", Repo: "owner/repo"},
+		{Host: "github.com", Repo: "owner/../repo"},
+	}
+
+	for _, item := range tests {
+		t.Run(item.Host+item.Repo, func(t *testing.T) {
+			m := newBrowseModel(t)
+			m.cfg.TmuxConf = filepath.Join(t.TempDir(), "tmux.conf")
+			const original = "# tmux config\n"
+			if err := os.WriteFile(m.cfg.TmuxConf, []byte(original), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			m.browseResults = []registry.RegistryItem{item}
+			before := len(m.plugins)
+
+			updated, cmd := m.installFromBrowse()
+			m = updated.(Model)
+			if cmd != nil {
+				t.Fatal("hostile entry queued an install")
+			}
+			if len(m.plugins) != before {
+				t.Fatalf("plugins changed to %+v", m.plugins)
+			}
+			data, err := os.ReadFile(m.cfg.TmuxConf)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(data) != original {
+				t.Fatalf("tmux.conf changed to %q", data)
+			}
+			cloner := m.deps.Cloner.(*git.MockCloner)
+			if len(cloner.Calls) != 0 {
+				t.Fatalf("clone calls = %+v", cloner.Calls)
+			}
+			if !strings.Contains(m.browseStatus, "Failed to install") {
+				t.Fatalf("browseStatus = %q", m.browseStatus)
+			}
+		})
+	}
+}
+
+func TestInstallFromBrowse_PersistenceFailureDoesNotMutateOrQueue(t *testing.T) {
+	tests := []string{"read tmux.conf", "open tmux.conf", "append tmux.conf"}
+	for _, failure := range tests {
+		t.Run(failure, func(t *testing.T) {
+			m := newBrowseModel(t)
+			m.cfg.TmuxConf = filepath.Join(t.TempDir(), "tmux.conf")
+			m.deps.AppendPlugin = func(string, string) error { return errors.New(failure) }
+			before := len(m.plugins)
+
+			updated, cmd := m.installFromBrowse()
+			m = updated.(Model)
+			if cmd != nil {
+				t.Fatal("persistence failure queued an install")
+			}
+			if len(m.plugins) != before {
+				t.Fatalf("plugins changed to %+v", m.plugins)
+			}
+			if got := m.browseStatus; got != "Failed to install: "+failure {
+				t.Fatalf("browseStatus = %q", got)
+			}
+			cloner := m.deps.Cloner.(*git.MockCloner)
+			if len(cloner.Calls) != 0 {
+				t.Fatalf("clone calls = %+v", cloner.Calls)
+			}
+		})
 	}
 }

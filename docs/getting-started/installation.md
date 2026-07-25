@@ -70,11 +70,11 @@ new setups. In your tmux config you'll use `run 'tpack init'` to load it.
     sudo cp dist/tpack /usr/local/bin/
     ```
 
-## Option B: Git clone (TPM drop-in replacement)
+## Option B: Git clone (TPM-compatible setup)
 
-Clone tpack into the TPM directory. This is fully backward compatible with
-existing TPM configurations — if you're switching from TPM, no `tmux.conf`
-changes are needed. In your tmux config you'll use
+Clone tpack into the TPM directory. Existing TPM configuration syntax remains
+valid, but plugin directories use tpack's repository-aware layout; review the
+[migration guide](migrating-from-tpm.md) before switching. In your tmux config you'll use
 `run '~/.tmux/plugins/tpm/tpm'` to load it.
 
 ```bash

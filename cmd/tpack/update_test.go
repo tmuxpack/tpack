@@ -64,6 +64,56 @@ func TestRunUpdatePromptStopsWhenRequiredSourceCannotBeRead(t *testing.T) {
 	}
 }
 
+func TestRunUpdatePromptMigrationFailureStopsBeforePrompt(t *testing.T) {
+	cfg := promptTestConfig(t, `set -g @plugin "catppuccin/tmux"`)
+	legacyPath := filepath.Join(cfg.PluginPath.String(), "tmux")
+	if err := os.MkdirAll(legacyPath, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	runner := tmux.NewMockRunner()
+	output := ui.NewMockOutput()
+
+	runUpdatePrompt(runner, cfg, output)
+
+	if output.Result() == nil {
+		t.Fatal("prompt succeeded after migration failure")
+	}
+	if len(output.ErrMsgs) != 1 || !strings.Contains(output.ErrMsgs[0], "migrate legacy plugins") {
+		t.Fatalf("errors = %q, want one migration error", output.ErrMsgs)
+	}
+	if _, err := os.Stat(legacyPath); err != nil {
+		t.Fatalf("legacy path changed after migration failure: %v", err)
+	}
+	wantSource := "SourceFile:" + cfg.TmuxConf
+	sourced := false
+	for _, call := range runner.Calls {
+		sourced = sourced || call.Method+":"+strings.Join(call.Args, ":") == wantSource
+		if call.Method == "CommandPrompt" {
+			t.Fatal("CommandPrompt called after migration failure")
+		}
+	}
+	if !sourced {
+		t.Fatal("tmux configuration was not sourced before migration")
+	}
+}
+
+func TestListInstalledPluginsUsesDirName(t *testing.T) {
+	cfg := promptTestConfig(t, "set -g @plugin \"catppuccin/tmux\"\n")
+	pluginDir := filepath.Join(cfg.PluginPath.String(), "tmux-87a1216f1f68")
+	runGitCommand(t, "", "init", pluginDir)
+	output := ui.NewMockOutput()
+
+	if ok := listInstalledPlugins(tmux.NewMockRunner(), cfg, output); !ok {
+		t.Fatalf("listInstalledPlugins failed: %v", output.ErrMsgs)
+	}
+	for _, msg := range output.OkMsgs {
+		if msg == "  catppuccin/tmux" {
+			return
+		}
+	}
+	t.Fatalf("installed canonical plugin omitted from output: %v", output.OkMsgs)
+}
+
 func TestRunUpdatePromptReportsDirectTmuxErrors(t *testing.T) {
 	tests := []struct {
 		name       string

@@ -8,15 +8,15 @@ type Orphan struct {
 	Path string
 }
 
-// FindOrphans returns directories in root that don't match any plugin name.
+// FindOrphans returns directories in root that don't match any plugin directory name.
 func FindOrphans(plugins []Plugin, root Root) ([]Orphan, error) {
 	pluginPath, err := root.Path()
 	if err != nil {
 		return nil, err
 	}
-	nameSet := make(map[string]bool, len(plugins))
+	dirNameSet := make(map[string]bool, len(plugins))
 	for _, p := range plugins {
-		nameSet[p.Name] = true
+		dirNameSet[p.DirName] = true
 	}
 
 	entries, err := os.ReadDir(pluginPath)
@@ -29,8 +29,8 @@ func FindOrphans(plugins []Plugin, root Root) ([]Orphan, error) {
 		if !entry.IsDir() {
 			continue
 		}
-		name := PluginName(entry.Name())
-		if name == "tpm" || name == "tpack" || nameSet[name] {
+		name := entry.Name()
+		if name == "tpm" || name == "tpack" || dirNameSet[name] {
 			continue
 		}
 		path, err := root.Child(entry.Name())

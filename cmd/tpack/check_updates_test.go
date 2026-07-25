@@ -1,13 +1,18 @@
 package main
 
 import (
+	"context"
 	"errors"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strconv"
 	"testing"
 	"time"
 
 	"github.com/tmuxpack/tpack/internal/config"
 	"github.com/tmuxpack/tpack/internal/plug"
+	"github.com/tmuxpack/tpack/internal/state"
 	"github.com/tmuxpack/tpack/internal/tmux"
 	"github.com/tmuxpack/tpack/internal/ui"
 )
@@ -19,6 +24,46 @@ func mustRoot(t *testing.T, path string) plug.Root {
 		t.Fatal(err)
 	}
 	return root
+}
+
+func TestCheckUpdatesMigrationFailureDoesNotSaveTimestamp(t *testing.T) {
+	runner, legacyPath, statePath := operationalMigrationFixture(t)
+	runner.Options[config.UpdateModeOption] = updateModePrompt
+	runner.Options[config.UpdateIntervalOption] = "1h"
+	diag := ui.NewMockOutput()
+
+	if code := checkUpdates(runner, diag, ui.NewMockOutput(), ui.NewMockOutput()); code != 1 {
+		t.Fatalf("checkUpdates() = %d, want 1", code)
+	}
+	if len(diag.ErrMsgs) != 1 {
+		t.Fatalf("errors = %q, want exactly one", diag.ErrMsgs)
+	}
+	if got := state.Load(statePath, nil).LastUpdateCheck; !got.IsZero() {
+		t.Fatalf("LastUpdateCheck = %v, want zero", got)
+	}
+	if _, err := os.Stat(legacyPath); err != nil {
+		t.Fatalf("legacy path changed after migration failure: %v", err)
+	}
+}
+
+func operationalMigrationFixture(t *testing.T) (*tmux.MockRunner, string, string) {
+	t.Helper()
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
+	t.Setenv("XDG_DATA_HOME", filepath.Join(home, ".local", "share"))
+	t.Setenv("XDG_STATE_HOME", filepath.Join(home, ".local", "state"))
+	conf := filepath.Join(home, ".tmux.conf")
+	if err := os.WriteFile(conf, []byte(`set -g @plugin "catppuccin/tmux"`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	legacyPath := filepath.Join(home, ".tmux", "plugins", "tmux")
+	if err := os.MkdirAll(legacyPath, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	runner := tmux.NewMockRunner()
+	runner.VersionStr = "tmux 3.4"
+	return runner, legacyPath, filepath.Join(home, ".local", "state", "tpack")
 }
 
 func TestUpdateChecksEnabled(t *testing.T) {
@@ -95,6 +140,68 @@ func TestUpdateChecksEnabled(t *testing.T) {
 				t.Errorf("updateChecksEnabled() = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestFindOutdatedPluginsUsesDirNameAndReturnsName(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping git CLI test in short mode")
+	}
+
+	rootPath := t.TempDir()
+	p, err := plug.ParseSpec("catppuccin/tmux", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bare := initOutdatedRepo(t)
+	pluginDir := filepath.Join(rootPath, "tmux-87a1216f1f68")
+	runGitCommand(t, "", "clone", bare, pluginDir)
+	advanceOutdatedRepo(t, bare)
+
+	got := findOutdatedPlugins([]plug.Plugin{p}, mustRoot(t, rootPath))
+	if len(got) != 1 || got[0] != "catppuccin/tmux" {
+		t.Fatalf("outdated plugins = %v, want [catppuccin/tmux]", got)
+	}
+}
+
+func initOutdatedRepo(t *testing.T) string {
+	t.Helper()
+	bare := filepath.Join(t.TempDir(), "remote.git")
+	runGitCommand(t, "", "init", "--bare", bare)
+	work := filepath.Join(t.TempDir(), "work")
+	runGitCommand(t, "", "clone", bare, work)
+	runGitCommand(t, work, "config", "user.email", "test@example.com")
+	runGitCommand(t, work, "config", "user.name", "Test")
+	if err := os.WriteFile(filepath.Join(work, "README"), []byte("initial"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runGitCommand(t, work, "add", "README")
+	runGitCommand(t, work, "commit", "-m", "initial")
+	runGitCommand(t, work, "push", "origin", "HEAD")
+	return bare
+}
+
+func advanceOutdatedRepo(t *testing.T, bare string) {
+	t.Helper()
+	work := filepath.Join(t.TempDir(), "advance")
+	runGitCommand(t, "", "clone", bare, work)
+	runGitCommand(t, work, "config", "user.email", "test@example.com")
+	runGitCommand(t, work, "config", "user.name", "Test")
+	if err := os.WriteFile(filepath.Join(work, "update"), []byte("update"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runGitCommand(t, work, "add", "update")
+	runGitCommand(t, work, "commit", "-m", "update")
+	runGitCommand(t, work, "push", "origin", "HEAD")
+}
+
+func runGitCommand(t *testing.T, dir string, args ...string) {
+	t.Helper()
+	cmd := exec.CommandContext(context.Background(), "git", args...)
+	cmd.Dir = dir
+	cmd.Env = append(cmd.Environ(), "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_SYSTEM=/dev/null")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("git %v: %v\n%s", args, err, out)
 	}
 }
 
@@ -184,7 +291,7 @@ func TestHandleOutdated_AutoMode(t *testing.T) {
 	}
 
 	plugins := []plug.Plugin{
-		{Name: "tmux-sensible", Spec: "tmux-plugins/tmux-sensible"},
+		{Name: "tmux-sensible", DirName: "tmux-sensible", Spec: "tmux-plugins/tmux-sensible"},
 	}
 	outdated := []string{"tmux-sensible"}
 

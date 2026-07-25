@@ -27,14 +27,14 @@ func (m *Manager) verifyPathPermissions() {
 func (m *Manager) installPlugin(ctx context.Context, p plug.Plugin) {
 	name := p.Name
 
-	if m.IsPluginInstalled(name) {
+	if m.IsPluginInstalled(p.DirName) {
 		m.output.Ok("Already installed \"" + name + "\"")
 		return
 	}
 
 	m.output.Ok("Installing \"" + name + "\"")
 
-	dir, err := m.pluginRoot.Child(name)
+	dir, err := m.pluginRoot.Child(p.DirName)
 	if err != nil {
 		m.output.Err("invalid plugin path for " + name + ": " + err.Error())
 		return

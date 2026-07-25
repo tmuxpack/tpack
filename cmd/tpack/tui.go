@@ -52,7 +52,7 @@ var tuiCmd = &cobra.Command{
 		}
 		theme = tui.OverlayConfigColors(theme, cfg.Colors)
 
-		plugins, err := config.GatherPlugins(runner, config.RealFS{}, cfg.Paths, output.Warn)
+		plugins, err := loadPlugins(runner, cfg, output)
 		if err != nil {
 			output.Err("config: " + err.Error())
 			return outputResult(output)

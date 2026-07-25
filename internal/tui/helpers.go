@@ -9,15 +9,16 @@ import (
 )
 
 // buildPluginItems converts raw plugins into enriched PluginItems with status.
-// loadErrors maps plugin name → load-error message; an installed plugin with an
-// entry is marked StatusLoadFailed.
-func buildPluginItems(plugins []plug.Plugin, pluginPath plug.Root, validator git.Validator, loadErrors map[string]string) []PluginItem {
+func buildPluginItems(plugins []plug.Plugin, pluginPath plug.Root, validator git.Validator, loadErrors *loadErrorIndex) []PluginItem {
 	items := make([]PluginItem, 0, len(plugins))
 	for _, p := range plugins {
 		status := StatusNotInstalled
-		dir, pathErr := pluginPath.Child(p.Name)
+		dir, pathErr := pluginPath.Child(p.DirName)
 		if pathErr != nil {
-			items = append(items, PluginItem{Name: p.Name, Spec: p.Spec, Branch: p.Branch, Status: StatusLoadFailed, LoadErr: pathErr.Error()})
+			items = append(items, PluginItem{
+				Raw: p.Raw, Name: p.Name, Identity: p.Identity, DirName: p.DirName,
+				Spec: p.Spec, Branch: p.Branch, Status: StatusLoadFailed, LoadErr: pathErr.Error(),
+			})
 			continue
 		}
 		info, err := os.Stat(dir)
@@ -26,13 +27,17 @@ func buildPluginItems(plugins []plug.Plugin, pluginPath plug.Root, validator git
 			status = StatusChecking
 		}
 		item := PluginItem{
-			Name:   p.Name,
-			Spec:   p.Spec,
-			Branch: p.Branch,
-			Status: status,
+			Raw:      p.Raw,
+			Name:     p.Name,
+			Identity: p.Identity,
+			DirName:  p.DirName,
+			Spec:     p.Spec,
+			Branch:   p.Branch,
+			Status:   status,
 		}
 		if installed {
-			if msg, ok := loadErrors[p.Name]; ok {
+			msg, ok := loadErrors.lookup(p)
+			if ok {
 				item.Status = StatusLoadFailed
 				item.LoadErr = msg
 			}
@@ -42,16 +47,44 @@ func buildPluginItems(plugins []plug.Plugin, pluginPath plug.Root, validator git
 	return items
 }
 
-// loadErrorMap indexes load failures by plugin name.
-func loadErrorMap(failures []plug.LoadFailure) map[string]string {
+type loadErrorIndex struct {
+	byDirName    map[string]string
+	byLegacyName map[string]string
+}
+
+func (i *loadErrorIndex) lookup(plugin plug.Plugin) (string, bool) {
+	if i == nil {
+		return "", false
+	}
+	if msg, ok := i.byDirName[plugin.DirName]; ok {
+		return msg, true
+	}
+	legacyName := plug.LegacyPluginName(plugin.Spec)
+	if plugin.Alias != "" {
+		legacyName = plugin.Alias
+	}
+	msg, ok := i.byLegacyName[legacyName]
+	return msg, ok
+}
+
+// loadErrorMap indexes new load failures by directory name and keeps legacy
+// name-only records separate so only those records participate in name fallback.
+func loadErrorMap(failures []plug.LoadFailure) *loadErrorIndex {
 	if len(failures) == 0 {
 		return nil
 	}
-	m := make(map[string]string, len(failures))
-	for _, f := range failures {
-		m[f.Name] = f.Message
+	index := &loadErrorIndex{
+		byDirName:    make(map[string]string, len(failures)),
+		byLegacyName: make(map[string]string, len(failures)),
 	}
-	return m
+	for _, f := range failures {
+		if f.DirName == "" {
+			index.byLegacyName[f.Name] = f.Message
+			continue
+		}
+		index.byDirName[f.DirName] = f.Message
+	}
+	return index
 }
 
 // findOrphans resolves the plugin root before returning orphan items for the TUI.
@@ -66,7 +99,7 @@ func findOrphans(plugins []plug.Plugin, pluginPath plug.Root) ([]OrphanItem, err
 	}
 	items := make([]OrphanItem, len(shared))
 	for i, o := range shared {
-		items[i] = OrphanItem{Name: o.Name, Path: o.Path}
+		items[i] = OrphanItem{Name: o.Name, DirName: o.Name, Path: o.Path}
 	}
 	return items, nil
 }

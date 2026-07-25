@@ -27,11 +27,12 @@ func TestCleanViaCLI(t *testing.T) {
 	startTmux(t, home, socket)
 
 	pluginDir := filepath.Join(home, ".tmux", "plugins")
-	installPluginManually(t, pluginDir, "tmux-plugins/tmux-example-plugin")
-	installPluginManually(t, pluginDir, "tmux-plugins/tmux-sensible")
+	installPluginManually(t, home, pluginDir, "tmux-plugins/tmux-example-plugin")
+	installPluginManually(t, home, pluginDir, "tmux-plugins/tmux-sensible")
 
-	exampleDir := filepath.Join(pluginDir, "tmux-example-plugin")
-	orphanDir := filepath.Join(pluginDir, "tmux-sensible")
+	exampleDir := canonicalPluginDir(t, pluginDir, "tmux-plugins/tmux-example-plugin")
+	orphanPlugin := mustParsePlugin(t, "tmux-plugins/tmux-sensible")
+	orphanDir := filepath.Join(pluginDir, orphanPlugin.DirName)
 	assertDirExists(t, exampleDir)
 	assertDirExists(t, orphanDir)
 
@@ -39,7 +40,7 @@ func TestCleanViaCLI(t *testing.T) {
 	if exitCode != 0 {
 		t.Fatalf("expected exit code 0, got %d\noutput: %s", exitCode, output)
 	}
-	assertContains(t, output, `"tmux-sensible" clean success`)
+	assertContains(t, output, `"`+orphanPlugin.DirName+`" clean success`)
 	assertDirNotExists(t, orphanDir)
 	assertDirExists(t, exampleDir)
 }
@@ -62,11 +63,11 @@ func TestCleanWithEmptyConfigRemovesAll(t *testing.T) {
 	startTmux(t, home, socket)
 
 	pluginDir := filepath.Join(home, ".tmux", "plugins")
-	installPluginManually(t, pluginDir, "tmux-plugins/tmux-example-plugin")
-	installPluginManually(t, pluginDir, "tmux-plugins/tmux-sensible")
+	installPluginManually(t, home, pluginDir, "tmux-plugins/tmux-example-plugin")
+	installPluginManually(t, home, pluginDir, "tmux-plugins/tmux-sensible")
 
-	exampleDir := filepath.Join(pluginDir, "tmux-example-plugin")
-	sensibleDir := filepath.Join(pluginDir, "tmux-sensible")
+	exampleDir := canonicalPluginDir(t, pluginDir, "tmux-plugins/tmux-example-plugin")
+	sensibleDir := canonicalPluginDir(t, pluginDir, "tmux-plugins/tmux-sensible")
 	assertDirExists(t, exampleDir)
 	assertDirExists(t, sensibleDir)
 
@@ -101,11 +102,12 @@ func TestCleanFailsOnPermissionDenied(t *testing.T) {
 	startTmux(t, home, socket)
 
 	pluginDir := filepath.Join(home, ".tmux", "plugins")
-	installPluginManually(t, pluginDir, "tmux-plugins/tmux-example-plugin")
-	installPluginManually(t, pluginDir, "tmux-plugins/tmux-sensible")
+	installPluginManually(t, home, pluginDir, "tmux-plugins/tmux-example-plugin")
+	installPluginManually(t, home, pluginDir, "tmux-plugins/tmux-sensible")
 
-	exampleDir := filepath.Join(pluginDir, "tmux-example-plugin")
-	orphanDir := filepath.Join(pluginDir, "tmux-sensible")
+	exampleDir := canonicalPluginDir(t, pluginDir, "tmux-plugins/tmux-example-plugin")
+	orphanPlugin := mustParsePlugin(t, "tmux-plugins/tmux-sensible")
+	orphanDir := filepath.Join(pluginDir, orphanPlugin.DirName)
 	assertDirExists(t, exampleDir)
 	assertDirExists(t, orphanDir)
 
@@ -121,7 +123,7 @@ func TestCleanFailsOnPermissionDenied(t *testing.T) {
 	if exitCode != 1 {
 		t.Fatalf("expected exit code 1, got %d\noutput: %s", exitCode, output)
 	}
-	assertContains(t, output, `"tmux-sensible" clean fail`)
+	assertContains(t, output, `"`+orphanPlugin.DirName+`" clean fail`)
 	assertDirExists(t, exampleDir)
 }
 
@@ -139,10 +141,10 @@ func TestCleanPreservesPluginsWhenRequiredSourceIsMissing(t *testing.T) {
 		t.Fatal(err)
 	}
 	pluginDir := filepath.Join(home, ".tmux", "plugins")
-	installPluginManually(t, pluginDir, "tmux-plugins/tmux-example-plugin")
-	installPluginManually(t, pluginDir, "tmux-plugins/tmux-sensible")
-	exampleDir := filepath.Join(pluginDir, "tmux-example-plugin")
-	sensibleDir := filepath.Join(pluginDir, "tmux-sensible")
+	installPluginManually(t, home, pluginDir, "tmux-plugins/tmux-example-plugin")
+	installPluginManually(t, home, pluginDir, "tmux-plugins/tmux-sensible")
+	exampleDir := canonicalPluginDir(t, pluginDir, "tmux-plugins/tmux-example-plugin")
+	sensibleDir := canonicalPluginDir(t, pluginDir, "tmux-plugins/tmux-sensible")
 	output, exitCode := runInTmux(t, home, socket, binary+" clean", 30*time.Second)
 	if exitCode != 1 {
 		t.Fatalf("expected exit code 1, got %d\noutput: %s", exitCode, output)
@@ -162,8 +164,8 @@ func TestCleanAllowsMissingQuietSource(t *testing.T) {
 	home, socket := e2eEnv(t, "source-file -q ~/.tmux/plugins.conf\n")
 	startTmux(t, home, socket)
 	pluginDir := filepath.Join(home, ".tmux", "plugins")
-	installPluginManually(t, pluginDir, "tmux-plugins/tmux-sensible")
-	orphanDir := filepath.Join(pluginDir, "tmux-sensible")
+	installPluginManually(t, home, pluginDir, "tmux-plugins/tmux-sensible")
+	orphanDir := canonicalPluginDir(t, pluginDir, "tmux-plugins/tmux-sensible")
 	output, exitCode := runInTmux(t, home, socket, binary+" clean", 30*time.Second)
 	if exitCode != 0 {
 		t.Fatalf("expected exit code 0, got %d\noutput: %s", exitCode, output)

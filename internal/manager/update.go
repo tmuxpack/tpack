@@ -17,7 +17,7 @@ func (m *Manager) updateAll(ctx context.Context, plugins []plug.Plugin) {
 
 	var installed []plug.Plugin
 	for _, p := range plugins {
-		if m.IsPluginInstalled(p.Name) {
+		if m.IsPluginInstalled(p.DirName) {
 			installed = append(installed, p)
 		}
 	}
@@ -36,14 +36,14 @@ func (m *Manager) updateSpecific(ctx context.Context, plugins []plug.Plugin, nam
 
 	var targets []plug.Plugin
 	for _, name := range names {
-		pName := plug.PluginName(name)
-		if !m.IsPluginInstalled(pName) {
-			m.output.Err(pName + " not installed!")
+		p, exists := pluginMap[name]
+		if !exists {
+			m.output.Err(name + " not configured!")
 			continue
 		}
-		p := pluginMap[pName] // Get full plugin for branch info.
-		if p.Name == "" {
-			p = plug.Plugin{Name: pName} // Fallback if not found in config.
+		if !m.IsPluginInstalled(p.DirName) {
+			m.output.Err(name + " not installed!")
+			continue
 		}
 		targets = append(targets, p)
 	}
@@ -54,7 +54,7 @@ func (m *Manager) updateSpecific(ctx context.Context, plugins []plug.Plugin, nam
 }
 
 func (m *Manager) updatePlugin(ctx context.Context, p plug.Plugin) {
-	dir, err := m.pluginRoot.Child(p.Name)
+	dir, err := m.pluginRoot.Child(p.DirName)
 	if err != nil {
 		m.output.Err("invalid plugin path for " + p.Name + ": " + err.Error())
 		return

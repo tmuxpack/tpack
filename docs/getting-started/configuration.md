@@ -26,7 +26,7 @@ The configuration depends on how you installed tpack.
     run 'tpack init'
     ```
 
-=== "Git clone (TPM drop-in)"
+=== "Git clone (TPM-compatible)"
 
     If you cloned tpack into `~/.tmux/plugins/tpm`:
 
@@ -68,6 +68,18 @@ Press ++prefix+shift+i++ to fetch and install all declared plugins.
 | `user/plugin alias=name` | `tmux-plugins/tmux-sensible alias=sensible` | Custom directory name |
 
 Branches track upstream and fast-forward on update. Tags and commit SHAs are pinned (detached HEAD; no automatic updates).
+
+Plugin identity and CLI names are repository-qualified (for example,
+`tmux-plugins/tmux-sensible`). By default, tpack derives an ASCII canonical
+directory of at most 64 bytes from that identity, allowing repositories with
+the same basename to coexist. `alias=` overrides only this directory name; it
+does not change repository identity or the repository-qualified name used by
+commands. Aliases also preserve compatibility when a plugin or script requires
+a fixed directory:
+
+```bash
+set -g @plugin 'tmux-plugins/tmux-sensible alias=tmux-sensible'
+```
 
 For a list of compatible plugins, see the [tmux-plugins list](https://github.com/tmux-plugins/list).
 

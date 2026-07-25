@@ -13,12 +13,13 @@ import (
 
 // Compile-time interface compliance checks.
 var (
-	_ git.Cloner    = (*gitcli.Cloner)(nil)
-	_ git.Puller    = (*gitcli.Puller)(nil)
-	_ git.Validator = (*gitcli.Validator)(nil)
-	_ git.Fetcher   = (*gitcli.Fetcher)(nil)
-	_ git.RevParser = (*gitcli.RevParser)(nil)
-	_ git.Logger    = (*gitcli.Logger)(nil)
+	_ git.Cloner       = (*gitcli.Cloner)(nil)
+	_ git.Puller       = (*gitcli.Puller)(nil)
+	_ git.Validator    = (*gitcli.Validator)(nil)
+	_ git.Fetcher      = (*gitcli.Fetcher)(nil)
+	_ git.OriginReader = (*gitcli.OriginReader)(nil)
+	_ git.RevParser    = (*gitcli.RevParser)(nil)
+	_ git.Logger       = (*gitcli.Logger)(nil)
 )
 
 // Isolate git from the developer's user/system config.

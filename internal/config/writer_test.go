@@ -4,6 +4,8 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/tmuxpack/tpack/internal/plug"
 )
 
 func TestAppendPlugin(t *testing.T) {
@@ -26,6 +28,62 @@ func TestAppendPlugin(t *testing.T) {
 
 	if !strings.Contains(content, "tmux-plugins/tpm") {
 		t.Error("original content was lost")
+	}
+}
+
+func TestAppendPlugin_RoundTripsSupportedSpecs(t *testing.T) {
+	tests := []string{
+		"catppuccin/tmux",
+		"https://github.com/catppuccin/tmux.git#v2",
+		"ssh://git@github.com/catppuccin/tmux.git",
+		"git@github.com:catppuccin/tmux.git",
+		"github.com:catppuccin/tmux.git",
+		"catppuccin/tmux alias=catppuccin-theme#v2",
+	}
+
+	for _, spec := range tests {
+		t.Run(spec, func(t *testing.T) {
+			confPath := t.TempDir() + "/tmux.conf"
+			if err := os.WriteFile(confPath, nil, 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if err := AppendPlugin(confPath, spec); err != nil {
+				t.Fatalf("AppendPlugin: %v", err)
+			}
+			data, err := os.ReadFile(confPath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			got := plug.ExtractPluginsFromConfig(string(data))
+			if len(got) != 1 || got[0] != spec {
+				t.Fatalf("round trip = %q, want [%q]", got, spec)
+			}
+		})
+	}
+}
+
+func TestAppendPlugin_RejectsHostileSpecWithoutChangingConfig(t *testing.T) {
+	confPath := t.TempDir() + "/tmux.conf"
+	const original = "set -g status on\n"
+	if err := os.WriteFile(confPath, []byte(original), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	hostileSpecs := []string{
+		`owner/repo"; run-shell "touch /tmp/tpack-injected"; #`,
+		`owner/repo#main"; run-shell "touch /tmp/tpack-injected"; #`,
+		`owner/repo alias=theme";run-shell`,
+	}
+	for _, hostile := range hostileSpecs {
+		if err := AppendPlugin(confPath, hostile); err == nil {
+			t.Fatalf("AppendPlugin accepted hostile repository spec %q", hostile)
+		}
+	}
+	data, err := os.ReadFile(confPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != original {
+		t.Fatalf("tmux.conf changed to %q", data)
 	}
 }
 

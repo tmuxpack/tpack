@@ -70,10 +70,27 @@ func newTestModel(t *testing.T, plugins []plug.Plugin) Model {
 	return NewModel(cfg, plugins, deps)
 }
 
+func mustParsePlugin(t *testing.T, raw string) plug.Plugin {
+	t.Helper()
+	p, err := plug.ParseSpec(raw, nil)
+	if err != nil {
+		t.Fatalf("ParseSpec(%q): %v", raw, err)
+	}
+	return p
+}
+
+func testPlugin(name, spec string) plug.Plugin {
+	return plug.Plugin{Raw: spec, Name: name, DirName: name, Spec: spec}
+}
+
+func testPluginItem(name, spec string, status PluginStatus) PluginItem {
+	return PluginItem{Raw: spec, Name: name, DirName: name, Spec: spec, Status: status}
+}
+
 func TestNewModel_InitialState(t *testing.T) {
 	plugins := []plug.Plugin{
-		{Name: "tmux-sensible", Spec: "tmux-plugins/tmux-sensible"},
-		{Name: "tmux-yank", Spec: "tmux-plugins/tmux-yank"},
+		testPlugin("tmux-sensible", "tmux-plugins/tmux-sensible"),
+		testPlugin("tmux-yank", "tmux-plugins/tmux-yank"),
 	}
 	m := newTestModel(t, plugins)
 
@@ -96,7 +113,7 @@ func TestNewModel_InitialState(t *testing.T) {
 
 func TestNewModel_PluginStatus(t *testing.T) {
 	plugins := []plug.Plugin{
-		{Name: "tmux-sensible", Spec: "tmux-plugins/tmux-sensible"},
+		testPlugin("tmux-sensible", "tmux-plugins/tmux-sensible"),
 	}
 	m := newTestModel(t, plugins)
 
@@ -119,9 +136,9 @@ func TestUpdate_QuitKey(t *testing.T) {
 
 func TestUpdate_CursorNavigation(t *testing.T) {
 	plugins := []plug.Plugin{
-		{Name: "a", Spec: "user/a"},
-		{Name: "b", Spec: "user/b"},
-		{Name: "c", Spec: "user/c"},
+		testPlugin("a", "user/a"),
+		testPlugin("b", "user/b"),
+		testPlugin("c", "user/c"),
 	}
 	m := newTestModel(t, plugins)
 	m.viewHeight = 10
@@ -175,7 +192,7 @@ func TestUpdate_WindowSize(t *testing.T) {
 
 func TestView_NonEmpty(t *testing.T) {
 	plugins := []plug.Plugin{
-		{Name: "tmux-sensible", Spec: "tmux-plugins/tmux-sensible"},
+		testPlugin("tmux-sensible", "tmux-plugins/tmux-sensible"),
 	}
 	m := newTestModel(t, plugins)
 	m.width = 80
@@ -203,7 +220,7 @@ func TestView_ProgressScreen(t *testing.T) {
 
 func TestStartOperation_Install(t *testing.T) {
 	plugins := []plug.Plugin{
-		{Name: "test-plugin", Spec: "user/test-plugin"},
+		testPlugin("test-plugin", "user/test-plugin"),
 	}
 	m := newTestModel(t, plugins)
 	// Plugin is not installed, so install should work.
@@ -259,7 +276,7 @@ func TestReturnToList(t *testing.T) {
 
 func TestNewModel_WithAutoOp(t *testing.T) {
 	plugins := []plug.Plugin{
-		{Name: "tmux-sensible", Spec: "tmux-plugins/tmux-sensible"},
+		testPlugin("tmux-sensible", "tmux-plugins/tmux-sensible"),
 	}
 	cfg := &config.Config{PluginPath: mustRoot(t, t.TempDir())}
 	deps := Deps{
@@ -316,9 +333,9 @@ func TestStartAutoOperation_Install(t *testing.T) {
 	m := newTestModel(t, nil)
 	m.autoOp = OpInstall
 	m.plugins = []PluginItem{
-		{Name: "a", Spec: "user/a", Status: StatusNotInstalled},
-		{Name: "b", Spec: "user/b", Status: StatusInstalled},
-		{Name: "c", Spec: "user/c", Status: StatusNotInstalled},
+		testPluginItem("a", "user/a", StatusNotInstalled),
+		testPluginItem("b", "user/b", StatusInstalled),
+		testPluginItem("c", "user/c", StatusNotInstalled),
 	}
 
 	result, cmd := m.startAutoOperation()
@@ -342,9 +359,9 @@ func TestStartAutoOperation_Update(t *testing.T) {
 	m := newTestModel(t, nil)
 	m.autoOp = OpUpdate
 	m.plugins = []PluginItem{
-		{Name: "a", Spec: "user/a", Status: StatusInstalled},
-		{Name: "b", Spec: "user/b", Status: StatusNotInstalled},
-		{Name: "c", Spec: "user/c", Status: StatusOutdated},
+		testPluginItem("a", "user/a", StatusInstalled),
+		testPluginItem("b", "user/b", StatusNotInstalled),
+		testPluginItem("c", "user/c", StatusOutdated),
 	}
 
 	result, cmd := m.startAutoOperation()
@@ -439,7 +456,7 @@ func TestUpdate_AutoStartMsg(t *testing.T) {
 	m := newTestModel(t, nil)
 	m.autoOp = OpInstall
 	m.plugins = []PluginItem{
-		{Name: "test", Spec: "user/test", Status: StatusNotInstalled},
+		testPluginItem("test", "user/test", StatusNotInstalled),
 	}
 
 	result, cmd := m.Update(autoStartMsg{})

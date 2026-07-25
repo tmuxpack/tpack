@@ -7,7 +7,7 @@ The `tpack` binary can be used directly from the command line, outside of tmux k
 | Command | Description |
 |---------|-------------|
 | `tpack install` | Install all plugins declared in tmux.conf |
-| `tpack update [name...]` | Update one or more plugins by name, or all if `all` is given |
+| `tpack update [name...]` | Update one or more plugins by repository-qualified name, or all if `all` is given |
 | `tpack clean` | Remove plugin directories not declared in tmux.conf |
 | `tpack source` | Source all plugins without installing (useful for already-cloned plugins) |
 | `tpack tui` | Open the interactive TUI (see flags below) |
@@ -29,7 +29,7 @@ tpack install
 Update a single plugin:
 
 ```bash
-tpack update tmux-sensible
+tpack update tmux-plugins/tmux-sensible
 ```
 
 Update all plugins:
@@ -88,7 +88,9 @@ tpack completion bash > $(brew --prefix)/etc/bash_completion.d/tpack
 tpack completion fish > ~/.config/fish/completions/tpack.fish
 ```
 
-Completions include all commands, flags, and dynamic plugin name completion for `tpack update` and `tpack commits --name`.
+Completions include all commands, flags, and dynamic repository-qualified name
+completion for `tpack update` and `tpack commits --name`. Completion only reads
+configuration; it does not trigger legacy directory migration.
 
 ## Legacy shell scripts
 
@@ -97,6 +99,6 @@ For backward compatibility with TPM, tpack ships shell script wrappers in `bin/`
 ```bash
 ~/.tmux/plugins/tpm/bin/install_plugins
 ~/.tmux/plugins/tpm/bin/update_plugins all
-~/.tmux/plugins/tpm/bin/update_plugins tmux-sensible
+~/.tmux/plugins/tpm/bin/update_plugins tmux-plugins/tmux-sensible
 ~/.tmux/plugins/tpm/bin/clean_plugins
 ```

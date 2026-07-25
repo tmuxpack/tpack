@@ -20,6 +20,10 @@ func TestMockValidatorImplementsValidator(t *testing.T) {
 	var _ git.Validator = (*git.MockValidator)(nil)
 }
 
+func TestMockOriginReaderImplementsOriginReader(t *testing.T) {
+	var _ git.OriginReader = (*git.MockOriginReader)(nil)
+}
+
 func TestCloneWithFallbackPrimarySucceeds(t *testing.T) {
 	cloner := git.NewMockCloner()
 	normalize := func(url string) string { return url + "-normalized" }

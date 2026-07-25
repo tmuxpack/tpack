@@ -11,6 +11,9 @@ import (
 // Adds a `set -g @plugin "repo"` line to the tmux.conf file if not already there.
 // TODO: Should find where other plugins are and inserted near them
 func AppendPlugin(confPath string, repo string) error {
+	if _, err := plug.ParseSpec(repo, nil); err != nil {
+		return fmt.Errorf("validate plugin: %w", err)
+	}
 	data, err := os.ReadFile(confPath)
 	if err != nil {
 		return fmt.Errorf("read tmux.conf: %w", err)
@@ -33,10 +36,15 @@ func AppendPlugin(confPath string, repo string) error {
 	if err != nil {
 		return fmt.Errorf("open tmux.conf: %w", err)
 	}
-	defer f.Close()
 
-	_, err = f.WriteString(line)
-	return err
+	if _, err := f.WriteString(line); err != nil {
+		_ = f.Close()
+		return fmt.Errorf("append tmux.conf: %w", err)
+	}
+	if err := f.Close(); err != nil {
+		return fmt.Errorf("append tmux.conf: %w", err)
+	}
+	return nil
 }
 
 // removes plugin from tmux.conf if found

@@ -13,17 +13,43 @@ import (
 func TestSaveAndLoadLoadErrors(t *testing.T) {
 	statePath := filepath.Join(t.TempDir(), "tpack")
 	want := []plug.LoadFailure{
-		{Name: "tmux-statusline", Message: "error sourcing statusline.tmux: exec format error"},
+		{Name: "tmux-statusline", DirName: "tmux-statusline-15a02faf769b", Message: "error sourcing statusline.tmux: exec format error"},
 		{Name: "other", Message: "boom"},
 	}
 
 	if err := state.SaveLoadErrors(statePath, want); err != nil {
 		t.Fatalf("SaveLoadErrors failed: %v", err)
 	}
+	data, err := os.ReadFile(filepath.Join(statePath, "load-errors.yml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Count(string(data), "dir_name:") != 1 {
+		t.Errorf("persisted YAML must contain one non-empty dir_name:\n%s", data)
+	}
 
 	got := state.LoadLoadErrors(statePath, nil)
 	if len(got) != 2 || got[0] != want[0] || got[1] != want[1] {
 		t.Errorf("round-trip mismatch:\n got %v\nwant %v", got, want)
+	}
+}
+
+func TestLoadLoadErrorsReadsLegacyRecordsWithoutDirName(t *testing.T) {
+	statePath := filepath.Join(t.TempDir(), "tpack")
+	if err := os.MkdirAll(statePath, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	fixture := "load_errors:\n  - name: tmux-statusline\n    message: legacy failure\n"
+	if err := os.WriteFile(filepath.Join(statePath, "load-errors.yml"), []byte(fixture), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	got := state.LoadLoadErrors(statePath, nil)
+	if len(got) != 1 {
+		t.Fatalf("legacy failures = %v", got)
+	}
+	if got[0].Name != "tmux-statusline" || got[0].DirName != "" || got[0].Message != "legacy failure" {
+		t.Errorf("legacy failure = %#v", got[0])
 	}
 }
 
