@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -28,6 +29,167 @@ func TestAppendPlugin(t *testing.T) {
 
 	if !strings.Contains(content, "tmux-plugins/tpm") {
 		t.Error("original content was lost")
+	}
+}
+
+func TestAppendPlugin_Placement(t *testing.T) {
+	tests := []struct {
+		name    string
+		initial string
+		want    string
+	}{
+		{
+			name: "after existing plugin and before tpack init",
+			initial: "set -g @plugin 'tmux-plugins/tmux-resurrect'\n\n" +
+				"run 'tpack init'\n",
+			want: "set -g @plugin 'tmux-plugins/tmux-resurrect'\n" +
+				"set -g @plugin \"Ataraxy-Labs/opensessions\"\n\n" +
+				"run 'tpack init'\n",
+		},
+		{
+			name: "after last supported plugin declaration",
+			initial: "set-option -g @plugin 'owner/one'\n" +
+				"set -g @plugin owner/two\n\nset -g mouse on\n",
+			want: "set-option -g @plugin 'owner/one'\n" +
+				"set -g @plugin owner/two\n" +
+				"set -g @plugin \"Ataraxy-Labs/opensessions\"\n\nset -g mouse on\n",
+		},
+		{
+			name:    "before tpack init without existing plugins",
+			initial: "set -g mouse on\nrun-shell \"tpack init\"\n",
+			want: "set -g mouse on\n" +
+				"set -g @plugin \"Ataraxy-Labs/opensessions\"\n" +
+				"run-shell \"tpack init\"\n",
+		},
+		{
+			name:    "before TPM init without existing plugins",
+			initial: "run '~/.tmux/plugins/tpm/tpm'\n",
+			want: "set -g @plugin \"Ataraxy-Labs/opensessions\"\n" +
+				"run '~/.tmux/plugins/tpm/tpm'\n",
+		},
+		{
+			name:    "before background tpack init",
+			initial: "set -g mouse on\nrun-shell -b \"tpack init\"\n",
+			want: "set -g mouse on\n" +
+				"set -g @plugin \"Ataraxy-Labs/opensessions\"\n" +
+				"run-shell -b \"tpack init\"\n",
+		},
+		{
+			name:    "before tpack init with trailing comment",
+			initial: "set -g mouse on\nrun \"tpack init\" # initialize\n",
+			want: "set -g mouse on\n" +
+				"set -g @plugin \"Ataraxy-Labs/opensessions\"\n" +
+				"run \"tpack init\" # initialize\n",
+		},
+		{
+			name:    "append after non-init command ending in TPM text",
+			initial: "run-shell \"echo /tpm\"\nset -g mouse on\n",
+			want: "run-shell \"echo /tpm\"\nset -g mouse on\n" +
+				"set -g @plugin \"Ataraxy-Labs/opensessions\"\n",
+		},
+		{
+			name:    "append when only commented anchors exist",
+			initial: "# set -g @plugin 'owner/disabled'\n# run 'tpack init'\nset -g mouse on\n",
+			want: "# set -g @plugin 'owner/disabled'\n# run 'tpack init'\nset -g mouse on\n" +
+				"set -g @plugin \"Ataraxy-Labs/opensessions\"\n",
+		},
+		{
+			name:    "add newline after unterminated plugin declaration",
+			initial: "set -g @plugin 'owner/one'",
+			want: "set -g @plugin 'owner/one'\n" +
+				"set -g @plugin \"Ataraxy-Labs/opensessions\"\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			confPath := t.TempDir() + "/tmux.conf"
+			if err := os.WriteFile(confPath, []byte(tt.initial), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if err := AppendPlugin(confPath, "Ataraxy-Labs/opensessions"); err != nil {
+				t.Fatalf("AppendPlugin: %v", err)
+			}
+			got, err := os.ReadFile(confPath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(got) != tt.want {
+				t.Fatalf("tmux.conf = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestAppendPlugin_AtomicallyReplacesConfig(t *testing.T) {
+	dir := t.TempDir()
+	confPath := filepath.Join(dir, "tmux.conf")
+	linkedPath := filepath.Join(dir, "original.conf")
+	const initial = "set -g mouse on\n"
+	if err := os.WriteFile(confPath, []byte(initial), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Link(confPath, linkedPath); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := AppendPlugin(confPath, "Ataraxy-Labs/opensessions"); err != nil {
+		t.Fatalf("AppendPlugin: %v", err)
+	}
+	linked, err := os.ReadFile(linkedPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(linked) != initial {
+		t.Fatalf("original file content = %q, want %q", linked, initial)
+	}
+}
+
+func TestAppendPlugin_PreservesPermissions(t *testing.T) {
+	confPath := filepath.Join(t.TempDir(), "tmux.conf")
+	if err := os.WriteFile(confPath, []byte("set -g mouse on\n"), 0o640); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := AppendPlugin(confPath, "Ataraxy-Labs/opensessions"); err != nil {
+		t.Fatalf("AppendPlugin: %v", err)
+	}
+	info, err := os.Stat(confPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := info.Mode().Perm(), os.FileMode(0o640); got != want {
+		t.Fatalf("tmux.conf permissions = %o, want %o", got, want)
+	}
+}
+
+func TestAppendPlugin_ReplacesSymlinkTarget(t *testing.T) {
+	dir := t.TempDir()
+	targetPath := filepath.Join(dir, "actual.conf")
+	confPath := filepath.Join(dir, "tmux.conf")
+	if err := os.WriteFile(targetPath, []byte("set -g mouse on\n"), 0o640); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(filepath.Base(targetPath), confPath); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := AppendPlugin(confPath, "Ataraxy-Labs/opensessions"); err != nil {
+		t.Fatalf("AppendPlugin: %v", err)
+	}
+	info, err := os.Lstat(confPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode()&os.ModeSymlink == 0 {
+		t.Fatal("tmux.conf symlink was replaced")
+	}
+	got, err := os.ReadFile(targetPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(got), `set -g @plugin "Ataraxy-Labs/opensessions"`) {
+		t.Fatalf("symlink target was not updated: %q", got)
 	}
 }
 

@@ -32,7 +32,14 @@ Press ++slash++ to enter search mode. Type to filter plugins by name or descript
 
 ### Installing from browse
 
-Select a plugin and press ++i++ to install it. The plugin line is automatically added to your `tmux.conf` and installation begins immediately — no manual config editing required.
+Select a plugin and press ++i++ to install it. The plugin line is automatically
+added to your `tmux.conf` and installation begins immediately, with no manual
+config editing required. Tpack places the new line after the last active existing
+`@plugin` declaration. If there are no active existing plugin declarations, it
+places the line before the first recognized tpack or TPM initialization command;
+if neither exists, it adds the line at the end of the file. Recognized commands
+are active `run` or `run-shell` invocations of exact `tpack init` or a TPM script
+path ending in `/tpm`; commented initialization commands are ignored.
 
 ### Opening a plugin URL
 
