@@ -13,44 +13,9 @@ import (
 )
 
 // Messages returned by operations.
-type pluginInstallResultMsg struct {
-	Name    string
-	DirName string
-	Success bool
-	Message string
-}
-
-type pluginUpdateResultMsg struct {
-	Name      string
-	DirName   string
-	Success   bool
-	Message   string
-	Output    string
-	Commits   []git.Commit
-	Dir       string
-	BeforeRef string
-	AfterRef  string
-}
-
-type pluginCleanResultMsg struct {
-	Name    string
-	DirName string
-	Success bool
-	Message string
-}
-
-type pluginUninstallResultMsg struct {
-	Name    string
-	DirName string
-	Success bool
-	Message string
-}
-
-type pluginRemoveResultMsg struct {
-	Name    string
-	DirName string
-	Success bool
-	Message string
+type operationResultMsg struct {
+	Operation Operation
+	ResultItem
 }
 
 type pluginCheckResultMsg struct {
@@ -93,18 +58,19 @@ func installPluginCmd(cloner git.Cloner, op pendingOp) tea.Cmd {
 		}, plug.NormalizeURL)
 
 		if err != nil {
-			return pluginInstallResultMsg{
-				Name:    op.Name,
-				DirName: op.DirName,
-				Success: false,
-				Message: err.Error(),
+			return operationResultMsg{
+				Operation: OpInstall,
+				ResultItem: ResultItem{
+					Name: op.Name, DirName: op.DirName, Success: false, Message: err.Error(),
+				},
 			}
 		}
-		return pluginInstallResultMsg{
-			Name:    op.Name,
-			DirName: op.DirName,
-			Success: true,
-			Message: appendWarnings("installed successfully", warnings),
+		return operationResultMsg{
+			Operation: OpInstall,
+			ResultItem: ResultItem{
+				Name: op.Name, DirName: op.DirName, Success: true,
+				Message: appendWarnings("installed successfully", warnings),
+			},
 		}
 	}
 }
@@ -135,12 +101,11 @@ func updatePluginCmd(puller git.Puller, revParser git.RevParser, logger git.Logg
 			},
 		})
 		if err != nil {
-			return pluginUpdateResultMsg{
-				Name:    op.Name,
-				DirName: op.DirName,
-				Success: false,
-				Message: err.Error(),
-				Output:  output,
+			return operationResultMsg{
+				Operation: OpUpdate,
+				ResultItem: ResultItem{
+					Name: op.Name, DirName: op.DirName, Success: false, Message: err.Error(), Output: output,
+				},
 			}
 		}
 
@@ -155,16 +120,19 @@ func updatePluginCmd(puller git.Puller, revParser git.RevParser, logger git.Logg
 			}
 		}
 
-		return pluginUpdateResultMsg{
-			Name:      op.Name,
-			DirName:   op.DirName,
-			Success:   true,
-			Message:   appendWarnings("updated successfully", warnings),
-			Output:    output,
-			Commits:   commits,
-			Dir:       op.Path,
-			BeforeRef: beforeHash,
-			AfterRef:  afterHash,
+		return operationResultMsg{
+			Operation: OpUpdate,
+			ResultItem: ResultItem{
+				Name:      op.Name,
+				DirName:   op.DirName,
+				Success:   true,
+				Message:   appendWarnings("updated successfully", warnings),
+				Output:    output,
+				Commits:   commits,
+				Dir:       op.Path,
+				BeforeRef: beforeHash,
+				AfterRef:  afterHash,
+			},
 		}
 	}
 }
@@ -178,43 +146,45 @@ func appendWarnings(base string, warnings []string) string {
 	return base + " (with warnings: " + strings.Join(warnings, "; ") + ")"
 }
 
-func removeDirCmd(op pendingOp, resolveRoot bool, msgFactory func(name, dirName string, success bool, message string) tea.Msg) tea.Cmd {
+func removeDirCmd(op pendingOp, operation Operation, resolveRoot bool) tea.Cmd {
 	return func() tea.Msg {
+		result := func(success bool, message string) operationResultMsg {
+			return operationResultMsg{
+				Operation: operation,
+				ResultItem: ResultItem{
+					Name: op.Name, DirName: op.DirName, Success: success, Message: message,
+				},
+			}
+		}
 		path := op.Path
 		if resolveRoot {
 			root, err := op.Root.Resolved()
 			if err != nil {
-				return msgFactory(op.Name, op.DirName, false, err.Error())
+				return result(false, err.Error())
 			}
 			path, err = root.Child(op.DirName)
 			if err != nil {
-				return msgFactory(op.Name, op.DirName, false, err.Error())
+				return result(false, err.Error())
 			}
 		}
 		if err := os.RemoveAll(path); err != nil {
-			return msgFactory(op.Name, op.DirName, false, err.Error())
+			return result(false, err.Error())
 		}
-		return msgFactory(op.Name, op.DirName, true, "removed successfully")
+		return result(true, "removed successfully")
 	}
 }
 
 // removes orphaned directories
 func cleanPluginCmd(op pendingOp) tea.Cmd {
-	return removeDirCmd(op, false, func(name, dirName string, success bool, message string) tea.Msg {
-		return pluginCleanResultMsg{Name: name, DirName: dirName, Success: success, Message: message}
-	})
+	return removeDirCmd(op, OpClean, false)
 }
 
 func uninstallPluginCmd(op pendingOp) tea.Cmd {
-	return removeDirCmd(op, true, func(name, dirName string, success bool, message string) tea.Msg {
-		return pluginUninstallResultMsg{Name: name, DirName: dirName, Success: success, Message: message}
-	})
+	return removeDirCmd(op, OpUninstall, true)
 }
 
 func removePluginDirCmd(op pendingOp) tea.Cmd {
-	return removeDirCmd(op, true, func(name, dirName string, success bool, message string) tea.Msg {
-		return pluginRemoveResultMsg{Name: name, DirName: dirName, Success: success, Message: message}
-	})
+	return removeDirCmd(op, OpRemove, true)
 }
 
 // sources tmux config file

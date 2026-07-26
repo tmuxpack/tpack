@@ -39,8 +39,9 @@ func TestSameBasenameResultsUseDirectoryKey(t *testing.T) {
 	m.totalItems = 1
 	m.inFlightNames = []string{"tmux"}
 
-	updated, _ := m.Update(pluginInstallResultMsg{
-		Name: "tmux", DirName: "tmux-e74ab6318c07", Success: true, Message: "installed",
+	updated, _ := m.Update(operationResultMsg{
+		Operation:  OpInstall,
+		ResultItem: ResultItem{Name: "tmux", DirName: "tmux-e74ab6318c07", Success: true, Message: "installed"},
 	})
 	m = updated.(Model)
 
@@ -115,6 +116,26 @@ func TestHandleCheckResult_UnknownPlugin(t *testing.T) {
 	_ = result.(Model) // should not panic
 }
 
+func TestOperationResultMessage(t *testing.T) {
+	m := newProcessingTestModel(t, OpInstall, "alpha", []PluginItem{
+		testPluginItem("alpha", "user/alpha", StatusNotInstalled),
+	})
+	result := ResultItem{Name: "alpha", DirName: "alpha", Success: true, Message: "installed"}
+
+	m = updateTestModel(t, m, operationResultMsg{Operation: OpInstall, ResultItem: result})
+
+	if m.plugins[0].Status != StatusInstalled {
+		t.Errorf("plugin status = %s, want %s", m.plugins[0].Status, StatusInstalled)
+	}
+	if !reflect.DeepEqual(m.results, []ResultItem{result}) {
+		t.Errorf("results = %+v, want %+v", m.results, []ResultItem{result})
+	}
+	if m.completedItems != 1 || m.inFlight != 0 || len(m.inFlightNames) != 0 || m.processing {
+		t.Errorf("operation lifecycle = completed:%d in-flight:%d names:%v processing:%t",
+			m.completedItems, m.inFlight, m.inFlightNames, m.processing)
+	}
+}
+
 func TestOperationResults(t *testing.T) {
 	tests := []struct {
 		name         string
@@ -130,7 +151,7 @@ func TestOperationResults(t *testing.T) {
 			operation:    OpInstall,
 			inFlightName: "alpha",
 			plugins:      []PluginItem{testPluginItem("alpha", "user/alpha", StatusNotInstalled)},
-			msg:          pluginInstallResultMsg{Name: "alpha", DirName: "alpha", Success: true, Message: "installed"},
+			msg:          operationResultMsg{Operation: OpInstall, ResultItem: ResultItem{Name: "alpha", DirName: "alpha", Success: true, Message: "installed"}},
 			wantPlugins:  []PluginItem{{Raw: "user/alpha", Name: "alpha", DirName: "alpha", Spec: "user/alpha", Status: StatusInstalled}},
 			wantResults:  []ResultItem{{Name: "alpha", DirName: "alpha", Success: true, Message: "installed"}},
 		},
@@ -139,7 +160,7 @@ func TestOperationResults(t *testing.T) {
 			operation:    OpInstall,
 			inFlightName: "alpha",
 			plugins:      []PluginItem{testPluginItem("alpha", "user/alpha", StatusNotInstalled)},
-			msg:          pluginInstallResultMsg{Name: "alpha", DirName: "alpha", Success: false, Message: "clone failed"},
+			msg:          operationResultMsg{Operation: OpInstall, ResultItem: ResultItem{Name: "alpha", DirName: "alpha", Success: false, Message: "clone failed"}},
 			wantPlugins:  []PluginItem{{Raw: "user/alpha", Name: "alpha", DirName: "alpha", Spec: "user/alpha", Status: StatusNotInstalled}},
 			wantResults:  []ResultItem{{Name: "alpha", DirName: "alpha", Success: false, Message: "clone failed"}},
 		},
@@ -148,7 +169,7 @@ func TestOperationResults(t *testing.T) {
 			operation:    OpUpdate,
 			inFlightName: "alpha",
 			plugins:      []PluginItem{testPluginItem("alpha", "user/alpha", StatusInstalled)},
-			msg:          pluginUpdateResultMsg{Name: "alpha", DirName: "alpha", Success: true, Message: "updated"},
+			msg:          operationResultMsg{Operation: OpUpdate, ResultItem: ResultItem{Name: "alpha", DirName: "alpha", Success: true, Message: "updated"}},
 			wantPlugins:  []PluginItem{{Raw: "user/alpha", Name: "alpha", DirName: "alpha", Spec: "user/alpha", Status: StatusInstalled}},
 			wantResults:  []ResultItem{{Name: "alpha", DirName: "alpha", Success: true, Message: "updated"}},
 		},
@@ -156,7 +177,7 @@ func TestOperationResults(t *testing.T) {
 			name:         "clean success",
 			operation:    OpClean,
 			inFlightName: "orphan-a",
-			msg:          pluginCleanResultMsg{Name: "orphan-a", Success: true, Message: "removed"},
+			msg:          operationResultMsg{Operation: OpClean, ResultItem: ResultItem{Name: "orphan-a", Success: true, Message: "removed"}},
 			wantResults:  []ResultItem{{Name: "orphan-a", Success: true, Message: "removed"}},
 		},
 		{
@@ -164,7 +185,7 @@ func TestOperationResults(t *testing.T) {
 			operation:    OpUninstall,
 			inFlightName: "alpha",
 			plugins:      []PluginItem{testPluginItem("alpha", "user/alpha", StatusInstalled)},
-			msg:          pluginUninstallResultMsg{Name: "alpha", DirName: "alpha", Success: true, Message: "removed"},
+			msg:          operationResultMsg{Operation: OpUninstall, ResultItem: ResultItem{Name: "alpha", DirName: "alpha", Success: true, Message: "removed"}},
 			wantPlugins:  []PluginItem{{Raw: "user/alpha", Name: "alpha", DirName: "alpha", Spec: "user/alpha", Status: StatusNotInstalled}},
 			wantResults:  []ResultItem{{Name: "alpha", DirName: "alpha", Success: true, Message: "removed"}},
 		},
@@ -176,7 +197,7 @@ func TestOperationResults(t *testing.T) {
 				testPluginItem("alpha", "user/alpha", StatusInstalled),
 				testPluginItem("beta", "user/beta", StatusInstalled),
 			},
-			msg:         pluginRemoveResultMsg{Name: "alpha", DirName: "alpha", Success: true, Message: "removed successfully"},
+			msg:         operationResultMsg{Operation: OpRemove, ResultItem: ResultItem{Name: "alpha", DirName: "alpha", Success: true, Message: "removed successfully"}},
 			wantPlugins: []PluginItem{{Raw: "user/beta", Name: "beta", DirName: "beta", Spec: "user/beta", Status: StatusInstalled}},
 			wantResults: []ResultItem{{Name: "alpha", DirName: "alpha", Success: true, Message: "removed successfully"}},
 		},
@@ -185,7 +206,7 @@ func TestOperationResults(t *testing.T) {
 			operation:    OpRemove,
 			inFlightName: "alpha",
 			plugins:      []PluginItem{testPluginItem("alpha", "user/alpha", StatusInstalled)},
-			msg:          pluginRemoveResultMsg{Name: "alpha", DirName: "alpha", Success: false, Message: "permission denied"},
+			msg:          operationResultMsg{Operation: OpRemove, ResultItem: ResultItem{Name: "alpha", DirName: "alpha", Success: false, Message: "permission denied"}},
 			wantPlugins:  []PluginItem{},
 			wantResults:  []ResultItem{{Name: "alpha", DirName: "alpha", Success: false, Message: "permission denied"}},
 		},
@@ -827,7 +848,9 @@ func TestHandleUpdateResult_WithCommits(t *testing.T) {
 		{Hash: "abc", Message: "add feature"},
 		{Hash: "def", Message: "fix bug"},
 	}
-	msg := pluginUpdateResultMsg{Name: "alpha", DirName: "alpha", Success: true, Message: "updated", Commits: commits}
+	msg := operationResultMsg{Operation: OpUpdate, ResultItem: ResultItem{
+		Name: "alpha", DirName: "alpha", Success: true, Message: "updated", Commits: commits,
+	}}
 	result, _ := m.Update(msg)
 	m = result.(Model)
 

@@ -201,16 +201,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleCheckResult(msg)
 	case spinner.TickMsg:
 		return m.handleSpinnerTick(msg)
-	case pluginInstallResultMsg:
-		return m.handleInstallResult(msg)
-	case pluginUpdateResultMsg:
-		return m.handleUpdateResult(msg)
-	case pluginCleanResultMsg:
-		return m.handleCleanResult(msg)
-	case pluginUninstallResultMsg:
-		return m.handleUninstallResult(msg)
-	case pluginRemoveResultMsg:
-		return m.handleRemoveResult(msg)
+	case operationResultMsg:
+		return m.handleOperationResult(msg)
 	case registryFetchResultMsg:
 		return m.handleRegistryFetch(msg)
 	case openURLResultMsg:
@@ -548,25 +540,6 @@ func (m Model) startAutoOperation() (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-// handleOpResult is the shared logic for processing an operation result:
-// increment counter, append result, optionally update plugin status, dispatch next.
-func (m *Model) handleOpResult(result ResultItem, updateStatus func()) tea.Cmd {
-	m.completedItems++
-	m.inFlight--
-	m.results = append(m.results, result)
-	if result.Success && updateStatus != nil {
-		updateStatus()
-	}
-	// Remove from inFlightNames.
-	for i, name := range m.inFlightNames {
-		if name == result.Name {
-			m.inFlightNames = append(m.inFlightNames[:i], m.inFlightNames[i+1:]...)
-			break
-		}
-	}
-	return m.dispatchNext()
-}
-
 // setPluginStatus updates the status of the plugin with the given directory key.
 func (m *Model) setPluginStatus(dirName string, status PluginStatus) {
 	for i := range m.plugins {
@@ -587,43 +560,32 @@ func (m *Model) removePlugin(dirName string) {
 	}
 }
 
-// handleInstallResult processes an install result and dispatches next.
-func (m Model) handleInstallResult(msg pluginInstallResultMsg) (tea.Model, tea.Cmd) {
-	cmd := m.handleOpResult(ResultItem{Name: msg.Name, DirName: msg.DirName, Success: msg.Success, Message: msg.Message}, func() {
-		m.setPluginStatus(msg.DirName, StatusInstalled)
-	})
-	return m, cmd
-}
+func (m Model) handleOperationResult(msg operationResultMsg) (tea.Model, tea.Cmd) {
+	m.completedItems++
+	m.inFlight--
+	m.results = append(m.results, msg.ResultItem)
+	for i, name := range m.inFlightNames {
+		if name == msg.Name {
+			m.inFlightNames = append(m.inFlightNames[:i], m.inFlightNames[i+1:]...)
+			break
+		}
+	}
 
-// handleUpdateResult processes an update result and dispatches next.
-func (m Model) handleUpdateResult(msg pluginUpdateResultMsg) (tea.Model, tea.Cmd) {
-	cmd := m.handleOpResult(ResultItem(msg), func() {
-		m.setPluginStatus(msg.DirName, StatusInstalled)
-	})
-	return m, cmd
-}
+	switch msg.Operation {
+	case OpNone, OpClean:
+	case OpInstall, OpUpdate:
+		if msg.Success {
+			m.setPluginStatus(msg.DirName, StatusInstalled)
+		}
+	case OpUninstall:
+		if msg.Success {
+			m.setPluginStatus(msg.DirName, StatusNotInstalled)
+		}
+	case OpRemove:
+		m.removePlugin(msg.DirName)
+	}
 
-// handleCleanResult processes a clean result and dispatches next.
-func (m Model) handleCleanResult(msg pluginCleanResultMsg) (tea.Model, tea.Cmd) {
-	cmd := m.handleOpResult(ResultItem{Name: msg.Name, DirName: msg.DirName, Success: msg.Success, Message: msg.Message}, nil)
-	return m, cmd
-}
-
-// handleUninstallResult processes an uninstall result and dispatches next.
-func (m Model) handleUninstallResult(msg pluginUninstallResultMsg) (tea.Model, tea.Cmd) {
-	cmd := m.handleOpResult(ResultItem{Name: msg.Name, DirName: msg.DirName, Success: msg.Success, Message: msg.Message}, func() {
-		m.setPluginStatus(msg.DirName, StatusNotInstalled)
-	})
-	return m, cmd
-}
-
-// handleRemoveResult processes a remove result (directory removal) and dispatches next.
-// The config entry was already removed synchronously before dispatch, so the plugin
-// is removed from the list regardless of whether directory removal succeeded.
-func (m Model) handleRemoveResult(msg pluginRemoveResultMsg) (tea.Model, tea.Cmd) {
-	m.removePlugin(msg.DirName)
-	cmd := m.handleOpResult(ResultItem{Name: msg.Name, DirName: msg.DirName, Success: msg.Success, Message: msg.Message}, nil)
-	return m, cmd
+	return m, m.dispatchNext()
 }
 
 // handleSpinnerTick advances the spinner animation while checks are in progress.

@@ -455,10 +455,9 @@ func TestInstallFromBrowse_AllowsSameBasenameRepository(t *testing.T) {
 		t.Fatalf("tmux.conf did not gain dracula/tmux:\n%s", data)
 	}
 
-	msg := cmd()
-	result, ok := msg.(pluginInstallResultMsg)
-	if !ok || result.DirName != "tmux-e74ab6318c07" {
-		t.Fatalf("install result correlation = %#v", msg)
+	result := runOperationCmd(t, cmd, OpInstall)
+	if result.DirName != "tmux-e74ab6318c07" {
+		t.Fatalf("install result correlation = %#v", result)
 	}
 	cloner, ok := m.deps.Cloner.(*git.MockCloner)
 	if !ok || len(cloner.Calls) != 1 || cloner.Calls[0].Dir != filepath.Join(rootDir, "tmux-e74ab6318c07") {

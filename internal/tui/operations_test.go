@@ -14,6 +14,20 @@ import (
 	"github.com/tmuxpack/tpack/internal/tmux"
 )
 
+func runOperationCmd(t *testing.T, cmd tea.Cmd, wantOperation Operation) ResultItem {
+	t.Helper()
+
+	got := cmd()
+	msg, ok := got.(operationResultMsg)
+	if !ok {
+		t.Fatalf("operation command returned %T, want operationResultMsg", got)
+	}
+	if msg.Operation != wantOperation {
+		t.Fatalf("operation = %s, want %s", msg.Operation, wantOperation)
+	}
+	return msg.ResultItem
+}
+
 func TestBuildInstallOpsUsesDirectoryKeyAndPreservesRaw(t *testing.T) {
 	rootDir := t.TempDir()
 	m := newTestModel(t, nil)
@@ -51,10 +65,9 @@ func TestUninstallPluginCmdResolvesDirectoryKey(t *testing.T) {
 	}
 	op := pendingOp{Name: "tmux", DirName: "tmux-e74ab6318c07", Path: wantRemoved, Root: mustRoot(t, rootDir)}
 
-	msg := uninstallPluginCmd(op)()
-	result, ok := msg.(pluginUninstallResultMsg)
-	if !ok || !result.Success {
-		t.Fatalf("uninstall result = %#v", msg)
+	result := runOperationCmd(t, uninstallPluginCmd(op), OpUninstall)
+	if !result.Success {
+		t.Fatalf("uninstall result = %#v", result)
 	}
 	if _, err := os.Stat(wantRemoved); !os.IsNotExist(err) {
 		t.Fatalf("directory-keyed path was not removed: %v", err)
@@ -97,13 +110,7 @@ func TestInstallPluginCmd_Success(t *testing.T) {
 		Path: t.TempDir() + "/test-plugin/",
 	}
 
-	cmd := installPluginCmd(cloner, op)
-	msg := cmd()
-
-	result, ok := msg.(pluginInstallResultMsg)
-	if !ok {
-		t.Fatalf("expected pluginInstallResultMsg, got %T", msg)
-	}
+	result := runOperationCmd(t, installPluginCmd(cloner, op), OpInstall)
 	if !result.Success {
 		t.Errorf("expected success, got failure: %s", result.Message)
 	}
@@ -121,13 +128,7 @@ func TestInstallPluginCmd_Failure(t *testing.T) {
 		Path: t.TempDir() + "/test-plugin/",
 	}
 
-	cmd := installPluginCmd(cloner, op)
-	msg := cmd()
-
-	result, ok := msg.(pluginInstallResultMsg)
-	if !ok {
-		t.Fatalf("expected pluginInstallResultMsg, got %T", msg)
-	}
+	result := runOperationCmd(t, installPluginCmd(cloner, op), OpInstall)
 	if result.Success {
 		t.Error("expected failure, got success")
 	}
@@ -145,13 +146,7 @@ func TestUpdatePluginCmd_Success(t *testing.T) {
 		Path: dir + "/",
 	}
 
-	cmd := updatePluginCmd(puller, revParser, logger, op)
-	msg := cmd()
-
-	result, ok := msg.(pluginUpdateResultMsg)
-	if !ok {
-		t.Fatalf("expected pluginUpdateResultMsg, got %T", msg)
-	}
+	result := runOperationCmd(t, updatePluginCmd(puller, revParser, logger, op), OpUpdate)
 	if !result.Success {
 		t.Errorf("expected success, got failure: %s", result.Message)
 	}
@@ -184,13 +179,7 @@ func TestUpdatePluginCmd_WithCommits(t *testing.T) {
 		Path: t.TempDir() + "/",
 	}
 
-	cmd := updatePluginCmd(puller, revParser, logger, op)
-	msg := cmd()
-
-	result, ok := msg.(pluginUpdateResultMsg)
-	if !ok {
-		t.Fatalf("expected pluginUpdateResultMsg, got %T", msg)
-	}
+	result := runOperationCmd(t, updatePluginCmd(puller, revParser, logger, op), OpUpdate)
 	if !result.Success {
 		t.Errorf("expected success, got failure: %s", result.Message)
 	}
@@ -220,13 +209,7 @@ func TestUpdatePluginCmd_NilRevParser(t *testing.T) {
 		Path: t.TempDir() + "/",
 	}
 
-	cmd := updatePluginCmd(puller, nil, nil, op)
-	msg := cmd()
-
-	result, ok := msg.(pluginUpdateResultMsg)
-	if !ok {
-		t.Fatalf("expected pluginUpdateResultMsg, got %T", msg)
-	}
+	result := runOperationCmd(t, updatePluginCmd(puller, nil, nil, op), OpUpdate)
 	if !result.Success {
 		t.Errorf("expected success, got failure: %s", result.Message)
 	}
@@ -243,13 +226,7 @@ func TestUpdatePluginCmd_Failure(t *testing.T) {
 		Path: t.TempDir() + "/",
 	}
 
-	cmd := updatePluginCmd(puller, nil, nil, op)
-	msg := cmd()
-
-	result, ok := msg.(pluginUpdateResultMsg)
-	if !ok {
-		t.Fatalf("expected pluginUpdateResultMsg, got %T", msg)
-	}
+	result := runOperationCmd(t, updatePluginCmd(puller, nil, nil, op), OpUpdate)
 	if result.Success {
 		t.Error("expected failure, got success")
 	}
@@ -277,13 +254,7 @@ func TestCleanPluginCmd_Success(t *testing.T) {
 		Path: dir,
 	}
 
-	cmd := cleanPluginCmd(op)
-	msg := cmd()
-
-	result, ok := msg.(pluginCleanResultMsg)
-	if !ok {
-		t.Fatalf("expected pluginCleanResultMsg, got %T", msg)
-	}
+	result := runOperationCmd(t, cleanPluginCmd(op), OpClean)
 	if !result.Success {
 		t.Errorf("expected success, got failure: %s", result.Message)
 	}
@@ -308,13 +279,7 @@ func TestCleanPluginCmd_NonExistentDir(t *testing.T) {
 		Path: "/tmp/nonexistent-tpm-test-dir-12345/",
 	}
 
-	cmd := cleanPluginCmd(op)
-	msg := cmd()
-
-	result, ok := msg.(pluginCleanResultMsg)
-	if !ok {
-		t.Fatalf("expected pluginCleanResultMsg, got %T", msg)
-	}
+	result := runOperationCmd(t, cleanPluginCmd(op), OpClean)
 	// RemoveAll on nonexistent path succeeds.
 	if !result.Success {
 		t.Errorf("expected success for nonexistent dir, got failure: %s", result.Message)
@@ -334,13 +299,7 @@ func TestUninstallPluginCmd_Success(t *testing.T) {
 		Root:    mustRoot(t, rootDir),
 	}
 
-	cmd := uninstallPluginCmd(op)
-	msg := cmd()
-
-	result, ok := msg.(pluginUninstallResultMsg)
-	if !ok {
-		t.Fatalf("expected pluginUninstallResultMsg, got %T", msg)
-	}
+	result := runOperationCmd(t, uninstallPluginCmd(op), OpUninstall)
 	if !result.Success {
 		t.Errorf("expected success, got failure: %s", result.Message)
 	}
@@ -362,13 +321,7 @@ func TestRemovePluginDirCmd_Success(t *testing.T) {
 		Root:    mustRoot(t, rootDir),
 	}
 
-	cmd := removePluginDirCmd(op)
-	msg := cmd()
-
-	result, ok := msg.(pluginRemoveResultMsg)
-	if !ok {
-		t.Fatalf("expected pluginRemoveResultMsg, got %T", msg)
-	}
+	result := runOperationCmd(t, removePluginDirCmd(op), OpRemove)
 	if !result.Success {
 		t.Errorf("expected success, got failure: %s", result.Message)
 	}
@@ -386,13 +339,7 @@ func TestRemovePluginDirCmd_NonExistentDir(t *testing.T) {
 		Root:    mustRoot(t, rootDir),
 	}
 
-	cmd := removePluginDirCmd(op)
-	msg := cmd()
-
-	result, ok := msg.(pluginRemoveResultMsg)
-	if !ok {
-		t.Fatalf("expected pluginRemoveResultMsg, got %T", msg)
-	}
+	result := runOperationCmd(t, removePluginDirCmd(op), OpRemove)
 	// RemoveAll on nonexistent path succeeds.
 	if !result.Success {
 		t.Errorf("expected success for nonexistent dir, got failure: %s", result.Message)
@@ -494,28 +441,22 @@ func TestDestructiveOpsRejectRootSymlinkBeforeScheduling(t *testing.T) {
 
 func TestDestructiveOpsResolveRootImmediatelyBeforeRemoval(t *testing.T) {
 	tests := []struct {
-		name  string
-		build func(*Model) []pendingOp
-		run   func(pendingOp) tea.Cmd
-		ok    func(tea.Msg) bool
+		name      string
+		operation Operation
+		build     func(*Model) []pendingOp
+		run       func(pendingOp) tea.Cmd
 	}{
 		{
-			name:  "remove",
-			build: (*Model).buildRemoveOps,
-			run:   removePluginDirCmd,
-			ok: func(msg tea.Msg) bool {
-				result, isResult := msg.(pluginRemoveResultMsg)
-				return isResult && result.Success
-			},
+			name:      "remove",
+			operation: OpRemove,
+			build:     (*Model).buildRemoveOps,
+			run:       removePluginDirCmd,
 		},
 		{
-			name:  "uninstall",
-			build: (*Model).buildUninstallOps,
-			run:   uninstallPluginCmd,
-			ok: func(msg tea.Msg) bool {
-				result, isResult := msg.(pluginUninstallResultMsg)
-				return isResult && result.Success
-			},
+			name:      "uninstall",
+			operation: OpUninstall,
+			build:     (*Model).buildUninstallOps,
+			run:       uninstallPluginCmd,
 		},
 	}
 	for _, tt := range tests {
@@ -546,8 +487,8 @@ func TestDestructiveOpsResolveRootImmediatelyBeforeRemoval(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			if msg := tt.run(ops[0])(); tt.ok(msg) {
-				t.Fatalf("destructive operation succeeded after plugin root became unresolved: %#v", msg)
+			if result := runOperationCmd(t, tt.run(ops[0]), tt.operation); result.Success {
+				t.Fatalf("destructive operation succeeded after plugin root became unresolved: %#v", result)
 			}
 			if _, err := os.Stat(marker); err != nil {
 				t.Fatalf("fixture changed after root resolution failure: %v", err)
@@ -816,7 +757,7 @@ func TestDispatchNext_RespectsInFlightLimit(t *testing.T) {
 	}
 }
 
-func TestHandleOpResult_DispatchesMore(t *testing.T) {
+func TestHandleOperationResult_DispatchesMore(t *testing.T) {
 	m := newTestModel(t, nil)
 	m.operation = OpInstall
 	m.processing = true
@@ -833,7 +774,8 @@ func TestHandleOpResult_DispatchesMore(t *testing.T) {
 	}
 
 	result := ResultItem{Name: m.inFlightNames[0], Success: true, Message: "installed"}
-	cmd := m.handleOpResult(result, nil)
+	updated, cmd := m.Update(operationResultMsg{Operation: OpInstall, ResultItem: result})
+	m = updated.(Model)
 
 	if m.inFlight != maxConcurrentOps {
 		t.Errorf("expected inFlight to refill to %d, got %d", maxConcurrentOps, m.inFlight)
