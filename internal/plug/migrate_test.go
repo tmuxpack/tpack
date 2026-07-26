@@ -191,12 +191,16 @@ func TestMigrateLegacyDoesNotLockWithoutCandidate(t *testing.T) {
 
 func TestMigrateLegacyUsesResolvedRoot(t *testing.T) {
 	target := t.TempDir()
+	resolvedTarget, err := filepath.EvalSymlinks(target)
+	if err != nil {
+		t.Fatal(err)
+	}
 	link := filepath.Join(t.TempDir(), "plugins")
-	if err := os.Symlink(target, link); err != nil {
+	if err = os.Symlink(target, link); err != nil {
 		t.Fatal(err)
 	}
 	p := mustParsePlugin(t, "owner/plugin")
-	legacy := filepath.Join(target, "plugin")
+	legacy := filepath.Join(resolvedTarget, "plugin")
 	mustMkdir(t, legacy)
 	origins := originReaderFunc(func(_ context.Context, dir string) (string, error) {
 		if dir != legacy {
@@ -212,7 +216,7 @@ func TestMigrateLegacyUsesResolvedRoot(t *testing.T) {
 	if !migrated {
 		t.Fatal("MigrateLegacy() migrated = false, want true")
 	}
-	assertPathExists(t, filepath.Join(target, p.DirName))
+	assertPathExists(t, filepath.Join(resolvedTarget, p.DirName))
 	assertPathMissing(t, legacy)
 }
 
