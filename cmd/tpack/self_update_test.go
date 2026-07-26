@@ -31,14 +31,59 @@ func sha256Hex(data []byte) string {
 	return hex.EncodeToString(h[:])
 }
 
+func newTestServer(t *testing.T, handler http.HandlerFunc) string {
+	t.Helper()
+	server := httptest.NewServer(handler)
+	t.Cleanup(server.Close)
+	return server.URL
+}
+
+func newReleaseServer(t *testing.T, tag string) string {
+	t.Helper()
+	return newTestServer(t, func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(githubRelease{TagName: tag})
+	})
+}
+
+func newDataServer(t *testing.T, data []byte) string {
+	t.Helper()
+	return newTestServer(t, func(w http.ResponseWriter, _ *http.Request) {
+		w.Write(data)
+	})
+}
+
+func newSelfUpdateParams(t *testing.T, apiURL string) selfUpdateParams {
+	t.Helper()
+	dir := t.TempDir()
+	return selfUpdateParams{
+		statePath:   filepath.Join(dir, "state"),
+		version:     "1.0.0",
+		binaryPath:  filepath.Join(dir, "tpack"),
+		apiURL:      apiURL,
+		downloadURL: "http://unused",
+		skipGitSync: true,
+	}
+}
+
+func assertDisplayMessage(t *testing.T, runner *tmux.MockRunner, want string) {
+	t.Helper()
+	for _, call := range runner.Calls {
+		if call.Method == "DisplayMessage" && len(call.Args) > 0 && call.Args[0] == want {
+			return
+		}
+	}
+	t.Errorf("expected DisplayMessage %q", want)
+}
+
 // newDownloadServer creates an httptest server that serves both checksums.txt
 // and archive files for a given version.
-func newDownloadServer(t *testing.T, version string, archive []byte) *httptest.Server {
+func newDownloadServer(t *testing.T, version string, archive []byte) string {
 	t.Helper()
 	checksum := sha256Hex(archive)
 	archiveName := fmt.Sprintf("tpack_%s_%s_%s.tar.gz", version, runtime.GOOS, runtime.GOARCH)
 
-	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case strings.HasSuffix(r.URL.Path, "/checksums.txt"):
 			fmt.Fprintf(w, "%s  %s\n", checksum, archiveName)
@@ -46,7 +91,7 @@ func newDownloadServer(t *testing.T, version string, archive []byte) *httptest.S
 			w.Header().Set("Content-Type", "application/octet-stream")
 			w.Write(archive)
 		}
-	}))
+	})
 }
 
 // createTestArchive creates a tar.gz archive containing a "tpack" file
@@ -84,25 +129,15 @@ func createTestArchive(t *testing.T, content string) []byte {
 }
 
 func TestSelfUpdateSkipsWhenRecent(t *testing.T) {
-	dir := t.TempDir()
-	statePath := filepath.Join(dir, "state")
+	p := newSelfUpdateParams(t, "http://unused")
 
 	// Save a recent timestamp.
 	st := state.State{LastSelfUpdateCheck: time.Now()}
-	if err := state.Save(statePath, st); err != nil {
+	if err := state.Save(p.statePath, st); err != nil {
 		t.Fatalf("failed to save state: %v", err)
 	}
 
 	runner := tmux.NewMockRunner()
-
-	p := selfUpdateParams{
-		statePath:   statePath,
-		version:     "1.0.0",
-		binaryPath:  filepath.Join(dir, "tpack"),
-		apiURL:      "http://unused",
-		downloadURL: "http://unused",
-		skipGitSync: true,
-	}
 
 	result := selfUpdateCheck(p, ui.NewStatusOutput(runner))
 	if result != selfUpdateSkipped {
@@ -140,27 +175,13 @@ func TestSelfUpdateResultUsesErrSilentForDeliveredFailure(t *testing.T) {
 }
 
 func TestSelfUpdateSkipsWhenAlreadyLatest(t *testing.T) {
-	dir := t.TempDir()
-	statePath := filepath.Join(dir, "state")
-
 	// Mock GitHub API returning current version.
-	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		release := githubRelease{TagName: "v1.2.3"}
-		json.NewEncoder(w).Encode(release)
-	}))
-	defer apiServer.Close()
+	apiURL := newReleaseServer(t, "v1.2.3")
 
 	runner := tmux.NewMockRunner()
 
-	p := selfUpdateParams{
-		statePath:   statePath,
-		version:     "1.2.3",
-		binaryPath:  filepath.Join(dir, "tpack"),
-		apiURL:      apiServer.URL,
-		downloadURL: "http://unused",
-		skipGitSync: true,
-	}
+	p := newSelfUpdateParams(t, apiURL)
+	p.version = "1.2.3"
 
 	result := selfUpdateCheck(p, ui.NewStatusOutput(runner))
 	if result != selfUpdateSkipped {
@@ -169,26 +190,13 @@ func TestSelfUpdateSkipsWhenAlreadyLatest(t *testing.T) {
 }
 
 func TestSelfUpdateSkipsDevVersion(t *testing.T) {
-	dir := t.TempDir()
-	statePath := filepath.Join(dir, "state")
-
 	// Mock GitHub API returning a real version.
-	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(githubRelease{TagName: "v2.0.0"})
-	}))
-	defer apiServer.Close()
+	apiURL := newReleaseServer(t, "v2.0.0")
 
 	runner := tmux.NewMockRunner()
 
-	p := selfUpdateParams{
-		statePath:   statePath,
-		version:     "dev",
-		binaryPath:  filepath.Join(dir, "tpack"),
-		apiURL:      apiServer.URL,
-		downloadURL: "http://unused",
-		skipGitSync: true,
-	}
+	p := newSelfUpdateParams(t, apiURL)
+	p.version = "dev"
 
 	result := selfUpdateCheck(p, ui.NewStatusOutput(runner))
 	if result != selfUpdateSkipped {
@@ -197,39 +205,21 @@ func TestSelfUpdateSkipsDevVersion(t *testing.T) {
 }
 
 func TestSelfUpdateDownloadsNewVersion(t *testing.T) {
-	dir := t.TempDir()
-	statePath := filepath.Join(dir, "state")
+	apiURL := newReleaseServer(t, "v2.0.0")
+	p := newSelfUpdateParams(t, apiURL)
 
 	// Create the existing binary file.
-	binaryPath := filepath.Join(dir, "tpack")
-	if err := os.WriteFile(binaryPath, []byte("old-binary"), 0o755); err != nil {
+	if err := os.WriteFile(p.binaryPath, []byte("old-binary"), 0o755); err != nil {
 		t.Fatalf("failed to create binary: %v", err)
 	}
 
 	newContent := "new-binary-v2.0.0"
 	archive := createTestArchive(t, newContent)
 
-	// Mock GitHub API returning newer version.
-	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		release := githubRelease{TagName: "v2.0.0"}
-		json.NewEncoder(w).Encode(release)
-	}))
-	defer apiServer.Close()
-
 	downloadServer := newDownloadServer(t, "2.0.0", archive)
-	defer downloadServer.Close()
+	p.downloadURL = downloadServer
 
 	runner := tmux.NewMockRunner()
-
-	p := selfUpdateParams{
-		statePath:   statePath,
-		version:     "1.0.0",
-		binaryPath:  binaryPath,
-		apiURL:      apiServer.URL,
-		downloadURL: downloadServer.URL,
-		skipGitSync: true,
-	}
 
 	result := selfUpdateCheck(p, ui.NewStatusOutput(runner))
 	if result != selfUpdateSuccess {
@@ -237,7 +227,7 @@ func TestSelfUpdateDownloadsNewVersion(t *testing.T) {
 	}
 
 	// Verify the binary was replaced.
-	data, err := os.ReadFile(binaryPath)
+	data, err := os.ReadFile(p.binaryPath)
 	if err != nil {
 		t.Fatalf("failed to read updated binary: %v", err)
 	}
@@ -246,50 +236,26 @@ func TestSelfUpdateDownloadsNewVersion(t *testing.T) {
 	}
 
 	// Verify success message was displayed.
-	found := false
-	for _, call := range runner.Calls {
-		if call.Method == "DisplayMessage" && len(call.Args) > 0 && call.Args[0] == "tpack: updated to v2.0.0" {
-			found = true
-		}
-	}
-	if !found {
-		t.Error("expected success DisplayMessage 'tpack: updated to v2.0.0'")
-	}
+	assertDisplayMessage(t, runner, "tpack: updated to v2.0.0")
 }
 
 func TestSelfUpdateRepoSyncFailureWarns(t *testing.T) {
-	dir := t.TempDir()
-	statePath := filepath.Join(dir, "state")
+	apiURL := newReleaseServer(t, "v2.0.0")
+	p := newSelfUpdateParams(t, apiURL)
 
 	// Create the existing binary file.
-	binaryPath := filepath.Join(dir, "tpack")
-	if err := os.WriteFile(binaryPath, []byte("old-binary"), 0o755); err != nil {
+	if err := os.WriteFile(p.binaryPath, []byte("old-binary"), 0o755); err != nil {
 		t.Fatalf("failed to create binary: %v", err)
 	}
 
 	archive := createTestArchive(t, "new-binary-v2.0.0")
 
-	// Mock GitHub API returning newer version.
-	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		release := githubRelease{TagName: "v2.0.0"}
-		json.NewEncoder(w).Encode(release)
-	}))
-	defer apiServer.Close()
-
 	downloadServer := newDownloadServer(t, "2.0.0", archive)
-	defer downloadServer.Close()
+	p.downloadURL = downloadServer
+	p.skipGitSync = false
+	p.repoDir = t.TempDir() // not a git repo, so the tag checkout fails
 
 	runner := tmux.NewMockRunner()
-
-	p := selfUpdateParams{
-		statePath:   statePath,
-		version:     "1.0.0",
-		binaryPath:  binaryPath,
-		apiURL:      apiServer.URL,
-		downloadURL: downloadServer.URL,
-		repoDir:     t.TempDir(), // not a git repo, so the tag checkout fails
-	}
 
 	result := selfUpdateCheck(p, ui.NewStatusOutput(runner))
 	if result != selfUpdateSuccess {
@@ -298,15 +264,7 @@ func TestSelfUpdateRepoSyncFailureWarns(t *testing.T) {
 
 	// The update succeeded but the repo sync failed: expect the warning form.
 	want := "tpack: warning: updated to v2.0.0 (repo sync failed)"
-	found := false
-	for _, call := range runner.Calls {
-		if call.Method == "DisplayMessage" && len(call.Args) > 0 && call.Args[0] == want {
-			found = true
-		}
-	}
-	if !found {
-		t.Errorf("expected DisplayMessage %q", want)
-	}
+	assertDisplayMessage(t, runner, want)
 }
 
 func TestFetchLatestVersion(t *testing.T) {
@@ -315,7 +273,7 @@ func TestFetchLatestVersion(t *testing.T) {
 		tagName    string
 		wantVer    string
 		statusCode int
-		wantErr    bool
+		wantErr    string
 	}{
 		{
 			name:       "strips v prefix",
@@ -332,25 +290,24 @@ func TestFetchLatestVersion(t *testing.T) {
 		{
 			name:       "server error",
 			statusCode: http.StatusInternalServerError,
-			wantErr:    true,
+			wantErr:    "unexpected status: 500",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			serverURL := newTestServer(t, func(w http.ResponseWriter, _ *http.Request) {
 				w.WriteHeader(tt.statusCode)
 				if tt.statusCode == http.StatusOK {
 					release := githubRelease{TagName: tt.tagName}
 					json.NewEncoder(w).Encode(release)
 				}
-			}))
-			defer server.Close()
+			})
 
-			ver, err := fetchLatestVersion(server.URL)
-			if tt.wantErr {
-				if err == nil {
-					t.Error("expected error, got nil")
+			ver, err := fetchLatestVersion(serverURL)
+			if tt.wantErr != "" {
+				if err == nil || err.Error() != tt.wantErr {
+					t.Errorf("error = %v, want %q", err, tt.wantErr)
 				}
 				return
 			}
@@ -365,161 +322,80 @@ func TestFetchLatestVersion(t *testing.T) {
 }
 
 func TestSelfUpdateDisplaysDownloadError(t *testing.T) {
-	dir := t.TempDir()
-	statePath := filepath.Join(dir, "state")
-
 	// Mock GitHub API that fails.
-	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	apiURL := newTestServer(t, func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
-	}))
-	defer apiServer.Close()
+	})
 
 	runner := tmux.NewMockRunner()
-
-	p := selfUpdateParams{
-		statePath:   statePath,
-		version:     "1.0.0",
-		binaryPath:  filepath.Join(dir, "tpack"),
-		apiURL:      apiServer.URL,
-		downloadURL: "http://unused",
-		skipGitSync: true,
-	}
+	p := newSelfUpdateParams(t, apiURL)
 
 	result := selfUpdateCheck(p, ui.NewStatusOutput(runner))
 	if result != selfUpdateFailed {
 		t.Errorf("expected selfUpdateFailed, got %d", result)
 	}
 
-	// Verify the download error message was displayed.
-	found := false
-	for _, call := range runner.Calls {
-		if call.Method == "DisplayMessage" && len(call.Args) > 0 && call.Args[0] == "tpack: error: self-update failed (download error)" {
-			found = true
-		}
-	}
-	if !found {
-		t.Error("expected DisplayMessage 'tpack: error: self-update failed (download error)'")
-	}
+	assertDisplayMessage(t, runner, "tpack: error: self-update failed (download error)")
 }
 
 func TestSelfUpdateDisplaysExtractError(t *testing.T) {
-	dir := t.TempDir()
-	statePath := filepath.Join(dir, "state")
-
 	// Mock GitHub API returning newer version.
-	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		release := githubRelease{TagName: "v2.0.0"}
-		json.NewEncoder(w).Encode(release)
-	}))
-	defer apiServer.Close()
+	apiURL := newReleaseServer(t, "v2.0.0")
 
 	// Invalid archive data with matching checksum.
 	invalidArchive := []byte("not a valid tar.gz")
 	downloadServer := newDownloadServer(t, "2.0.0", invalidArchive)
-	defer downloadServer.Close()
 
 	runner := tmux.NewMockRunner()
-
-	p := selfUpdateParams{
-		statePath:   statePath,
-		version:     "1.0.0",
-		binaryPath:  filepath.Join(dir, "tpack"),
-		apiURL:      apiServer.URL,
-		downloadURL: downloadServer.URL,
-		skipGitSync: true,
-	}
+	p := newSelfUpdateParams(t, apiURL)
+	p.downloadURL = downloadServer
 
 	result := selfUpdateCheck(p, ui.NewStatusOutput(runner))
 	if result != selfUpdateFailed {
 		t.Errorf("expected selfUpdateFailed, got %d", result)
 	}
 
-	// Verify the extract error message was displayed.
-	found := false
-	for _, call := range runner.Calls {
-		if call.Method == "DisplayMessage" && len(call.Args) > 0 && call.Args[0] == "tpack: error: self-update failed (extract error)" {
-			found = true
-		}
-	}
-	if !found {
-		t.Error("expected DisplayMessage 'tpack: error: self-update failed (extract error)'")
-	}
+	assertDisplayMessage(t, runner, "tpack: error: self-update failed (extract error)")
 }
 
 func TestSelfUpdateDisplaysPermissionError(t *testing.T) {
-	dir := t.TempDir()
-	statePath := filepath.Join(dir, "state")
-
 	newContent := "new-binary"
 	archive := createTestArchive(t, newContent)
 
 	// Mock GitHub API returning newer version.
-	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		release := githubRelease{TagName: "v2.0.0"}
-		json.NewEncoder(w).Encode(release)
-	}))
-	defer apiServer.Close()
+	apiURL := newReleaseServer(t, "v2.0.0")
 
 	downloadServer := newDownloadServer(t, "2.0.0", archive)
-	defer downloadServer.Close()
 
 	runner := tmux.NewMockRunner()
 
 	// Use a binary path in a non-existent directory to trigger rename failure.
-	p := selfUpdateParams{
-		statePath:   statePath,
-		version:     "1.0.0",
-		binaryPath:  filepath.Join(dir, "nonexistent", "subdir", "tpack"),
-		apiURL:      apiServer.URL,
-		downloadURL: downloadServer.URL,
-		skipGitSync: true,
-	}
+	p := newSelfUpdateParams(t, apiURL)
+	p.binaryPath = filepath.Join(filepath.Dir(p.binaryPath), "nonexistent", "subdir", "tpack")
+	p.downloadURL = downloadServer
 
 	result := selfUpdateCheck(p, ui.NewStatusOutput(runner))
 	if result != selfUpdateFailed {
 		t.Errorf("expected selfUpdateFailed, got %d", result)
 	}
 
-	// Verify the permission error message was displayed.
-	found := false
-	for _, call := range runner.Calls {
-		if call.Method == "DisplayMessage" && len(call.Args) > 0 && call.Args[0] == "tpack: error: self-update failed (permission error)" {
-			found = true
-		}
-	}
-	if !found {
-		t.Error("expected DisplayMessage 'tpack: error: self-update failed (permission error)'")
-	}
+	assertDisplayMessage(t, runner, "tpack: error: self-update failed (permission error)")
 }
 
 func TestSelfUpdateTimestampSavedBeforeCheck(t *testing.T) {
-	dir := t.TempDir()
-	statePath := filepath.Join(dir, "state")
-
 	// Mock GitHub API that takes a while (but we only care about state).
-	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	apiURL := newTestServer(t, func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
-	}))
-	defer apiServer.Close()
+	})
 
 	runner := tmux.NewMockRunner()
-
-	p := selfUpdateParams{
-		statePath:   statePath,
-		version:     "1.0.0",
-		binaryPath:  filepath.Join(dir, "tpack"),
-		apiURL:      apiServer.URL,
-		downloadURL: "http://unused",
-		skipGitSync: true,
-	}
+	p := newSelfUpdateParams(t, apiURL)
 
 	before := time.Now()
 	selfUpdateCheck(p, ui.NewStatusOutput(runner))
 
 	// Verify the timestamp was saved.
-	st := state.Load(statePath, nil)
+	st := state.Load(p.statePath, nil)
 	if st.LastSelfUpdateCheck.IsZero() {
 		t.Error("expected LastSelfUpdateCheck to be set")
 	}
@@ -529,28 +405,14 @@ func TestSelfUpdateTimestampSavedBeforeCheck(t *testing.T) {
 }
 
 func TestSelfUpdateVersionWithVPrefix(t *testing.T) {
-	dir := t.TempDir()
-	statePath := filepath.Join(dir, "state")
-
 	// Mock GitHub API returning same version as current (with v prefix).
-	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		release := githubRelease{TagName: "v1.2.3"}
-		json.NewEncoder(w).Encode(release)
-	}))
-	defer apiServer.Close()
+	apiURL := newReleaseServer(t, "v1.2.3")
 
 	runner := tmux.NewMockRunner()
 
 	// Current version has v prefix -- should still match.
-	p := selfUpdateParams{
-		statePath:   statePath,
-		version:     "v1.2.3",
-		binaryPath:  filepath.Join(dir, "tpack"),
-		apiURL:      apiServer.URL,
-		downloadURL: "http://unused",
-		skipGitSync: true,
-	}
+	p := newSelfUpdateParams(t, apiURL)
+	p.version = "v1.2.3"
 
 	result := selfUpdateCheck(p, ui.NewStatusOutput(runner))
 	if result != selfUpdateSkipped {
@@ -559,15 +421,6 @@ func TestSelfUpdateVersionWithVPrefix(t *testing.T) {
 }
 
 func TestSelfUpdateIntegration(t *testing.T) {
-	dir := t.TempDir()
-	statePath := filepath.Join(dir, "state")
-
-	// Create the existing binary file.
-	binaryPath := filepath.Join(dir, "tpack")
-	if err := os.WriteFile(binaryPath, []byte("old-binary-v1"), 0o755); err != nil {
-		t.Fatalf("failed to create binary: %v", err)
-	}
-
 	newContent := "#!/bin/sh\necho new-binary-v3.1.0"
 	archive := createTestArchive(t, newContent)
 
@@ -584,18 +437,15 @@ func TestSelfUpdateIntegration(t *testing.T) {
 	defer apiServer.Close()
 
 	downloadServer := newDownloadServer(t, "3.1.0", archive)
-	defer downloadServer.Close()
+	p := newSelfUpdateParams(t, apiServer.URL)
+	p.downloadURL = downloadServer
+
+	// Create the existing binary file.
+	if err := os.WriteFile(p.binaryPath, []byte("old-binary-v1"), 0o755); err != nil {
+		t.Fatalf("failed to create binary: %v", err)
+	}
 
 	runner := tmux.NewMockRunner()
-
-	p := selfUpdateParams{
-		statePath:   statePath,
-		version:     "1.0.0",
-		binaryPath:  binaryPath,
-		apiURL:      apiServer.URL,
-		downloadURL: downloadServer.URL,
-		skipGitSync: true,
-	}
 
 	// Run the self-update.
 	result := selfUpdateCheck(p, ui.NewStatusOutput(runner))
@@ -604,7 +454,7 @@ func TestSelfUpdateIntegration(t *testing.T) {
 	}
 
 	// Verify binary was replaced with new content.
-	data, err := os.ReadFile(binaryPath)
+	data, err := os.ReadFile(p.binaryPath)
 	if err != nil {
 		t.Fatalf("failed to read binary: %v", err)
 	}
@@ -613,7 +463,7 @@ func TestSelfUpdateIntegration(t *testing.T) {
 	}
 
 	// Verify binary is executable.
-	info, err := os.Stat(binaryPath)
+	info, err := os.Stat(p.binaryPath)
 	if err != nil {
 		t.Fatalf("failed to stat binary: %v", err)
 	}
@@ -622,18 +472,10 @@ func TestSelfUpdateIntegration(t *testing.T) {
 	}
 
 	// Verify success message.
-	found := false
-	for _, call := range runner.Calls {
-		if call.Method == "DisplayMessage" && len(call.Args) > 0 && call.Args[0] == "tpack: updated to v3.1.0" {
-			found = true
-		}
-	}
-	if !found {
-		t.Error("expected DisplayMessage 'tpack: updated to v3.1.0'")
-	}
+	assertDisplayMessage(t, runner, "tpack: updated to v3.1.0")
 
 	// Verify state was saved.
-	st := state.Load(statePath, nil)
+	st := state.Load(p.statePath, nil)
 	if st.LastSelfUpdateCheck.IsZero() {
 		t.Error("expected LastSelfUpdateCheck to be set")
 	}
@@ -650,12 +492,9 @@ func TestDownloadAndExtract(t *testing.T) {
 	content := "test-binary-content"
 	archive := createTestArchive(t, content)
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.Write(archive)
-	}))
-	defer server.Close()
+	serverURL := newDataServer(t, archive)
 
-	binaryPath, cleanup, err := downloadAndExtract(server.URL)
+	binaryPath, cleanup, err := downloadAndExtract(serverURL)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -686,24 +525,20 @@ func TestDownloadAndExtract(t *testing.T) {
 }
 
 func TestDownloadAndExtractServerError(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	serverURL := newTestServer(t, func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
-	}))
-	defer server.Close()
+	})
 
-	_, _, err := downloadAndExtract(server.URL)
-	if err == nil {
-		t.Error("expected error for 404 response")
+	_, _, err := downloadAndExtract(serverURL)
+	if err == nil || err.Error() != "download failed: status 404" {
+		t.Errorf("error = %v, want %q", err, "download failed: status 404")
 	}
 }
 
 func TestDownloadAndExtractInvalidArchive(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.Write([]byte("not a valid archive"))
-	}))
-	defer server.Close()
+	serverURL := newDataServer(t, []byte("not a valid archive"))
 
-	_, _, err := downloadAndExtract(server.URL)
+	_, _, err := downloadAndExtract(serverURL)
 	if err == nil {
 		t.Error("expected error for invalid archive")
 	}
@@ -818,12 +653,9 @@ func TestParseChecksums(t *testing.T) {
 
 func TestFetchChecksums(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-			fmt.Fprintln(w, "abc123  tpack_1.0.0_linux_amd64.tar.gz")
-		}))
-		defer server.Close()
+		serverURL := newDataServer(t, []byte("abc123  tpack_1.0.0_linux_amd64.tar.gz\n"))
 
-		sums, err := fetchChecksums(server.URL, "1.0.0")
+		sums, err := fetchChecksums(serverURL, "1.0.0")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -833,14 +665,13 @@ func TestFetchChecksums(t *testing.T) {
 	})
 
 	t.Run("server error", func(t *testing.T) {
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		serverURL := newTestServer(t, func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusNotFound)
-		}))
-		defer server.Close()
+		})
 
-		_, err := fetchChecksums(server.URL, "1.0.0")
-		if err == nil {
-			t.Error("expected error for 404 response")
+		_, err := fetchChecksums(serverURL, "1.0.0")
+		if err == nil || err.Error() != "checksums download: status 404" {
+			t.Errorf("error = %v, want %q", err, "checksums download: status 404")
 		}
 	})
 }
@@ -851,12 +682,9 @@ func TestDownloadVerifyExtract(t *testing.T) {
 		archive := createTestArchive(t, content)
 		expectedHash := sha256Hex(archive)
 
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-			w.Write(archive)
-		}))
-		defer server.Close()
+		serverURL := newDataServer(t, archive)
 
-		binaryPath, cleanup, err := downloadVerifyExtract(server.URL, expectedHash)
+		binaryPath, cleanup, err := downloadVerifyExtract(serverURL, expectedHash)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -874,12 +702,9 @@ func TestDownloadVerifyExtract(t *testing.T) {
 	t.Run("checksum mismatch", func(t *testing.T) {
 		archive := createTestArchive(t, "some-binary")
 
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-			w.Write(archive)
-		}))
-		defer server.Close()
+		serverURL := newDataServer(t, archive)
 
-		_, _, err := downloadVerifyExtract(server.URL, "0000000000000000000000000000000000000000000000000000000000000000")
+		_, _, err := downloadVerifyExtract(serverURL, "0000000000000000000000000000000000000000000000000000000000000000")
 		if err == nil {
 			t.Error("expected error for checksum mismatch")
 		}
@@ -889,27 +714,19 @@ func TestDownloadVerifyExtract(t *testing.T) {
 	})
 
 	t.Run("server error", func(t *testing.T) {
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		serverURL := newTestServer(t, func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusNotFound)
-		}))
-		defer server.Close()
+		})
 
-		_, _, err := downloadVerifyExtract(server.URL, "unused")
-		if err == nil {
-			t.Error("expected error for server error")
+		_, _, err := downloadVerifyExtract(serverURL, "unused")
+		if err == nil || err.Error() != "download failed: status 404" {
+			t.Errorf("error = %v, want %q", err, "download failed: status 404")
 		}
 	})
 }
 
 func TestSelfUpdateChecksumFetchError(t *testing.T) {
-	dir := t.TempDir()
-	statePath := filepath.Join(dir, "state")
-
-	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(githubRelease{TagName: "v2.0.0"})
-	}))
-	defer apiServer.Close()
+	apiURL := newReleaseServer(t, "v2.0.0")
 
 	// Download server returns 404 for checksums.txt.
 	downloadServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -923,40 +740,19 @@ func TestSelfUpdateChecksumFetchError(t *testing.T) {
 
 	runner := tmux.NewMockRunner()
 
-	p := selfUpdateParams{
-		statePath:   statePath,
-		version:     "1.0.0",
-		binaryPath:  filepath.Join(dir, "tpack"),
-		apiURL:      apiServer.URL,
-		downloadURL: downloadServer.URL,
-		skipGitSync: true,
-	}
+	p := newSelfUpdateParams(t, apiURL)
+	p.downloadURL = downloadServer.URL
 
 	result := selfUpdateCheck(p, ui.NewStatusOutput(runner))
 	if result != selfUpdateFailed {
 		t.Errorf("expected selfUpdateFailed, got %d", result)
 	}
 
-	found := false
-	for _, call := range runner.Calls {
-		if call.Method == "DisplayMessage" && len(call.Args) > 0 && call.Args[0] == "tpack: error: self-update failed (checksum fetch error)" {
-			found = true
-		}
-	}
-	if !found {
-		t.Error("expected DisplayMessage 'tpack: error: self-update failed (checksum fetch error)'")
-	}
+	assertDisplayMessage(t, runner, "tpack: error: self-update failed (checksum fetch error)")
 }
 
 func TestSelfUpdateNoChecksumForArchive(t *testing.T) {
-	dir := t.TempDir()
-	statePath := filepath.Join(dir, "state")
-
-	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(githubRelease{TagName: "v2.0.0"})
-	}))
-	defer apiServer.Close()
+	apiURL := newReleaseServer(t, "v2.0.0")
 
 	// Download server returns checksums for a different platform.
 	downloadServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -970,29 +766,15 @@ func TestSelfUpdateNoChecksumForArchive(t *testing.T) {
 
 	runner := tmux.NewMockRunner()
 
-	p := selfUpdateParams{
-		statePath:   statePath,
-		version:     "1.0.0",
-		binaryPath:  filepath.Join(dir, "tpack"),
-		apiURL:      apiServer.URL,
-		downloadURL: downloadServer.URL,
-		skipGitSync: true,
-	}
+	p := newSelfUpdateParams(t, apiURL)
+	p.downloadURL = downloadServer.URL
 
 	result := selfUpdateCheck(p, ui.NewStatusOutput(runner))
 	if result != selfUpdateFailed {
 		t.Errorf("expected selfUpdateFailed, got %d", result)
 	}
 
-	found := false
-	for _, call := range runner.Calls {
-		if call.Method == "DisplayMessage" && len(call.Args) > 0 && call.Args[0] == "tpack: error: self-update failed (no checksum for archive)" {
-			found = true
-		}
-	}
-	if !found {
-		t.Error("expected DisplayMessage 'tpack: error: self-update failed (no checksum for archive)'")
-	}
+	assertDisplayMessage(t, runner, "tpack: error: self-update failed (no checksum for archive)")
 }
 
 func TestArchiveURLFormat(t *testing.T) {
