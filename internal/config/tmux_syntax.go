@@ -461,12 +461,7 @@ func ifShellConditionIndex(tokens []tmuxToken) int {
 		if len(option) < 2 || option[0] != '-' {
 			return at
 		}
-		consumeTarget := false
-		for optionAt := 1; optionAt < len(option); optionAt++ {
-			if option[optionAt] == 't' && optionAt+1 == len(option) {
-				consumeTarget = true
-			}
-		}
+		consumeTarget := option[len(option)-1] == 't'
 		at++
 		if consumeTarget {
 			at++
@@ -545,86 +540,50 @@ func applyConditional(
 	expandFormat func(string) (string, error),
 ) (int, error) {
 	marker := tokens[0]
+	if marker.value == conditionalIf {
+		parentActive := conditionalActive(*conditionals)
+		condition, err := conditionalValue(file, tokens, marker, expandFormat, parentActive)
+		if err != nil {
+			return 0, err
+		}
+		active := parentActive && condition
+		*conditionals = append(*conditionals, conditionalFrame{
+			parentActive: parentActive,
+			branchTaken:  active,
+			active:       active,
+			line:         marker.line,
+		})
+		return 2, nil
+	}
+	if len(*conditionals) == 0 {
+		return 0, configSyntaxError(file, marker.line, "unexpected "+marker.value)
+	}
+	frame := &(*conditionals)[len(*conditionals)-1]
 	switch marker.value {
-	case conditionalIf:
-		return applyIf(file, tokens, conditionals, expandFormat)
 	case conditionalElif:
-		return applyElif(file, tokens, conditionals, expandFormat)
+		if frame.seenElse {
+			return 0, configSyntaxError(file, marker.line, "%elif after %else")
+		}
+		evaluate := frame.parentActive && !frame.branchTaken
+		condition, err := conditionalValue(file, tokens, marker, expandFormat, evaluate)
+		if err != nil {
+			return 0, err
+		}
+		frame.active = evaluate && condition
+		frame.branchTaken = frame.branchTaken || frame.active
+		return 2, nil
 	case conditionalElse:
-		return applyElse(file, marker, conditionals)
-	case conditionalEndif:
-		return applyEndif(file, marker, conditionals)
-	default:
-		panic("unreachable conditional marker")
+		if frame.seenElse {
+			return 0, configSyntaxError(file, marker.line, "duplicate %else")
+		}
+		frame.seenElse = true
+		frame.active = frame.parentActive && !frame.branchTaken
+		frame.branchTaken = frame.branchTaken || frame.active
+		return 1, nil
+	default: // The caller accepts only conditional tokens, leaving %endif.
+		*conditionals = (*conditionals)[:len(*conditionals)-1]
+		return 1, nil
 	}
-}
-
-func applyIf(
-	file string,
-	tokens []tmuxToken,
-	conditionals *[]conditionalFrame,
-	expandFormat func(string) (string, error),
-) (int, error) {
-	marker := tokens[0]
-	parentActive := conditionalActive(*conditionals)
-	condition, err := conditionalValue(file, tokens, marker, expandFormat, parentActive)
-	if err != nil {
-		return 0, err
-	}
-	active := parentActive && condition
-	*conditionals = append(*conditionals, conditionalFrame{
-		parentActive: parentActive,
-		branchTaken:  active,
-		active:       active,
-		line:         marker.line,
-	})
-	return 2, nil
-}
-
-func applyElif(
-	file string,
-	tokens []tmuxToken,
-	conditionals *[]conditionalFrame,
-	expandFormat func(string) (string, error),
-) (int, error) {
-	marker := tokens[0]
-	if len(*conditionals) == 0 {
-		return 0, configSyntaxError(file, marker.line, "unexpected %elif")
-	}
-	frame := &(*conditionals)[len(*conditionals)-1]
-	if frame.seenElse {
-		return 0, configSyntaxError(file, marker.line, "%elif after %else")
-	}
-	evaluate := frame.parentActive && !frame.branchTaken
-	condition, err := conditionalValue(file, tokens, marker, expandFormat, evaluate)
-	if err != nil {
-		return 0, err
-	}
-	frame.active = evaluate && condition
-	frame.branchTaken = frame.branchTaken || frame.active
-	return 2, nil
-}
-
-func applyElse(file string, marker tmuxToken, conditionals *[]conditionalFrame) (int, error) {
-	if len(*conditionals) == 0 {
-		return 0, configSyntaxError(file, marker.line, "unexpected %else")
-	}
-	frame := &(*conditionals)[len(*conditionals)-1]
-	if frame.seenElse {
-		return 0, configSyntaxError(file, marker.line, "duplicate %else")
-	}
-	frame.seenElse = true
-	frame.active = frame.parentActive && !frame.branchTaken
-	frame.branchTaken = frame.branchTaken || frame.active
-	return 1, nil
-}
-
-func applyEndif(file string, marker tmuxToken, conditionals *[]conditionalFrame) (int, error) {
-	if len(*conditionals) == 0 {
-		return 0, configSyntaxError(file, marker.line, "unexpected %endif")
-	}
-	*conditionals = (*conditionals)[:len(*conditionals)-1]
-	return 1, nil
 }
 
 func conditionalValue(
