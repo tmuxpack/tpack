@@ -179,25 +179,17 @@ func selfUpdateCheck(p selfUpdateParams, output ui.Output) selfUpdateResult {
 // Calls the GitHub API and returns the latest version
 // without the "v" prefix.
 func fetchLatestVersion(apiURL string) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), selfUpdateTimeout)
-	defer cancel()
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
+	resp, cleanup, err := getResponse( //nolint:bodyclose // returned cleanup closes the response body
+		apiURL,
+		"application/vnd.github+json",
+		"creating request",
+		"fetching release",
+		"unexpected status: ",
+	)
 	if err != nil {
-		return "", fmt.Errorf("creating request: %w", err)
+		return "", err
 	}
-
-	req.Header.Set("Accept", "application/vnd.github+json")
-
-	resp, err := http.DefaultClient.Do(req) //nolint:gosec // URL is a hardcoded GitHub API endpoint
-	if err != nil {
-		return "", fmt.Errorf("fetching release: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("unexpected status: %d", resp.StatusCode)
-	}
+	defer cleanup()
 
 	var release githubRelease
 	if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
@@ -211,23 +203,17 @@ func fetchLatestVersion(apiURL string) (string, error) {
 // to a temp directory. Returns the path to the extracted binary,
 // a cleanup function, and any error.
 func downloadAndExtract(url string) (string, func(), error) {
-	ctx, cancel := context.WithTimeout(context.Background(), selfUpdateTimeout)
-	defer cancel()
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	resp, responseCleanup, err := getResponse( //nolint:bodyclose // returned cleanup closes the response body
+		url,
+		"",
+		"creating request",
+		"downloading archive",
+		"download failed: status ",
+	)
 	if err != nil {
-		return "", nil, fmt.Errorf("creating request: %w", err)
+		return "", nil, err
 	}
-
-	resp, err := http.DefaultClient.Do(req) //nolint:gosec // URL is constructed from a known GitHub release asset
-	if err != nil {
-		return "", nil, fmt.Errorf("downloading archive: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return "", nil, fmt.Errorf("download failed: status %d", resp.StatusCode)
-	}
+	defer responseCleanup()
 
 	tmpDir, err := os.MkdirTemp("", "tpack-update-*")
 	if err != nil {
@@ -253,23 +239,17 @@ func downloadAndExtract(url string) (string, func(), error) {
 func fetchChecksums(baseURL, version string) (map[string]string, error) {
 	url := fmt.Sprintf("%s/v%s/checksums.txt", baseURL, version)
 
-	ctx, cancel := context.WithTimeout(context.Background(), selfUpdateTimeout)
-	defer cancel()
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	resp, cleanup, err := getResponse( //nolint:bodyclose // returned cleanup closes the response body
+		url,
+		"",
+		"creating checksums request",
+		"fetching checksums",
+		"checksums download: status ",
+	)
 	if err != nil {
-		return nil, fmt.Errorf("creating checksums request: %w", err)
+		return nil, err
 	}
-
-	resp, err := http.DefaultClient.Do(req) //nolint:gosec // URL is constructed from known GitHub release path
-	if err != nil {
-		return nil, fmt.Errorf("fetching checksums: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("checksums download: status %d", resp.StatusCode)
-	}
+	defer cleanup()
 
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 1024*1024)) // 1 MiB limit
 	if err != nil {
@@ -298,23 +278,17 @@ func parseChecksums(content string) map[string]string {
 // checksum, and extracts the binary. Returns the path to the extracted binary,
 // a cleanup function, and any error.
 func downloadVerifyExtract(url, expectedHash string) (string, func(), error) {
-	ctx, cancel := context.WithTimeout(context.Background(), selfUpdateTimeout)
-	defer cancel()
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	resp, responseCleanup, err := getResponse( //nolint:bodyclose // returned cleanup closes the response body
+		url,
+		"",
+		"creating request",
+		"downloading archive",
+		"download failed: status ",
+	)
 	if err != nil {
-		return "", nil, fmt.Errorf("creating request: %w", err)
+		return "", nil, err
 	}
-
-	resp, err := http.DefaultClient.Do(req) //nolint:gosec // URL is constructed from a known GitHub release asset
-	if err != nil {
-		return "", nil, fmt.Errorf("downloading archive: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return "", nil, fmt.Errorf("download failed: status %d", resp.StatusCode)
-	}
+	defer responseCleanup()
 
 	tmpDir, err := os.MkdirTemp("", "tpack-update-*")
 	if err != nil {
@@ -365,6 +339,38 @@ func downloadVerifyExtract(url, expectedHash string) (string, func(), error) {
 	}
 
 	return binaryPath, cleanup, nil
+}
+
+func getResponse(url, accept, createError, fetchError, statusError string) (*http.Response, func(), error) {
+	ctx, cancel := context.WithTimeout(context.Background(), selfUpdateTimeout)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		cancel()
+		return nil, nil, fmt.Errorf("%s: %w", createError, err)
+	}
+
+	if accept != "" {
+		req.Header.Set("Accept", accept)
+	}
+
+	resp, err := http.DefaultClient.Do(req) //nolint:gosec // self-update URLs are supplied by trusted callers
+	if err != nil {
+		cancel()
+		return nil, nil, fmt.Errorf("%s: %w", fetchError, err)
+	}
+
+	cleanup := func() {
+		_ = resp.Body.Close()
+		cancel()
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		cleanup()
+		return nil, nil, fmt.Errorf("%s%d", statusError, resp.StatusCode)
+	}
+
+	return resp, cleanup, nil
 }
 
 // Reads a gzip+tar stream and extracts the Go binary

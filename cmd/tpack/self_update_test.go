@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -40,10 +41,80 @@ func newTestServer(t *testing.T, handler http.HandlerFunc) string {
 
 func newReleaseServer(t *testing.T, tag string) string {
 	t.Helper()
-	return newTestServer(t, func(w http.ResponseWriter, _ *http.Request) {
+	return newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		if got := r.Header.Get("Accept"); got != "application/vnd.github+json" {
+			t.Errorf("Accept header = %q, want %q", got, "application/vnd.github+json")
+		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(githubRelease{TagName: tag})
 	})
+}
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
+}
+
+type trackingBody struct {
+	requestContext    context.Context
+	closed            bool
+	closedAfterCancel bool
+}
+
+func (b *trackingBody) Read(_ []byte) (int, error) {
+	return 0, io.EOF
+}
+
+func (b *trackingBody) Close() error {
+	b.closed = true
+	b.closedAfterCancel = b.requestContext.Err() != nil
+	return nil
+}
+
+func TestGetResponseCleanupClosesBodyBeforeCancel(t *testing.T) {
+	body := &trackingBody{}
+	originalClient := http.DefaultClient
+	http.DefaultClient = &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		body.requestContext = req.Context()
+		if req.Method != http.MethodGet {
+			t.Errorf("method = %q, want %q", req.Method, http.MethodGet)
+		}
+		if got := req.Header.Get("Accept"); got != "application/test" {
+			t.Errorf("Accept header = %q, want %q", got, "application/test")
+		}
+		if _, ok := req.Context().Deadline(); !ok {
+			t.Error("request context has no deadline")
+		}
+		return &http.Response{StatusCode: http.StatusOK, Body: body}, nil
+	})}
+	t.Cleanup(func() { http.DefaultClient = originalClient })
+
+	resp, cleanup, err := getResponse( //nolint:bodyclose // returned cleanup is exercised below
+		"https://example.test/archive",
+		"application/test",
+		"creating request",
+		"fetching archive",
+		"unexpected status: ",
+	)
+	if err != nil {
+		t.Fatalf("getResponse() error = %v", err)
+	}
+	if resp.Body != body {
+		t.Fatal("getResponse() returned an unexpected response body")
+	}
+
+	cleanup()
+
+	if !body.closed {
+		t.Error("cleanup did not close the response body")
+	}
+	if body.closedAfterCancel {
+		t.Error("cleanup canceled the context before closing the response body")
+	}
+	if !errors.Is(body.requestContext.Err(), context.Canceled) {
+		t.Errorf("request context error = %v, want context canceled", body.requestContext.Err())
+	}
 }
 
 func newDataServer(t *testing.T, data []byte) string {
