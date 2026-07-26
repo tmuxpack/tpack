@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/tmuxpack/tpack/internal/config"
 	"github.com/tmuxpack/tpack/internal/git"
 	"github.com/tmuxpack/tpack/internal/tmux"
 )
@@ -678,15 +677,9 @@ func TestBuildAutoUpdateOps_NoneInstalled(t *testing.T) {
 
 func TestDispatchNext_WithRunner_SourcesOnInstall(t *testing.T) {
 	runner := tmux.NewMockRunner()
-	cfg := &config.Config{PluginPath: mustRoot(t, t.TempDir()), TmuxConf: "/tmp/test.conf"}
-	deps := Deps{
-		Cloner:    git.NewMockCloner(),
-		Puller:    git.NewMockPuller(),
-		Validator: git.NewMockValidator(),
-		Fetcher:   git.NewMockFetcher(),
-		Runner:    runner,
-	}
-	m := NewModel(cfg, nil, deps)
+	m := newTestModel(t, nil)
+	m.cfg.TmuxConf = "/tmp/test.conf"
+	m.deps.Runner = runner
 	m.operation = OpInstall
 	m.pendingItems = nil
 
@@ -715,15 +708,9 @@ func TestDispatchNext_WithRunner_SourcesOnInstall(t *testing.T) {
 
 func TestDispatchNext_WithRunner_SourcesOnUpdate(t *testing.T) {
 	runner := tmux.NewMockRunner()
-	cfg := &config.Config{PluginPath: mustRoot(t, t.TempDir()), TmuxConf: "/tmp/test.conf"}
-	deps := Deps{
-		Cloner:    git.NewMockCloner(),
-		Puller:    git.NewMockPuller(),
-		Validator: git.NewMockValidator(),
-		Fetcher:   git.NewMockFetcher(),
-		Runner:    runner,
-	}
-	m := NewModel(cfg, nil, deps)
+	m := newTestModel(t, nil)
+	m.cfg.TmuxConf = "/tmp/test.conf"
+	m.deps.Runner = runner
 	m.operation = OpUpdate
 	m.pendingItems = nil
 
@@ -735,15 +722,9 @@ func TestDispatchNext_WithRunner_SourcesOnUpdate(t *testing.T) {
 
 func TestDispatchNext_WithRunner_NoSourceOnClean(t *testing.T) {
 	runner := tmux.NewMockRunner()
-	cfg := &config.Config{PluginPath: mustRoot(t, t.TempDir()), TmuxConf: "/tmp/test.conf"}
-	deps := Deps{
-		Cloner:    git.NewMockCloner(),
-		Puller:    git.NewMockPuller(),
-		Validator: git.NewMockValidator(),
-		Fetcher:   git.NewMockFetcher(),
-		Runner:    runner,
-	}
-	m := NewModel(cfg, nil, deps)
+	m := newTestModel(t, nil)
+	m.cfg.TmuxConf = "/tmp/test.conf"
+	m.deps.Runner = runner
 	m.operation = OpClean
 	m.pendingItems = nil
 

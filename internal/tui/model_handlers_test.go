@@ -2,6 +2,7 @@ package tui
 
 import (
 	"errors"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -114,179 +115,95 @@ func TestHandleCheckResult_UnknownPlugin(t *testing.T) {
 	_ = result.(Model) // should not panic
 }
 
-func TestHandleInstallResult_Success(t *testing.T) {
-	m := newTestModel(t, nil)
-	m.plugins = []PluginItem{
-		testPluginItem("alpha", "user/alpha", StatusNotInstalled),
+func TestOperationResults(t *testing.T) {
+	tests := []struct {
+		name        string
+		operation   Operation
+		plugins     []PluginItem
+		msg         tea.Msg
+		wantPlugins []PluginItem
+		wantResults []ResultItem
+	}{
+		{
+			name:        "install success",
+			operation:   OpInstall,
+			plugins:     []PluginItem{testPluginItem("alpha", "user/alpha", StatusNotInstalled)},
+			msg:         pluginInstallResultMsg{Name: "alpha", DirName: "alpha", Success: true, Message: "installed"},
+			wantPlugins: []PluginItem{{Raw: "user/alpha", Name: "alpha", DirName: "alpha", Spec: "user/alpha", Status: StatusInstalled}},
+			wantResults: []ResultItem{{Name: "alpha", DirName: "alpha", Success: true, Message: "installed"}},
+		},
+		{
+			name:        "install failure",
+			operation:   OpInstall,
+			plugins:     []PluginItem{testPluginItem("alpha", "user/alpha", StatusNotInstalled)},
+			msg:         pluginInstallResultMsg{Name: "alpha", DirName: "alpha", Success: false, Message: "clone failed"},
+			wantPlugins: []PluginItem{{Raw: "user/alpha", Name: "alpha", DirName: "alpha", Spec: "user/alpha", Status: StatusNotInstalled}},
+			wantResults: []ResultItem{{Name: "alpha", DirName: "alpha", Success: false, Message: "clone failed"}},
+		},
+		{
+			name:        "update success",
+			operation:   OpUpdate,
+			plugins:     []PluginItem{testPluginItem("alpha", "user/alpha", StatusInstalled)},
+			msg:         pluginUpdateResultMsg{Name: "alpha", DirName: "alpha", Success: true, Message: "updated"},
+			wantPlugins: []PluginItem{{Raw: "user/alpha", Name: "alpha", DirName: "alpha", Spec: "user/alpha", Status: StatusInstalled}},
+			wantResults: []ResultItem{{Name: "alpha", DirName: "alpha", Success: true, Message: "updated"}},
+		},
+		{
+			name:        "clean success",
+			operation:   OpClean,
+			msg:         pluginCleanResultMsg{Name: "orphan-a", Success: true, Message: "removed"},
+			wantResults: []ResultItem{{Name: "orphan-a", Success: true, Message: "removed"}},
+		},
+		{
+			name:        "uninstall success",
+			operation:   OpUninstall,
+			plugins:     []PluginItem{testPluginItem("alpha", "user/alpha", StatusInstalled)},
+			msg:         pluginUninstallResultMsg{Name: "alpha", DirName: "alpha", Success: true, Message: "removed"},
+			wantPlugins: []PluginItem{{Raw: "user/alpha", Name: "alpha", DirName: "alpha", Spec: "user/alpha", Status: StatusNotInstalled}},
+			wantResults: []ResultItem{{Name: "alpha", DirName: "alpha", Success: true, Message: "removed"}},
+		},
+		{
+			name:      "remove success",
+			operation: OpRemove,
+			plugins: []PluginItem{
+				testPluginItem("alpha", "user/alpha", StatusInstalled),
+				testPluginItem("beta", "user/beta", StatusInstalled),
+			},
+			msg:         pluginRemoveResultMsg{Name: "alpha", DirName: "alpha", Success: true, Message: "removed successfully"},
+			wantPlugins: []PluginItem{{Raw: "user/beta", Name: "beta", DirName: "beta", Spec: "user/beta", Status: StatusInstalled}},
+			wantResults: []ResultItem{{Name: "alpha", DirName: "alpha", Success: true, Message: "removed successfully"}},
+		},
+		{
+			name:        "remove failure still removes plugin",
+			operation:   OpRemove,
+			plugins:     []PluginItem{testPluginItem("alpha", "user/alpha", StatusInstalled)},
+			msg:         pluginRemoveResultMsg{Name: "alpha", DirName: "alpha", Success: false, Message: "permission denied"},
+			wantPlugins: []PluginItem{},
+			wantResults: []ResultItem{{Name: "alpha", DirName: "alpha", Success: false, Message: "permission denied"}},
+		},
 	}
-	m.screen = ScreenProgress
-	m.operation = OpInstall
-	m.processing = true
-	m.totalItems = 1
-	m.completedItems = 0
 
-	msg := pluginInstallResultMsg{Name: "alpha", DirName: "alpha", Success: true, Message: "installed"}
-	result, _ := m.Update(msg)
-	m = result.(Model)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := newProcessingTestModel(t, tt.operation, "alpha", tt.plugins)
+			m = updateTestModel(t, m, tt.msg)
 
-	if m.plugins[0].Status != StatusInstalled {
-		t.Errorf("expected StatusInstalled after successful install, got %s", m.plugins[0].Status)
-	}
-	if len(m.results) != 1 {
-		t.Fatalf("expected 1 result, got %d", len(m.results))
-	}
-	if !m.results[0].Success {
-		t.Error("expected result to be successful")
-	}
-}
-
-func TestHandleInstallResult_Failure(t *testing.T) {
-	m := newTestModel(t, nil)
-	m.plugins = []PluginItem{
-		testPluginItem("alpha", "user/alpha", StatusNotInstalled),
-	}
-	m.screen = ScreenProgress
-	m.operation = OpInstall
-	m.processing = true
-	m.totalItems = 1
-	m.completedItems = 0
-
-	msg := pluginInstallResultMsg{Name: "alpha", DirName: "alpha", Success: false, Message: "clone failed"}
-	result, _ := m.Update(msg)
-	m = result.(Model)
-
-	// Status should remain unchanged on failure.
-	if m.plugins[0].Status != StatusNotInstalled {
-		t.Errorf("expected StatusNotInstalled after failed install, got %s", m.plugins[0].Status)
-	}
-	if len(m.results) != 1 {
-		t.Fatalf("expected 1 result, got %d", len(m.results))
-	}
-	if m.results[0].Success {
-		t.Error("expected result to be failure")
-	}
-}
-
-func TestHandleUpdateResult(t *testing.T) {
-	m := newTestModel(t, nil)
-	m.plugins = []PluginItem{
-		testPluginItem("alpha", "user/alpha", StatusInstalled),
-	}
-	m.screen = ScreenProgress
-	m.operation = OpUpdate
-	m.processing = true
-	m.totalItems = 1
-	m.completedItems = 0
-
-	msg := pluginUpdateResultMsg{Name: "alpha", DirName: "alpha", Success: true, Message: "updated"}
-	result, _ := m.Update(msg)
-	m = result.(Model)
-
-	if m.completedItems != 1 {
-		t.Errorf("expected completedItems=1, got %d", m.completedItems)
-	}
-	if len(m.results) != 1 {
-		t.Fatalf("expected 1 result, got %d", len(m.results))
-	}
-}
-
-func TestHandleCleanResult(t *testing.T) {
-	m := newTestModel(t, nil)
-	m.orphans = []OrphanItem{
-		{Name: "orphan-a", Path: "/tmp/orphan-a"},
-	}
-	m.screen = ScreenProgress
-	m.operation = OpClean
-	m.processing = true
-	m.totalItems = 1
-	m.completedItems = 0
-
-	msg := pluginCleanResultMsg{Name: "orphan-a", Success: true, Message: "removed"}
-	result, _ := m.Update(msg)
-	m = result.(Model)
-
-	if m.completedItems != 1 {
-		t.Errorf("expected completedItems=1, got %d", m.completedItems)
-	}
-	if len(m.results) != 1 {
-		t.Fatalf("expected 1 result, got %d", len(m.results))
-	}
-}
-
-func TestHandleUninstallResult_Success(t *testing.T) {
-	m := newTestModel(t, nil)
-	m.plugins = []PluginItem{
-		testPluginItem("alpha", "user/alpha", StatusInstalled),
-	}
-	m.screen = ScreenProgress
-	m.operation = OpUninstall
-	m.processing = true
-	m.totalItems = 1
-	m.completedItems = 0
-
-	msg := pluginUninstallResultMsg{Name: "alpha", DirName: "alpha", Success: true, Message: "removed"}
-	result, _ := m.Update(msg)
-	m = result.(Model)
-
-	if m.plugins[0].Status != StatusNotInstalled {
-		t.Errorf("expected StatusNotInstalled after uninstall, got %s", m.plugins[0].Status)
-	}
-}
-
-func TestHandleRemoveResult_Success(t *testing.T) {
-	m := newTestModel(t, nil)
-	m.plugins = []PluginItem{
-		testPluginItem("alpha", "user/alpha", StatusInstalled),
-		testPluginItem("beta", "user/beta", StatusInstalled),
-	}
-	m.screen = ScreenProgress
-	m.operation = OpRemove
-	m.processing = true
-	m.totalItems = 1
-	m.completedItems = 0
-
-	msg := pluginRemoveResultMsg{Name: "alpha", DirName: "alpha", Success: true, Message: "removed successfully"}
-	result, _ := m.Update(msg)
-	m = result.(Model)
-
-	if len(m.plugins) != 1 {
-		t.Fatalf("expected 1 plugin remaining, got %d", len(m.plugins))
-	}
-	if m.plugins[0].Name != "beta" {
-		t.Errorf("expected remaining plugin 'beta', got %q", m.plugins[0].Name)
-	}
-	if len(m.results) != 1 {
-		t.Fatalf("expected 1 result, got %d", len(m.results))
-	}
-	if !m.results[0].Success {
-		t.Error("expected result to be successful")
-	}
-}
-
-func TestHandleRemoveResult_Failure_StillRemovesFromList(t *testing.T) {
-	m := newTestModel(t, nil)
-	m.plugins = []PluginItem{
-		testPluginItem("alpha", "user/alpha", StatusInstalled),
-	}
-	m.screen = ScreenProgress
-	m.operation = OpRemove
-	m.processing = true
-	m.totalItems = 1
-	m.completedItems = 0
-
-	msg := pluginRemoveResultMsg{Name: "alpha", DirName: "alpha", Success: false, Message: "permission denied"}
-	result, _ := m.Update(msg)
-	m = result.(Model)
-
-	// Plugin removed from list even on failure since config entry was already removed.
-	if len(m.plugins) != 0 {
-		t.Errorf("expected 0 plugins remaining, got %d", len(m.plugins))
-	}
-	if len(m.results) != 1 {
-		t.Fatalf("expected 1 result, got %d", len(m.results))
-	}
-	if m.results[0].Success {
-		t.Error("expected result to be failure")
+			if !reflect.DeepEqual(m.plugins, tt.wantPlugins) {
+				t.Errorf("plugins = %+v, want %+v", m.plugins, tt.wantPlugins)
+			}
+			if !reflect.DeepEqual(m.results, tt.wantResults) {
+				t.Errorf("results = %+v, want %+v", m.results, tt.wantResults)
+			}
+			if m.completedItems != 1 {
+				t.Errorf("completedItems = %d, want 1", m.completedItems)
+			}
+			if m.inFlight != 0 {
+				t.Errorf("inFlight = %d, want 0", m.inFlight)
+			}
+			if m.processing {
+				t.Error("processing = true, want false")
+			}
+		})
 	}
 }
 

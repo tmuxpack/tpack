@@ -56,10 +56,8 @@ func TestStartAutoCleanReportsOrphanDiscoveryFailureWithoutScheduling(t *testing
 	}
 }
 
-func newTestModel(t *testing.T, plugins []plug.Plugin) Model {
-	t.Helper()
-	cfg := &config.Config{PluginPath: mustRoot(t, t.TempDir())}
-	deps := Deps{
+func testDeps() Deps {
+	return Deps{
 		Cloner:    git.NewMockCloner(),
 		Puller:    git.NewMockPuller(),
 		Validator: git.NewMockValidator(),
@@ -67,7 +65,35 @@ func newTestModel(t *testing.T, plugins []plug.Plugin) Model {
 		RevParser: git.NewMockRevParser(),
 		Logger:    git.NewMockLogger(),
 	}
-	return NewModel(cfg, plugins, deps)
+}
+
+func newTestModel(t *testing.T, plugins []plug.Plugin, opts ...ModelOption) Model {
+	t.Helper()
+	cfg := &config.Config{PluginPath: mustRoot(t, t.TempDir())}
+	return NewModel(cfg, plugins, testDeps(), opts...)
+}
+
+func updateTestModel(t *testing.T, m Model, msg tea.Msg) Model {
+	t.Helper()
+	updated, _ := m.Update(msg)
+	result, ok := updated.(Model)
+	if !ok {
+		t.Fatalf("Update returned %T, want Model", updated)
+	}
+	return result
+}
+
+func newProcessingTestModel(t *testing.T, operation Operation, name string, plugins []PluginItem) Model {
+	t.Helper()
+	m := newTestModel(t, nil)
+	m.plugins = plugins
+	m.screen = ScreenProgress
+	m.operation = operation
+	m.processing = true
+	m.totalItems = 1
+	m.inFlight = 1
+	m.inFlightNames = []string{name}
+	return m
 }
 
 func mustParsePlugin(t *testing.T, raw string) plug.Plugin {
@@ -278,14 +304,7 @@ func TestNewModel_WithAutoOp(t *testing.T) {
 	plugins := []plug.Plugin{
 		testPlugin("tmux-sensible", "tmux-plugins/tmux-sensible"),
 	}
-	cfg := &config.Config{PluginPath: mustRoot(t, t.TempDir())}
-	deps := Deps{
-		Cloner:    git.NewMockCloner(),
-		Puller:    git.NewMockPuller(),
-		Validator: git.NewMockValidator(),
-		Fetcher:   git.NewMockFetcher(),
-	}
-	m := NewModel(cfg, plugins, deps, WithAutoOp(OpInstall))
+	m := newTestModel(t, plugins, WithAutoOp(OpInstall))
 
 	if m.autoOp != OpInstall {
 		t.Errorf("expected autoOp OpInstall, got %d", m.autoOp)
@@ -297,14 +316,7 @@ func TestNewModel_WithAutoOp(t *testing.T) {
 }
 
 func TestInit_WithAutoOp_SendsAutoStartMsg(t *testing.T) {
-	cfg := &config.Config{PluginPath: mustRoot(t, t.TempDir())}
-	deps := Deps{
-		Cloner:    git.NewMockCloner(),
-		Puller:    git.NewMockPuller(),
-		Validator: git.NewMockValidator(),
-		Fetcher:   git.NewMockFetcher(),
-	}
-	m := NewModel(cfg, nil, deps, WithAutoOp(OpInstall))
+	m := newTestModel(t, nil, WithAutoOp(OpInstall))
 
 	cmd := m.Init()
 	if cmd == nil {
@@ -315,14 +327,7 @@ func TestInit_WithAutoOp_SendsAutoStartMsg(t *testing.T) {
 func TestInit_WithoutAutoOp_NoAutoStartMsg(t *testing.T) {
 	// With no plugins (nothing to check), Init should still return a command
 	// (for background color detection) but no autoStartMsg.
-	cfg := &config.Config{PluginPath: mustRoot(t, t.TempDir())}
-	deps := Deps{
-		Cloner:    git.NewMockCloner(),
-		Puller:    git.NewMockPuller(),
-		Validator: git.NewMockValidator(),
-		Fetcher:   git.NewMockFetcher(),
-	}
-	m := NewModel(cfg, nil, deps)
+	m := newTestModel(t, nil)
 	cmd := m.Init()
 	if cmd == nil {
 		t.Error("expected non-nil command from Init (background color request)")
@@ -330,8 +335,7 @@ func TestInit_WithoutAutoOp_NoAutoStartMsg(t *testing.T) {
 }
 
 func TestStartAutoOperation_Install(t *testing.T) {
-	m := newTestModel(t, nil)
-	m.autoOp = OpInstall
+	m := newTestModel(t, nil, WithAutoOp(OpInstall))
 	m.plugins = []PluginItem{
 		testPluginItem("a", "user/a", StatusNotInstalled),
 		testPluginItem("b", "user/b", StatusInstalled),
@@ -356,8 +360,7 @@ func TestStartAutoOperation_Install(t *testing.T) {
 }
 
 func TestStartAutoOperation_Update(t *testing.T) {
-	m := newTestModel(t, nil)
-	m.autoOp = OpUpdate
+	m := newTestModel(t, nil, WithAutoOp(OpUpdate))
 	m.plugins = []PluginItem{
 		testPluginItem("a", "user/a", StatusInstalled),
 		testPluginItem("b", "user/b", StatusNotInstalled),
@@ -379,8 +382,7 @@ func TestStartAutoOperation_Update(t *testing.T) {
 }
 
 func TestStartAutoOperation_Clean(t *testing.T) {
-	m := newTestModel(t, nil)
-	m.autoOp = OpClean
+	m := newTestModel(t, nil, WithAutoOp(OpClean))
 	m.orphans = []OrphanItem{
 		{Name: "orphan1", Path: "/tmp/orphan1"},
 		{Name: "orphan2", Path: "/tmp/orphan2"},
@@ -401,8 +403,7 @@ func TestStartAutoOperation_Clean(t *testing.T) {
 }
 
 func TestStartAutoOperation_NoOps_Quits(t *testing.T) {
-	m := newTestModel(t, nil)
-	m.autoOp = OpInstall
+	m := newTestModel(t, nil, WithAutoOp(OpInstall))
 	m.plugins = []PluginItem{
 		{Name: "a", Spec: "user/a", Status: StatusInstalled},
 	}
@@ -414,9 +415,8 @@ func TestStartAutoOperation_NoOps_Quits(t *testing.T) {
 }
 
 func TestUpdateProgress_AutoOp_QuitOnQ(t *testing.T) {
-	m := newTestModel(t, nil)
+	m := newTestModel(t, nil, WithAutoOp(OpInstall))
 	m.screen = ScreenProgress
-	m.autoOp = OpInstall
 	m.processing = false
 
 	msg := tea.KeyPressMsg{Code: 'q', Text: "q"}
@@ -427,9 +427,8 @@ func TestUpdateProgress_AutoOp_QuitOnQ(t *testing.T) {
 }
 
 func TestUpdateProgress_AutoOp_QuitOnEsc(t *testing.T) {
-	m := newTestModel(t, nil)
+	m := newTestModel(t, nil, WithAutoOp(OpInstall))
 	m.screen = ScreenProgress
-	m.autoOp = OpInstall
 	m.processing = false
 
 	msg := tea.KeyPressMsg{Code: tea.KeyEscape}
@@ -440,9 +439,8 @@ func TestUpdateProgress_AutoOp_QuitOnEsc(t *testing.T) {
 }
 
 func TestUpdateProgress_AutoOp_IgnoresKeysWhileProcessing(t *testing.T) {
-	m := newTestModel(t, nil)
+	m := newTestModel(t, nil, WithAutoOp(OpInstall))
 	m.screen = ScreenProgress
-	m.autoOp = OpInstall
 	m.processing = true
 
 	msg := tea.KeyPressMsg{Code: 'q', Text: "q"}
@@ -453,8 +451,7 @@ func TestUpdateProgress_AutoOp_IgnoresKeysWhileProcessing(t *testing.T) {
 }
 
 func TestUpdate_AutoStartMsg(t *testing.T) {
-	m := newTestModel(t, nil)
-	m.autoOp = OpInstall
+	m := newTestModel(t, nil, WithAutoOp(OpInstall))
 	m.plugins = []PluginItem{
 		testPluginItem("test", "user/test", StatusNotInstalled),
 	}
