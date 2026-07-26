@@ -9,6 +9,19 @@ Your tmux configuration file is typically at one of these paths:
 - `~/.tmux.conf`
 - `$XDG_CONFIG_HOME/tmux/tmux.conf`
 
+When a tmux server is running, tpack automatically discovers every active
+configuration root from tmux's `#{config_files}` format. This includes custom
+files loaded by one or more `tmux -f /path/to/config` arguments. Without a
+running server, tpack falls back to the standard configuration paths.
+
+For an unusual or detached setup, set `@tpack-config` in tmux to make one file
+the authoritative configuration root and writable target. The value must name
+an absolute, existing regular file:
+
+```tmux
+set -g @tpack-config '/absolute/path/to/tmux.conf'
+```
+
 ## 2. Declare plugins and initialize tpack
 
 The configuration depends on how you installed tpack.

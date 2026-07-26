@@ -9,6 +9,7 @@ type MockRunner struct {
 	// Return values keyed by method+args.
 	Options     map[string]string
 	Environment map[string]string
+	Formats     map[string]string
 	WindowOpts  map[string]string
 	VersionStr  string
 	Errors      map[string]error
@@ -28,6 +29,7 @@ func NewMockRunner() *MockRunner {
 	return &MockRunner{
 		Options:     make(map[string]string),
 		Environment: make(map[string]string),
+		Formats:     make(map[string]string),
 		WindowOpts:  make(map[string]string),
 		Errors:      make(map[string]error),
 	}
@@ -62,6 +64,11 @@ func (m *MockRunner) ShowEnvironment(name string) (string, error) {
 		return "", ErrNotSet
 	}
 	return val, m.err("ShowEnvironment:" + name)
+}
+
+func (m *MockRunner) ExpandFormat(format string) (string, error) {
+	m.record("ExpandFormat", format)
+	return m.Formats[format], m.err("ExpandFormat:" + format)
 }
 
 func (m *MockRunner) SetEnvironment(name, value string) error {

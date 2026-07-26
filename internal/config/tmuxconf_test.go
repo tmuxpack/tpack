@@ -180,6 +180,97 @@ func TestGatherPluginsFromRecursiveSources(t *testing.T) {
 	}
 }
 
+func TestGatherPluginsInterleavesDeclarationsWithSourceExecution(t *testing.T) {
+	fs := config.NewMockFS()
+	fs.Files["/custom/one.conf"] = "set -g @plugin owner/one\n" +
+		"source child.conf\n" +
+		"set -g @plugin owner/three\n"
+	fs.Files["/custom/child.conf"] = "set -g @plugin owner/two\n" +
+		"set -g @plugin owner/two\n"
+	fs.Files["/custom/four.conf"] = "set -g @plugin owner/four\n"
+	paths := testPaths(t)
+	paths.TmuxConf = "/custom/four.conf"
+	paths.TmuxConfs = []string{"/custom/one.conf", "/custom/four.conf"}
+
+	plugins, err := config.GatherPlugins(tmux.NewMockRunner(), fs, paths, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var names []string
+	for _, plugin := range plugins {
+		names = append(names, plugin.Name)
+	}
+	want := []string{"owner/one", "owner/two", "owner/two", "owner/three", "owner/four"}
+	if !reflect.DeepEqual(names, want) {
+		t.Fatalf("plugins = %v, want execution order %v", names, want)
+	}
+}
+
+func TestGatherPluginsExecutesRepeatedSourceOnce(t *testing.T) {
+	fs := config.NewMockFS()
+	fs.Files["/home/user/.tmux.conf"] = "set -g @plugin owner/one\n" +
+		"source child.conf\nsource ./child.conf\n" +
+		"set -g @plugin owner/three\n"
+	fs.Files["/home/user/child.conf"] = "set -g @plugin owner/two\n"
+
+	plugins, err := config.GatherPlugins(tmux.NewMockRunner(), fs, testPaths(t), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var names []string
+	for _, plugin := range plugins {
+		names = append(names, plugin.Name)
+	}
+	want := []string{"owner/one", "owner/two", "owner/three"}
+	if !reflect.DeepEqual(names, want) {
+		t.Fatalf("plugins = %v, want deduplicated execution order %v", names, want)
+	}
+}
+
+func TestGatherPluginsExecutesDocumentReachedNormallyAfterParseOnly(t *testing.T) {
+	fs := config.NewMockFS()
+	fs.Files["/home/user/.tmux.conf"] = "source-file -n child.conf\n" +
+		"set -g @plugin owner/one\n" +
+		"source child.conf\n" +
+		"set -g @plugin owner/three\n"
+	fs.Files["/home/user/child.conf"] = "set -g @plugin owner/two\n"
+
+	plugins, err := config.GatherPlugins(tmux.NewMockRunner(), fs, testPaths(t), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var names []string
+	for _, plugin := range plugins {
+		names = append(names, plugin.Name)
+	}
+	want := []string{"owner/one", "owner/two", "owner/three"}
+	if !reflect.DeepEqual(names, want) {
+		t.Fatalf("plugins = %v, want execution order %v", names, want)
+	}
+}
+
+func TestGatherPluginsFromEveryActiveRoot(t *testing.T) {
+	fs := config.NewMockFS()
+	fs.Files["/custom/one.conf"] = "set -g @plugin owner/one"
+	fs.Files["/custom/two.conf"] = "set -g @plugin owner/two"
+	paths := testPaths(t)
+	paths.TmuxConf = "/custom/two.conf"
+	paths.TmuxConfs = []string{"/custom/one.conf", "/custom/two.conf"}
+
+	plugins, err := config.GatherPlugins(tmux.NewMockRunner(), fs, paths, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var names []string
+	for _, plugin := range plugins {
+		names = append(names, plugin.Name)
+	}
+	want := []string{"owner/one", "owner/two"}
+	if !reflect.DeepEqual(names, want) {
+		t.Fatalf("plugins = %v, want plugins from roots in order %v", names, want)
+	}
+}
+
 func TestGatherPluginsErrorsWhenRequiredSourceUnreadable(t *testing.T) {
 	fs := config.NewMockFS()
 	fs.Files["/home/user/.tmux.conf"] = "source ~/.tmux/missing.conf"

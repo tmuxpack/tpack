@@ -16,6 +16,7 @@ const (
 	PluginPathEnvVar       = "TPACK_PLUGIN_PATH"
 	LegacyPluginPathEnvVar = "TMUX_PLUGIN_MANAGER_PATH"
 	PluginPathOption       = "@tpack-plugin-path"
+	ConfigPathOption       = "@tpack-config"
 	// SupportedTmuxVersion is the minimum tmux version encoded as major*100+minor.
 	SupportedTmuxVersion = 109
 

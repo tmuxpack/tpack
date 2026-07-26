@@ -64,8 +64,10 @@ func (e *ErrNoTmuxConf) Error() string {
 
 // Paths holds every resolved path with its provenance.
 type Paths struct {
-	// TmuxConf is the user's tmux.conf; guaranteed to exist on disk.
+	// TmuxConf is the writable tmux.conf; guaranteed to exist on disk.
 	TmuxConf string
+	// TmuxConfs lists every active readable root in source order.
+	TmuxConfs []string
 	// ConfSearched lists the candidates tried, deduplicated, for error messages.
 	ConfSearched []string
 	// PluginPath is the validated plugin directory.
@@ -114,11 +116,15 @@ func ResolvePaths(runner tmux.Runner, fs FS, env Env) (Paths, error) {
 		XDGStateHome:  stateHome,
 	}
 
-	conf, searched := findTmuxConf(fs, p)
-	if conf == "" {
+	confs, writable, searched, err := resolveTmuxConfs(runner, fs, p)
+	if err != nil {
+		return Paths{}, err
+	}
+	if writable == "" {
 		return Paths{ConfSearched: searched}, &ErrNoTmuxConf{Searched: searched}
 	}
-	p.TmuxConf = conf
+	p.TmuxConf = writable
+	p.TmuxConfs = confs
 	p.ConfSearched = searched
 
 	p.PluginPath, p.PluginPathSource, err = resolvePluginDir(runner, fs, p)
@@ -142,30 +148,119 @@ func resolveHome(source, value, fallback string) (string, error) {
 	return absoluteDir(source, value)
 }
 
-// findTmuxConf returns the first existing candidate, mirroring tmux's order.
-func findTmuxConf(fs FS, p Paths) (string, []string) {
-	candidates := []string{
+func resolveTmuxConfs(runner tmux.Runner, fs FS, p Paths) (roots []string, writable string, searched []string, err error) {
+	if value, set, showErr := runner.ShowOption(ConfigPathOption); showErr == nil && set && strings.TrimSpace(value) != "" {
+		candidate := strings.TrimSpace(value)
+		if !filepath.IsAbs(candidate) {
+			return nil, "", nil, fmt.Errorf("%s must be an absolute existing regular file, got %q", ConfigPathOption, value)
+		}
+		candidate = filepath.Clean(candidate)
+		if !fs.IsRegularFile(candidate) {
+			return nil, "", []string{candidate}, fmt.Errorf("%s must be an absolute existing regular file, got %q", ConfigPathOption, value)
+		}
+		return []string{candidate}, candidate, []string{candidate}, nil
+	}
+
+	activeRoots, activeSearched, reported, activeErr := activeTmuxConfs(runner, fs, p)
+	if activeErr != nil {
+		return nil, "", activeSearched, activeErr
+	}
+	if reported {
+		return activeRoots, chooseWritableTmuxConf(activeRoots, p), activeSearched, nil
+	}
+
+	roots, searched = defaultTmuxConfs(fs, p)
+	return roots, chooseWritableTmuxConf(roots, p), searched, nil
+}
+
+func activeTmuxConfs(runner tmux.Runner, fs FS, p Paths) (roots, searched []string, reported bool, err error) {
+	value, err := runner.ExpandFormat("#{config_files}")
+	if err != nil || strings.TrimSpace(value) == "" {
+		return nil, nil, false, nil
+	}
+
+	optionalDefaults := make(map[string]bool)
+	for _, candidate := range defaultTmuxConfCandidates(p) {
+		optionalDefaults[filepath.Clean(candidate)] = true
+	}
+	seen := make(map[string]bool)
+	for candidate := range strings.SplitSeq(value, ",") {
+		candidate = strings.TrimSpace(candidate)
+		if candidate == "" {
+			continue
+		}
+		if !filepath.IsAbs(candidate) {
+			return nil, searched, true, fmt.Errorf("#{config_files} reported relative config root %q", candidate)
+		}
+		candidate = filepath.Clean(candidate)
+		if seen[candidate] {
+			continue
+		}
+		seen[candidate] = true
+		searched = append(searched, candidate)
+		if !fs.IsRegularFile(candidate) {
+			if optionalDefaults[candidate] && !fs.FileExists(candidate) {
+				continue
+			}
+			return nil, searched, true, fmt.Errorf("#{config_files} reported missing, unreadable, or non-regular config root %q", candidate)
+		}
+		roots = append(roots, candidate)
+	}
+	return roots, searched, true, nil
+}
+
+func defaultTmuxConfs(fs FS, p Paths) (roots, searched []string) {
+	for _, candidate := range deduplicatePaths(defaultTmuxConfCandidates(p)) {
+		searched = append(searched, candidate)
+		if fs.IsRegularFile(candidate) {
+			roots = append(roots, candidate)
+		}
+	}
+	return roots, searched
+}
+
+func defaultTmuxConfCandidates(p Paths) []string {
+	return []string{
+		"/etc/tmux.conf",
+		filepath.Join(p.Home, ".tmux.conf"),
+		filepath.Join(p.XDGConfigHome, "tmux", "tmux.conf"),
+		filepath.Join(p.Home, ".config", "tmux", "tmux.conf"),
+	}
+}
+
+func deduplicatePaths(candidates []string) []string {
+	seen := make(map[string]bool, len(candidates))
+	result := make([]string, 0, len(candidates))
+	for _, candidate := range candidates {
+		candidate = filepath.Clean(candidate)
+		if seen[candidate] {
+			continue
+		}
+		seen[candidate] = true
+		result = append(result, candidate)
+	}
+	return result
+}
+
+func chooseWritableTmuxConf(roots []string, p Paths) string {
+	preferences := []string{
 		filepath.Join(p.XDGConfigHome, "tmux", "tmux.conf"),
 		filepath.Join(p.Home, ".config", "tmux", "tmux.conf"),
 		filepath.Join(p.Home, ".tmux.conf"),
 	}
-
-	seen := make(map[string]bool, len(candidates))
-	var searched []string
-	for _, c := range candidates {
-		if seen[c] {
-			continue
-		}
-		seen[c] = true
-		searched = append(searched, c)
-	}
-
-	for _, c := range searched {
-		if fs.FileExists(c) {
-			return c, searched
+	for _, preference := range preferences {
+		for _, root := range roots {
+			if root == preference {
+				return root
+			}
 		}
 	}
-	return "", searched
+	for i := len(roots) - 1; i >= 0; i-- {
+		if roots[i] != "/etc/tmux.conf" {
+			return roots[i]
+		}
+	}
+	return ""
 }
 
 func resolvePluginDir(runner tmux.Runner, fs FS, p Paths) (plug.Root, PathSource, error) {

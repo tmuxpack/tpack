@@ -160,6 +160,62 @@ func TestMigrateLegacyDoesNotCreateMissingRoot(t *testing.T) {
 	assertPathMissing(t, rootPath)
 }
 
+func TestMigrateLegacyRejectsRootSymlinkToFilesystemRoot(t *testing.T) {
+	link := filepath.Join(t.TempDir(), "plugins")
+	if err := os.Symlink(string(filepath.Separator), link); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := plug.MigrateLegacy(context.Background(), mustRoot(t, link), nil, &git.MockOriginReader{})
+	if err == nil || !strings.Contains(err.Error(), "filesystem root is not allowed") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestMigrateLegacyDoesNotLockWithoutCandidate(t *testing.T) {
+	rootPath := t.TempDir()
+	p := mustParsePlugin(t, "owner/plugin")
+	if err := os.Chmod(rootPath, 0o555); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(rootPath, 0o755) })
+
+	migrated, err := plug.MigrateLegacy(context.Background(), mustRoot(t, rootPath), []plug.Plugin{p}, &git.MockOriginReader{})
+	if err != nil || migrated {
+		t.Fatalf("MigrateLegacy() = (%v, %v)", migrated, err)
+	}
+	if _, err := os.Lstat(filepath.Join(rootPath, ".tpack-migrate.lock")); !os.IsNotExist(err) {
+		t.Fatalf("unexpected lock: %v", err)
+	}
+}
+
+func TestMigrateLegacyUsesResolvedRoot(t *testing.T) {
+	target := t.TempDir()
+	link := filepath.Join(t.TempDir(), "plugins")
+	if err := os.Symlink(target, link); err != nil {
+		t.Fatal(err)
+	}
+	p := mustParsePlugin(t, "owner/plugin")
+	legacy := filepath.Join(target, "plugin")
+	mustMkdir(t, legacy)
+	origins := originReaderFunc(func(_ context.Context, dir string) (string, error) {
+		if dir != legacy {
+			t.Fatalf("origin directory = %q, want resolved path %q", dir, legacy)
+		}
+		return "git@github.com:owner/plugin.git", nil
+	})
+
+	migrated, err := plug.MigrateLegacy(context.Background(), mustRoot(t, link), []plug.Plugin{p}, origins)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !migrated {
+		t.Fatal("MigrateLegacy() migrated = false, want true")
+	}
+	assertPathExists(t, filepath.Join(target, p.DirName))
+	assertPathMissing(t, legacy)
+}
+
 func TestMigrateLegacyMissingLegacyPathIsNoOp(t *testing.T) {
 	rootPath := t.TempDir()
 	p := mustParsePlugin(t, "catppuccin/tmux")
@@ -175,13 +231,16 @@ func TestMigrateLegacyMissingLegacyPathIsNoOp(t *testing.T) {
 
 func TestMigrateLegacyRestrictsExistingLockFileMode(t *testing.T) {
 	rootPath := t.TempDir()
+	p := mustParsePlugin(t, "owner/plugin")
+	mustMkdir(t, filepath.Join(rootPath, "plugin"))
 	lockPath := filepath.Join(rootPath, ".tpack-migrate.lock")
 	mustWriteFile(t, lockPath, "")
 	if err := os.Chmod(lockPath, 0o666); err != nil {
 		t.Fatal(err)
 	}
 
-	if _, err := plug.MigrateLegacy(context.Background(), mustRoot(t, rootPath), nil, &git.MockOriginReader{}); err != nil {
+	if _, err := plug.MigrateLegacy(context.Background(), mustRoot(t, rootPath), []plug.Plugin{p},
+		&git.MockOriginReader{URL: "git@github.com:owner/plugin.git"}); err != nil {
 		t.Fatal(err)
 	}
 	info, err := os.Stat(lockPath)
@@ -236,6 +295,8 @@ func TestMigrateLegacyLockContentionHonorsContext(t *testing.T) {
 
 func TestMigrateLegacyRejectsSymlinkLockWithoutTouchingTarget(t *testing.T) {
 	rootPath := t.TempDir()
+	p := mustParsePlugin(t, "owner/plugin")
+	mustMkdir(t, filepath.Join(rootPath, "plugin"))
 	target := filepath.Join(rootPath, "unrelated")
 	mustWriteFile(t, target, "unchanged")
 	if err := os.Chmod(target, 0o644); err != nil {
@@ -246,7 +307,7 @@ func TestMigrateLegacyRejectsSymlinkLockWithoutTouchingTarget(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err := plug.MigrateLegacy(context.Background(), mustRoot(t, rootPath), nil, &git.MockOriginReader{})
+	_, err := plug.MigrateLegacy(context.Background(), mustRoot(t, rootPath), []plug.Plugin{p}, &git.MockOriginReader{})
 	if err == nil {
 		t.Error("expected symlink lock error")
 	} else if !strings.Contains(err.Error(), lockPath) {
@@ -264,6 +325,8 @@ func TestMigrateLegacyRejectsSymlinkLockWithoutTouchingTarget(t *testing.T) {
 
 func TestMigrateLegacyRejectsNonRegularLockWithoutTouchingIt(t *testing.T) {
 	rootPath := t.TempDir()
+	p := mustParsePlugin(t, "owner/plugin")
+	mustMkdir(t, filepath.Join(rootPath, "plugin"))
 	lockPath := filepath.Join(rootPath, ".tpack-migrate.lock")
 	mustMkdir(t, lockPath)
 	if err := os.Chmod(lockPath, 0o751); err != nil {
@@ -272,7 +335,7 @@ func TestMigrateLegacyRejectsNonRegularLockWithoutTouchingIt(t *testing.T) {
 	marker := filepath.Join(lockPath, "marker")
 	mustWriteFile(t, marker, "unchanged")
 
-	_, err := plug.MigrateLegacy(context.Background(), mustRoot(t, rootPath), nil, &git.MockOriginReader{})
+	_, err := plug.MigrateLegacy(context.Background(), mustRoot(t, rootPath), []plug.Plugin{p}, &git.MockOriginReader{})
 	if err == nil {
 		t.Error("expected non-regular lock error")
 	} else if !strings.Contains(err.Error(), lockPath) {

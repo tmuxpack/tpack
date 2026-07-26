@@ -10,9 +10,11 @@ import (
 	"github.com/tmuxpack/tpack/internal/plug"
 )
 
+const runCommand = "run"
+
 func isPluginManagerInit(line string) bool {
 	args, ok := splitTmuxCommandLine(line)
-	if !ok || len(args) < 2 || (args[0] != "run" && args[0] != "run-shell") {
+	if !ok || len(args) < 2 || (args[0] != runCommand && args[0] != "run-shell") {
 		return false
 	}
 
@@ -23,72 +25,6 @@ func isPluginManagerInit(line string) bool {
 	command := args[commandAt:]
 	return strings.Join(command, " ") == "tpack init" ||
 		(len(command) == 1 && !strings.ContainsAny(command[0], " \t") && strings.HasSuffix(command[0], "/tpm"))
-}
-
-func splitTmuxCommandLine(line string) ([]string, bool) {
-	var args []string
-	var word strings.Builder
-	var quote byte
-	inWord := false
-
-	flush := func() {
-		if inWord {
-			args = append(args, word.String())
-			word.Reset()
-			inWord = false
-		}
-	}
-
-	for i := 0; i < len(line); i++ {
-		char := line[i]
-		if quote != 0 {
-			if consumeQuotedTmuxChar(line, &i, quote, &word) {
-				quote = 0
-			}
-			continue
-		}
-
-		switch {
-		case char == '\'' || char == '"':
-			quote = char
-			inWord = true
-		case char == '#' && !inWord:
-			flush()
-			return args, true
-		case char == '\\' && i+1 < len(line):
-			inWord = true
-			i++
-			word.WriteByte(line[i])
-		case isTmuxWhitespace(char):
-			flush()
-		default:
-			inWord = true
-			word.WriteByte(char)
-		}
-	}
-	if quote != 0 {
-		return nil, false
-	}
-	flush()
-	return args, true
-}
-
-func consumeQuotedTmuxChar(line string, at *int, quote byte, word *strings.Builder) bool {
-	char := line[*at]
-	if char == quote {
-		return true
-	}
-	if char == '\\' && quote == '"' && *at+1 < len(line) {
-		*at++
-		word.WriteByte(line[*at])
-		return false
-	}
-	word.WriteByte(char)
-	return false
-}
-
-func isTmuxWhitespace(char byte) bool {
-	return char == ' ' || char == '\t' || char == '\r' || char == '\n'
 }
 
 func runShellCommandIndex(args []string) (int, bool) {

@@ -16,6 +16,10 @@ type Runner interface {
 	// Equivalent to: tmux show-environment -g <name>
 	ShowEnvironment(name string) (string, error)
 
+	// ExpandFormat expands a tmux format without invoking a shell.
+	// Equivalent to: tmux display-message -p -- <format>
+	ExpandFormat(format string) (string, error)
+
 	// SetEnvironment sets a tmux global environment variable.
 	// Equivalent to: tmux set-environment -g <name> <value>
 	SetEnvironment(name, value string) error

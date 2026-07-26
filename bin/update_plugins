@@ -15,8 +15,8 @@ if [ -n "$TPACK_BIN" ]; then
 		PROGRAM_NAME="$0"
 		echo "usage:"
 		echo "  $PROGRAM_NAME all                   update all plugins"
-		echo "  $PROGRAM_NAME tmux-foo              update plugin 'tmux-foo'"
-		echo "  $PROGRAM_NAME tmux-bar tmux-baz     update multiple plugins"
+		echo "  $PROGRAM_NAME tmux-plugins/tmux-sensible              update plugin 'tmux-plugins/tmux-sensible'"
+		echo "  $PROGRAM_NAME owner/one owner/two                     update multiple plugins"
 		exit 1
 	fi
 	exec "$TPACK_BIN" update "$@"
