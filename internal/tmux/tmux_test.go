@@ -1,6 +1,7 @@
 package tmux_test
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/tmuxpack/tpack/internal/tmux"
@@ -82,5 +83,29 @@ func TestMockRunnerVersion(t *testing.T) {
 	}
 	if v != "tmux 3.4" {
 		t.Errorf("got %q, want %q", v, "tmux 3.4")
+	}
+}
+
+func TestMockRunnerExpandFormat(t *testing.T) {
+	m := tmux.NewMockRunner()
+	m.Formats["#{config_files}"] = "/home/user/.tmux.conf,/custom/tmux.conf"
+
+	got, err := m.ExpandFormat("#{config_files}")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "/home/user/.tmux.conf,/custom/tmux.conf" {
+		t.Fatalf("ExpandFormat() = %q", got)
+	}
+	if call := m.Calls[0]; call.Method != "ExpandFormat" || call.Args[0] != "#{config_files}" {
+		t.Fatalf("call = %#v", call)
+	}
+}
+
+func TestMockRunnerExpandFormatError(t *testing.T) {
+	m := tmux.NewMockRunner()
+	m.Errors["ExpandFormat:#{host}"] = errors.New("no server")
+	if _, err := m.ExpandFormat("#{host}"); err == nil {
+		t.Fatal("expected format expansion error")
 	}
 }

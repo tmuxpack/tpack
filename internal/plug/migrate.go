@@ -31,6 +31,17 @@ func MigrateLegacy(ctx context.Context, root Root, plugins []Plugin, origins git
 	if !rootInfo.IsDir() {
 		return false, fmt.Errorf("inspect plugin root %s: not a directory", rootPath)
 	}
+	resolvedRoot, rootPath, err := resolveMigrationRoot(root)
+	if err != nil {
+		return false, err
+	}
+	candidate, err := hasMigrationCandidate(resolvedRoot, plugins)
+	if err != nil {
+		return false, err
+	}
+	if !candidate {
+		return false, nil
+	}
 
 	lockPath := filepath.Join(rootPath, ".tpack-migrate.lock")
 	lock, err := openMigrationLock(lockPath)
@@ -53,13 +64,63 @@ func MigrateLegacy(ctx context.Context, root Root, plugins []Plugin, origins git
 		if plugin.Alias != "" {
 			continue
 		}
-		changed, migrateErr := migrateLegacyPlugin(ctx, root, plugin, origins)
+		changed, migrateErr := migrateLegacyPlugin(ctx, resolvedRoot, plugin, origins)
 		migrated = migrated || changed
 		if migrateErr != nil {
 			return migrated, migrateErr
 		}
 	}
 	return migrated, nil
+}
+
+func resolveMigrationRoot(root Root) (Root, string, error) {
+	resolvedRoot, err := root.Resolved()
+	if err != nil {
+		return Root{}, "", fmt.Errorf("resolve plugin root for migration: %w", err)
+	}
+	rootPath, err := resolvedRoot.Path()
+	if err != nil {
+		return Root{}, "", fmt.Errorf("migrate legacy plugins: %w", err)
+	}
+	return resolvedRoot, rootPath, nil
+}
+
+func hasMigrationCandidate(root Root, plugins []Plugin) (bool, error) {
+	for _, plugin := range plugins {
+		if plugin.Alias != "" {
+			continue
+		}
+		legacyName := LegacyPluginName(plugin.Spec)
+		legacy, err := root.Child(legacyName)
+		if err != nil {
+			return false, migrationError(plugin, legacyName, plugin.DirName, "derive legacy path", err)
+		}
+		canonical, err := root.Child(plugin.DirName)
+		if err != nil {
+			return false, migrationError(plugin, legacy, plugin.DirName, "derive canonical path", err)
+		}
+
+		occupied, err := pathOccupied(canonical)
+		if err != nil {
+			return false, migrationError(plugin, legacy, canonical, "inspect destination", err)
+		}
+		if occupied {
+			continue
+		}
+
+		legacyInfo, err := os.Lstat(legacy)
+		if errors.Is(err, os.ErrNotExist) {
+			continue
+		}
+		if err != nil {
+			return false, migrationError(plugin, legacy, canonical, "inspect source", err)
+		}
+		if legacyInfo.Mode()&os.ModeSymlink != 0 || !legacyInfo.IsDir() {
+			continue
+		}
+		return true, nil
+	}
+	return false, nil
 }
 
 const migrationLockRetryInterval = 10 * time.Millisecond

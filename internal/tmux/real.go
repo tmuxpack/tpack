@@ -50,6 +50,10 @@ func (r *RealRunner) ShowEnvironment(name string) (string, error) {
 	return "", fmt.Errorf("environment variable %s: %w", name, ErrNotSet)
 }
 
+func (r *RealRunner) ExpandFormat(format string) (string, error) {
+	return r.runTmux("display-message", "-p", "--", format)
+}
+
 func (r *RealRunner) SetEnvironment(name, value string) error {
 	_, err := r.runTmux("set-environment", "-g", name, value)
 	return err

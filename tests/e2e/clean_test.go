@@ -172,3 +172,35 @@ func TestCleanAllowsMissingQuietSource(t *testing.T) {
 	}
 	assertDirNotExists(t, orphanDir)
 }
+
+func TestCleanPreservesPluginsWhenNestedSourceCannotBeEvaluated(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping E2E test in short mode")
+	}
+	skipIfNoTmux(t)
+	skipIfNoGit(t)
+	binary := buildBinary(t)
+	home, socket := e2eEnv(t, "")
+	startTmux(t, home, socket)
+
+	confPath := filepath.Join(home, ".tmux.conf")
+	content := "if-shell 'test -f ~/.tmux/plugins.conf' 'source-file ~/.tmux/plugins.conf'\n"
+	if err := os.WriteFile(confPath, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(home, ".tmux", "plugins.conf"),
+		[]byte("set -g @plugin tmux-plugins/tmux-sensible\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	pluginDir := filepath.Join(home, ".tmux", "plugins")
+	installPluginManually(t, home, pluginDir, "tmux-plugins/tmux-sensible")
+	installedDir := canonicalPluginDir(t, pluginDir, "tmux-plugins/tmux-sensible")
+
+	output, exitCode := runInTmux(t, home, socket, binary+" clean", 30*time.Second)
+	if exitCode != 1 {
+		t.Fatalf("expected exit code 1, got %d\noutput: %s", exitCode, output)
+	}
+	assertContains(t, output, "executable quoted command list may contain source")
+	assertDirExists(t, installedDir)
+}

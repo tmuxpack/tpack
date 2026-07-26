@@ -36,9 +36,11 @@ A missing or unreadable `tmux.conf`, or an unreadable required source in its sou
 
 ## What happens when a sourced configuration file is missing?
 
-A missing required `source` or `source-file` aborts plugin operations. This prevents an incomplete plugin declaration graph from being mistaken for an intentionally empty configuration.
+A missing required `source` or `source-file` in an active branch aborts plugin operations. This prevents an incomplete plugin declaration graph from being mistaken for an intentionally empty configuration. Tpack follows nested sources, supports multiple paths in one command, and expands path globs in lexical order.
 
 Use `source-file -q` for intentionally optional configuration. If that file is missing or unreadable, tpack continues without it; a non-quiet `source` or `source-file` remains required.
+
+Tpack honors `%if`, `%elif`, `%else`, and `%endif` and follows sources only in the active branch. Literal conditions can be evaluated without a tmux server. Dynamic conditions containing tmux formats require a running server; when they cannot be evaluated, tpack reports a configuration error rather than assuming that the source graph is complete.
 
 ## How do I update tpack itself?
 

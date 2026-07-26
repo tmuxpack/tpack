@@ -157,6 +157,7 @@ type noopRunner struct{}
 
 func (n *noopRunner) ShowOption(string) (string, bool, error) { return "", false, nil }
 func (n *noopRunner) ShowEnvironment(string) (string, error)  { return "", tmux.ErrNotSet }
+func (n *noopRunner) ExpandFormat(string) (string, error)     { return "", nil }
 func (n *noopRunner) SetEnvironment(string, string) error     { return nil }
 func (n *noopRunner) BindKey(string, string, string) error    { return nil }
 func (n *noopRunner) SourceFile(string) error                 { return nil }

@@ -77,3 +77,31 @@ func TestLegacyMigrationAllowsSameBasenameRepositories(t *testing.T) {
 	assertMarker(t, firstDir, "first")
 	assertMarker(t, pluginPath(t, pluginDir, second), "second")
 }
+
+func TestMigrateLegacyUsesResolvedRoot(t *testing.T) {
+	skipIfNoGit(t)
+
+	target := t.TempDir()
+	link := filepath.Join(t.TempDir(), "plugins")
+	if err := os.Symlink(target, link); err != nil {
+		t.Fatal(err)
+	}
+	pluginURL := "https://plugins.test/owner/plugin.git"
+	p := mustParsePlugin(t, pluginURL)
+	repository := createLocalRepository(t, filepath.Join(t.TempDir(), "plugin.git"), "resolved")
+	legacyDir := legacyPluginPath(t, target, p)
+	cloneRepository(t, repository, legacyDir)
+	setRepositoryOrigin(t, legacyDir, pluginURL)
+
+	migrated, err := plug.MigrateLegacy(context.Background(), mustRoot(t, link), []plug.Plugin{p}, gitcli.NewOriginReader())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !migrated {
+		t.Fatal("MigrateLegacy() migrated = false, want true")
+	}
+	assertMarker(t, pluginPath(t, target, p), "resolved")
+	if _, err := os.Lstat(legacyDir); !os.IsNotExist(err) {
+		t.Fatalf("legacy directory still exists after migration: %v", err)
+	}
+}

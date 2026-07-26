@@ -3,6 +3,7 @@ package integration_test
 import (
 	"context"
 	"os"
+	"path/filepath"
 	"runtime"
 	"testing"
 	"time"
@@ -195,6 +196,65 @@ func TestCleanWithEmptyConfigRemovesAll(t *testing.T) {
 	dir := pluginPath(t, pluginDir, p)
 	if _, err := os.Stat(dir); !os.IsNotExist(err) {
 		t.Error("expected plugin to be removed when declared list is empty")
+	}
+}
+
+func TestCleanPreservesPluginsFromEveryConfigRoot(t *testing.T) {
+	pluginDir, firstConf := setupIntegrationDir(t)
+	secondConf := filepath.Join(filepath.Dir(firstConf), "second.conf")
+	firstPlugin := mustParsePlugin(t, tmuxExamplePlugin)
+	secondPlugin := mustParsePlugin(t, "tmux-plugins/tmux-sensible")
+
+	writeConf(t, firstConf, `set -g @plugin "`+firstPlugin.Raw+`"`)
+	writeConf(t, secondConf, `set -g @plugin "`+secondPlugin.Raw+`"`)
+	for _, plugin := range []plug.Plugin{firstPlugin, secondPlugin} {
+		if err := os.MkdirAll(pluginPath(t, pluginDir, plugin), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	paths := config.Paths{
+		TmuxConf:   secondConf,
+		TmuxConfs:  []string{firstConf, secondConf},
+		PluginPath: mustRoot(t, pluginDir),
+		Home:       os.Getenv("HOME"),
+	}
+	plugins, err := config.GatherPlugins(&noopRunner{}, config.RealFS{}, paths, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	output := ui.NewMockOutput()
+	mgr := manager.New(paths.PluginPath, nil, nil, nil, output)
+	mgr.Clean(context.Background(), plugins)
+	if output.Result() != nil {
+		t.Fatalf("clean failed: %v", output.ErrMsgs)
+	}
+
+	for _, plugin := range []plug.Plugin{firstPlugin, secondPlugin} {
+		if _, err := os.Stat(pluginPath(t, pluginDir, plugin)); err != nil {
+			t.Errorf("expected %s from an active config root to survive clean: %v", plugin.Name, err)
+		}
+	}
+}
+
+func TestGatherPluginsExcludesParseOnlyDocumentAndItsNestedSources(t *testing.T) {
+	pluginDir, parentConf := setupIntegrationDir(t)
+	parseOnlyConf := filepath.Join(filepath.Dir(parentConf), "parse-only.conf")
+	writeConf(t, parentConf, "set -g @plugin owner/active\nsource-file -n parse-only.conf\n")
+	writeConf(t, parseOnlyConf, "set -g @plugin owner/ignored\nsource-file missing-nested.conf\n")
+
+	paths := config.Paths{
+		TmuxConf:   parentConf,
+		PluginPath: mustRoot(t, pluginDir),
+		Home:       filepath.Dir(parentConf),
+	}
+	plugins, err := config.GatherPlugins(&noopRunner{}, config.RealFS{}, paths, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(plugins) != 1 || plugins[0].Name != "owner/active" {
+		t.Fatalf("plugins = %v, want only active parent declaration", plugins)
 	}
 }
 

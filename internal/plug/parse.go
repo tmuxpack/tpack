@@ -11,34 +11,7 @@ var (
 	// Three alternations handle double-quoted, single-quoted, and unquoted values.
 	pluginLineRe = regexp.MustCompile(
 		`^[ \t]*set(?:-option)?\s+-g\s+@plugin\s+(?:"([^"]+)"|'([^']+)'|(\S+))`)
-
-	// Matches: source "...", source-file -q "...", source '...', or unquoted path.
-	// Captures the optional quiet flag and double-quoted, single-quoted, or unquoted paths.
-	sourcedFileRe = regexp.MustCompile(
-		`^[ \t]*source(?:-file)?\s+(-q\s+)?(?:"([^"]+)"|'([^']+)'|(\S+))`)
 )
-
-const (
-	quietGroup      = 1
-	pathDoubleGroup = 2
-	pathSingleGroup = 3
-	pathBareGroup   = 4
-)
-
-// SourceDirective describes a source command and whether read failure is allowed.
-type SourceDirective struct {
-	Path     string
-	Optional bool
-}
-
-func firstNonEmpty(values ...string) string {
-	for _, value := range values {
-		if value != "" {
-			return value
-		}
-	}
-	return ""
-}
 
 // extractMatches scans content line by line and collects the first
 // non-empty capture group from re for each non-comment line that matches.
@@ -87,29 +60,6 @@ func MatchesPluginLine(line, spec string) bool {
 // plugin specifications found in @plugin declarations.
 func ExtractPluginsFromConfig(content string) []string {
 	return extractMatches(content, pluginLineRe)
-}
-
-// ExtractSourceDirectives parses source and source-file commands from tmux config content.
-func ExtractSourceDirectives(content string) []SourceDirective {
-	var directives []SourceDirective
-	for line := range strings.SplitSeq(content, "\n") {
-		line = strings.TrimRight(line, "\r")
-		if strings.HasPrefix(strings.TrimSpace(line), "#") {
-			continue
-		}
-		m := sourcedFileRe.FindStringSubmatch(line)
-		if m == nil {
-			continue
-		}
-		path := firstNonEmpty(m[pathDoubleGroup], m[pathSingleGroup], m[pathBareGroup])
-		if path != "" {
-			directives = append(directives, SourceDirective{
-				Path:     strings.TrimSpace(path),
-				Optional: m[quietGroup] != "",
-			})
-		}
-	}
-	return directives
 }
 
 // ManualExpansion expands ~, $HOME, ${HOME}, $XDG_CONFIG_HOME, and

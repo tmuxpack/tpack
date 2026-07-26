@@ -1,7 +1,6 @@
 package plug_test
 
 import (
-	"reflect"
 	"testing"
 
 	"github.com/tmuxpack/tpack/internal/plug"
@@ -106,28 +105,6 @@ set -g @plugin "tmux-plugins/tmux-yank"`,
 				if got[i] != tt.want[i] {
 					t.Errorf("plugin[%d] = %q, want %q", i, got[i], tt.want[i])
 				}
-			}
-		})
-	}
-}
-
-func TestExtractSourceDirectives(t *testing.T) {
-	tests := []struct {
-		name    string
-		content string
-		want    []plug.SourceDirective
-	}{
-		{name: "source required", content: `source ~/.tmux/theme.conf`, want: []plug.SourceDirective{{Path: "~/.tmux/theme.conf"}}},
-		{name: "source-file required", content: `source-file ~/.tmux/theme.conf`, want: []plug.SourceDirective{{Path: "~/.tmux/theme.conf"}}},
-		{name: "quiet optional", content: `source-file -q ~/.tmux/local.conf`, want: []plug.SourceDirective{{Path: "~/.tmux/local.conf", Optional: true}}},
-		{name: "quoted optional", content: `source-file -q "~/.tmux/local.conf"`, want: []plug.SourceDirective{{Path: "~/.tmux/local.conf", Optional: true}}},
-		{name: "comment ignored", content: `# source ~/.tmux/theme.conf`},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := plug.ExtractSourceDirectives(tt.content); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("directives = %#v, want %#v", got, tt.want)
 			}
 		})
 	}

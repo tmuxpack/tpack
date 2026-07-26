@@ -28,12 +28,12 @@ func GatherPlugins(runner tmux.Runner, fs FS, paths Paths, warn func(string)) ([
 		}
 	}
 
-	graph, err := LoadSourceGraph(fs, paths)
+	graph, err := LoadSourceGraph(runner, fs, paths)
 	if err != nil {
 		return nil, err
 	}
-	for _, document := range graph.Documents() {
-		specs = append(specs, plug.ExtractPluginsFromConfig(document.Content)...)
+	for _, content := range graph.execution {
+		specs = append(specs, plug.ExtractPluginsFromConfig(content)...)
 	}
 
 	// Parse all specs into Plugin structs.

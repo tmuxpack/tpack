@@ -2,6 +2,8 @@ package config_test
 
 import (
 	"errors"
+	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/tmuxpack/tpack/internal/config"
@@ -17,6 +19,168 @@ func TestResolvePathsEmptyHomeFails(t *testing.T) {
 	_, err := config.ResolvePaths(tmux.NewMockRunner(), config.NewMockFS(), config.Env{})
 	if err == nil {
 		t.Fatal("expected error for empty home, got nil")
+	}
+}
+
+func TestResolvePathsUsesExplicitConfigOverride(t *testing.T) {
+	runner := tmux.NewMockRunner()
+	runner.Options[config.ConfigPathOption] = "/custom/tmux.conf"
+	runner.Formats["#{config_files}"] = "/ignored/tmux.conf"
+	fs := config.NewMockFS()
+	fs.Files["/custom/tmux.conf"] = ""
+	fs.Files["/ignored/tmux.conf"] = ""
+
+	paths, err := config.ResolvePaths(runner, fs, testEnv())
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"/custom/tmux.conf"}
+	if paths.TmuxConf != "/custom/tmux.conf" || !reflect.DeepEqual(paths.TmuxConfs, want) {
+		t.Fatalf("paths = %#v, want override as the only root and writable target", paths)
+	}
+}
+
+func TestResolvePathsRejectsInvalidExplicitConfigOverride(t *testing.T) {
+	tests := []struct {
+		name       string
+		value      string
+		nonRegular bool
+	}{
+		{name: "relative", value: "relative/tmux.conf"},
+		{name: "missing", value: "/missing/tmux.conf"},
+		{name: "non-regular", value: "/custom/tmux.conf", nonRegular: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			runner := tmux.NewMockRunner()
+			runner.Options[config.ConfigPathOption] = tt.value
+			fs := config.NewMockFS()
+			if tt.nonRegular {
+				fs.Files[tt.value] = ""
+				fs.NonRegular[tt.value] = true
+			}
+
+			_, err := config.ResolvePaths(runner, fs, testEnv())
+			if err == nil {
+				t.Fatal("ResolvePaths returned no error")
+			}
+			if !strings.Contains(err.Error(), config.ConfigPathOption) || !strings.Contains(err.Error(), tt.value) {
+				t.Fatalf("error = %q, want option name and rejected value", err)
+			}
+		})
+	}
+}
+
+func TestResolvePathsUsesActiveTmuxConfigFiles(t *testing.T) {
+	runner := tmux.NewMockRunner()
+	runner.Formats["#{config_files}"] = "/etc/tmux.conf, /custom/one.conf,/custom/./one.conf,/custom/two.conf"
+	fs := config.NewMockFS()
+	fs.Files["/etc/tmux.conf"] = ""
+	fs.Files["/custom/one.conf"] = ""
+	fs.Files["/custom/two.conf"] = ""
+
+	paths, err := config.ResolvePaths(runner, fs, testEnv())
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"/etc/tmux.conf", "/custom/one.conf", "/custom/two.conf"}
+	if !reflect.DeepEqual(paths.TmuxConfs, want) || paths.TmuxConf != "/custom/two.conf" {
+		t.Fatalf("paths = %#v, want roots %v and writable last custom root", paths, want)
+	}
+}
+
+func TestResolvePathsRejectsInvalidActiveCustomConfig(t *testing.T) {
+	tests := []struct {
+		name       string
+		value      string
+		nonRegular bool
+	}{
+		{name: "relative", value: "relative/tmux.conf"},
+		{name: "missing", value: "/missing/custom.conf"},
+		{name: "non-regular", value: "/custom/directory", nonRegular: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			runner := tmux.NewMockRunner()
+			runner.Formats["#{config_files}"] = tt.value
+			fs := config.NewMockFS()
+			fs.Files["/home/user/.tmux.conf"] = "fallback must not be used"
+			if tt.nonRegular {
+				fs.Files[tt.value] = ""
+				fs.NonRegular[tt.value] = true
+			}
+
+			_, err := config.ResolvePaths(runner, fs, testEnv())
+			if err == nil {
+				t.Fatal("ResolvePaths returned no error")
+			}
+			if !strings.Contains(err.Error(), "#{config_files}") || !strings.Contains(err.Error(), tt.value) {
+				t.Fatalf("error = %q, want config_files and rejected value", err)
+			}
+		})
+	}
+}
+
+func TestResolvePathsAllowsMissingActiveDefaultCandidates(t *testing.T) {
+	runner := tmux.NewMockRunner()
+	runner.Formats["#{config_files}"] = "/etc/tmux.conf,/home/user/.tmux.conf,/home/user/.config/tmux/tmux.conf,/custom/active.conf"
+	fs := config.NewMockFS()
+	fs.Files["/custom/active.conf"] = ""
+
+	paths, err := config.ResolvePaths(runner, fs, testEnv())
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"/custom/active.conf"}
+	if !reflect.DeepEqual(paths.TmuxConfs, want) || paths.TmuxConf != "/custom/active.conf" {
+		t.Fatalf("paths = %#v, want only existing custom root", paths)
+	}
+}
+
+func TestResolvePathsActiveSystemConfigOnlyReturnsErrNoTmuxConf(t *testing.T) {
+	runner := tmux.NewMockRunner()
+	runner.Formats["#{config_files}"] = "/etc/tmux.conf"
+	fs := config.NewMockFS()
+	fs.Files["/etc/tmux.conf"] = ""
+	fs.Files["/home/user/.tmux.conf"] = "inactive fallback"
+
+	_, err := config.ResolvePaths(runner, fs, testEnv())
+	var noConf *config.ErrNoTmuxConf
+	if !errors.As(err, &noConf) {
+		t.Fatalf("error = %v, want ErrNoTmuxConf", err)
+	}
+	want := []string{"/etc/tmux.conf"}
+	if !reflect.DeepEqual(noConf.Searched, want) {
+		t.Fatalf("Searched = %v, want active roots %v", noConf.Searched, want)
+	}
+}
+
+func TestResolvePathsKeepsAllExistingDefaultsWithCustomXDG(t *testing.T) {
+	runner := tmux.NewMockRunner()
+	runner.Errors["ExpandFormat:#{config_files}"] = errors.New("no server")
+	fs := config.NewMockFS()
+	fs.Files["/etc/tmux.conf"] = "set -g @plugin owner/system"
+	fs.Files["/home/user/.tmux.conf"] = "set -g @plugin owner/legacy"
+	fs.Files["/custom/xdg/tmux/tmux.conf"] = "set -g @plugin owner/custom"
+	fs.Files["/home/user/.config/tmux/tmux.conf"] = "set -g @plugin owner/fallback"
+
+	paths, err := config.ResolvePaths(runner, fs, config.Env{Home: "/home/user", XDGConfigHome: "/custom/xdg"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{
+		"/etc/tmux.conf",
+		"/home/user/.tmux.conf",
+		"/custom/xdg/tmux/tmux.conf",
+		"/home/user/.config/tmux/tmux.conf",
+	}
+	if !reflect.DeepEqual(paths.TmuxConfs, want) {
+		t.Fatalf("TmuxConfs = %v, want %v", paths.TmuxConfs, want)
+	}
+	if paths.TmuxConf != "/custom/xdg/tmux/tmux.conf" {
+		t.Fatalf("TmuxConf = %q, want current-preference XDG target", paths.TmuxConf)
 	}
 }
 
@@ -166,8 +330,8 @@ func TestResolvePathsNoConfFailsClosed(t *testing.T) {
 	if !errors.As(err, &noConf) {
 		t.Fatalf("expected ErrNoTmuxConf, got %v", err)
 	}
-	// Default XDG config home collapses candidates 1 and 2 into one entry.
-	want := []string{"/home/user/.config/tmux/tmux.conf", "/home/user/.tmux.conf"}
+	// Default XDG config home collapses the two XDG candidates into one entry.
+	want := []string{"/etc/tmux.conf", "/home/user/.tmux.conf", "/home/user/.config/tmux/tmux.conf"}
 	if len(noConf.Searched) != len(want) {
 		t.Fatalf("Searched = %v, want %v", noConf.Searched, want)
 	}
@@ -187,9 +351,10 @@ func TestResolvePathsNoConfSearchListWithCustomXDG(t *testing.T) {
 		t.Fatalf("expected ErrNoTmuxConf, got %v", err)
 	}
 	want := []string{
+		"/etc/tmux.conf",
+		"/home/user/.tmux.conf",
 		"/custom/xdg/tmux/tmux.conf",
 		"/home/user/.config/tmux/tmux.conf",
-		"/home/user/.tmux.conf",
 	}
 	if len(noConf.Searched) != len(want) {
 		t.Fatalf("Searched = %v, want %v", noConf.Searched, want)

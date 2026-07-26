@@ -13,20 +13,18 @@ Solutions to common issues with tpack.
 
 ??? question "Plugins don't load when using tmux -f /path/to/config"
 
-    **Cause:** Known issue with tmux's `-f` flag and `set -g @plugin` syntax.
+    **Cause:** The intended configuration is not among the active roots reported
+    by the running tmux server, such as in an unusual or detached setup.
 
-    **Solution:** Use the alternative plugin definition syntax:
+    **Solution:** tpack normally discovers every active `tmux -f` root
+    automatically through tmux's `#{config_files}` format. If the intended file
+    is not reported, make it the authoritative root with an absolute path:
 
-    ```bash
-    set -g @tpm_plugins '           \
-      tmux-plugins/tmux-sensible     \
-      tmux-plugins/tmux-resurrect    \
-    '
-
-    run '~/.tmux/plugins/tpm/tpm'
+    ```tmux
+    set -g @tpack-config '/absolute/path/to/tmux.conf'
     ```
 
-    Then reload: `tmux source /path/to/config`
+    Then reload that configuration with `tmux source-file /path/to/config`.
 
 ??? question "Strange characters appear when installing or updating plugins"
 
