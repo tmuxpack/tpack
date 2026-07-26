@@ -146,7 +146,7 @@ func appendWarnings(base string, warnings []string) string {
 	return base + " (with warnings: " + strings.Join(warnings, "; ") + ")"
 }
 
-func removeDirCmd(op pendingOp, operation Operation, resolveRoot bool) tea.Cmd {
+func removeDirCmd(operation Operation, op pendingOp) tea.Cmd {
 	return func() tea.Msg {
 		result := func(success bool, message string) operationResultMsg {
 			return operationResultMsg{
@@ -157,7 +157,7 @@ func removeDirCmd(op pendingOp, operation Operation, resolveRoot bool) tea.Cmd {
 			}
 		}
 		path := op.Path
-		if resolveRoot {
+		if operation != OpClean {
 			root, err := op.Root.Resolved()
 			if err != nil {
 				return result(false, err.Error())
@@ -172,19 +172,6 @@ func removeDirCmd(op pendingOp, operation Operation, resolveRoot bool) tea.Cmd {
 		}
 		return result(true, "removed successfully")
 	}
-}
-
-// removes orphaned directories
-func cleanPluginCmd(op pendingOp) tea.Cmd {
-	return removeDirCmd(op, OpClean, false)
-}
-
-func uninstallPluginCmd(op pendingOp) tea.Cmd {
-	return removeDirCmd(op, OpUninstall, true)
-}
-
-func removePluginDirCmd(op pendingOp) tea.Cmd {
-	return removeDirCmd(op, OpRemove, true)
 }
 
 // sources tmux config file
@@ -226,14 +213,10 @@ func (m *Model) dispatchNext() tea.Cmd {
 			// No-op; should not reach here.
 		case OpInstall:
 			cmds = append(cmds, installPluginCmd(m.deps.Cloner, op))
-		case OpRemove:
-			cmds = append(cmds, removePluginDirCmd(op))
 		case OpUpdate:
 			cmds = append(cmds, updatePluginCmd(m.deps.Puller, m.deps.RevParser, m.deps.Logger, op))
-		case OpClean:
-			cmds = append(cmds, cleanPluginCmd(op))
-		case OpUninstall:
-			cmds = append(cmds, uninstallPluginCmd(op))
+		case OpRemove, OpClean, OpUninstall:
+			cmds = append(cmds, removeDirCmd(m.operation, op))
 		}
 	}
 

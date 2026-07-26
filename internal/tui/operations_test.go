@@ -54,26 +54,155 @@ func TestBuildInstallOpsUsesDirectoryKeyAndPreservesRaw(t *testing.T) {
 	}
 }
 
-func TestUninstallPluginCmdResolvesDirectoryKey(t *testing.T) {
-	rootDir := t.TempDir()
-	wantRemoved := filepath.Join(rootDir, "tmux-e74ab6318c07")
-	wantKept := filepath.Join(rootDir, "tmux-87a1216f1f68")
-	for _, dir := range []string{wantRemoved, wantKept} {
-		if err := os.Mkdir(dir, 0o755); err != nil {
+func TestRemoveDirCmd(t *testing.T) {
+	type fixture struct {
+		op          pendingOp
+		beforeRun   func()
+		wantRemoved string
+		wantKept    string
+	}
+	type testCase struct {
+		name        string
+		operation   Operation
+		setup       func(*testing.T) fixture
+		wantSuccess bool
+		wantMessage string
+		wantError   string
+	}
+	mkdir := func(t *testing.T, path string) {
+		t.Helper()
+		if err := os.MkdirAll(path, 0o755); err != nil {
 			t.Fatal(err)
 		}
 	}
-	op := pendingOp{Name: "tmux", DirName: "tmux-e74ab6318c07", Path: wantRemoved, Root: mustRoot(t, rootDir)}
 
-	result := runOperationCmd(t, uninstallPluginCmd(op), OpUninstall)
-	if !result.Success {
-		t.Fatalf("uninstall result = %#v", result)
+	tests := []testCase{
+		{
+			name:      "clean uses direct path",
+			operation: OpClean,
+			setup: func(t *testing.T) fixture {
+				path := filepath.Join(t.TempDir(), "orphan")
+				mkdir(t, path)
+				return fixture{op: pendingOp{Name: "orphan", Path: path}, wantRemoved: path}
+			},
+			wantSuccess: true,
+			wantMessage: "removed successfully",
+		},
+		{
+			name:      "remove resolves directory key from root",
+			operation: OpRemove,
+			setup: func(t *testing.T) fixture {
+				root := t.TempDir()
+				removed := filepath.Join(root, "tmux-e74ab6318c07")
+				kept := filepath.Join(root, "tmux-87a1216f1f68")
+				mkdir(t, removed)
+				mkdir(t, kept)
+				return fixture{
+					op:          pendingOp{Name: "tmux", DirName: "tmux-e74ab6318c07", Path: kept, Root: mustRoot(t, root)},
+					wantRemoved: removed,
+					wantKept:    kept,
+				}
+			},
+			wantSuccess: true,
+			wantMessage: "removed successfully",
+		},
+		{
+			name:      "uninstall resolves directory key from root",
+			operation: OpUninstall,
+			setup: func(t *testing.T) fixture {
+				root := t.TempDir()
+				removed := filepath.Join(root, "plugin")
+				kept := filepath.Join(root, "other")
+				mkdir(t, removed)
+				mkdir(t, kept)
+				return fixture{
+					op:          pendingOp{Name: "plugin", DirName: "plugin", Path: kept, Root: mustRoot(t, root)},
+					wantRemoved: removed,
+					wantKept:    kept,
+				}
+			},
+			wantSuccess: true,
+			wantMessage: "removed successfully",
+		},
+		{
+			name:      "nonexistent directory succeeds",
+			operation: OpClean,
+			setup: func(t *testing.T) fixture {
+				path := filepath.Join(t.TempDir(), "missing")
+				return fixture{op: pendingOp{Name: "ghost", Path: path}, wantRemoved: path}
+			},
+			wantSuccess: true,
+			wantMessage: "removed successfully",
+		},
+		{
+			name:      "invalid root fails closed",
+			operation: OpRemove,
+			setup: func(t *testing.T) fixture {
+				kept := filepath.Join(t.TempDir(), "plugin")
+				mkdir(t, kept)
+				return fixture{op: pendingOp{Name: "plugin", DirName: "plugin", Path: kept}, wantKept: kept}
+			},
+			wantMessage: `invalid plugin path from zero value "": path is empty`,
+		},
 	}
-	if _, err := os.Stat(wantRemoved); !os.IsNotExist(err) {
-		t.Fatalf("directory-keyed path was not removed: %v", err)
+	for _, operation := range []Operation{OpRemove, OpUninstall} {
+		tests = append(tests, testCase{
+			name:      operation.String() + " resolves root immediately before removal",
+			operation: operation,
+			setup: func(t *testing.T) fixture {
+				base := t.TempDir()
+				pluginRoot := filepath.Join(base, "real-plugins")
+				kept := filepath.Join(pluginRoot, "repo")
+				mkdir(t, kept)
+				rootLink := filepath.Join(base, "plugins")
+				if err := os.Symlink(pluginRoot, rootLink); err != nil {
+					t.Fatal(err)
+				}
+				return fixture{
+					op: pendingOp{Name: "repo", DirName: "repo", Path: kept, Root: mustRoot(t, rootLink)},
+					beforeRun: func() {
+						if err := os.Remove(rootLink); err != nil {
+							t.Fatal(err)
+						}
+					},
+					wantKept: kept,
+				}
+			},
+			wantError: "resolve plugin root",
+		})
 	}
-	if _, err := os.Stat(wantKept); err != nil {
-		t.Fatalf("other same-basename repository was changed: %v", err)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fixture := tt.setup(t)
+			cmd := removeDirCmd(tt.operation, fixture.op)
+			if fixture.beforeRun != nil {
+				fixture.beforeRun()
+			}
+			result := runOperationCmd(t, cmd, tt.operation)
+			if result.Success != tt.wantSuccess {
+				t.Fatalf("success = %t, want %t: %#v", result.Success, tt.wantSuccess, result)
+			}
+			if result.Name != fixture.op.Name || result.DirName != fixture.op.DirName {
+				t.Fatalf("result identity = %q/%q, want %q/%q", result.Name, result.DirName, fixture.op.Name, fixture.op.DirName)
+			}
+			if tt.wantMessage != "" && result.Message != tt.wantMessage {
+				t.Fatalf("message = %q, want %q", result.Message, tt.wantMessage)
+			}
+			if tt.wantError != "" && !strings.Contains(result.Message, tt.wantError) {
+				t.Fatalf("message = %q, want substring %q", result.Message, tt.wantError)
+			}
+			if fixture.wantRemoved != "" {
+				if _, err := os.Stat(fixture.wantRemoved); !os.IsNotExist(err) {
+					t.Fatalf("path %q was not removed: %v", fixture.wantRemoved, err)
+				}
+			}
+			if fixture.wantKept != "" {
+				if _, err := os.Stat(fixture.wantKept); err != nil {
+					t.Fatalf("path %q was changed: %v", fixture.wantKept, err)
+				}
+			}
+		})
 	}
 }
 
@@ -247,19 +376,6 @@ func (s *sequentialMockRevParser) RevParse(_ context.Context, _ string) (string,
 	return "unknown", nil
 }
 
-func TestCleanPluginCmd_Success(t *testing.T) {
-	dir := t.TempDir()
-	op := pendingOp{
-		Name: "orphan-plugin",
-		Path: dir,
-	}
-
-	result := runOperationCmd(t, cleanPluginCmd(op), OpClean)
-	if !result.Success {
-		t.Errorf("expected success, got failure: %s", result.Message)
-	}
-}
-
 func TestBuildCleanOpsUsesOrphanDirectoryKey(t *testing.T) {
 	m := newTestModel(t, nil)
 	m.orphans = []OrphanItem{{
@@ -270,79 +386,6 @@ func TestBuildCleanOpsUsesOrphanDirectoryKey(t *testing.T) {
 
 	if len(ops) != 1 || ops[0].Name != "display label" || ops[0].DirName != "orphan-directory" {
 		t.Fatalf("clean operations = %+v", ops)
-	}
-}
-
-func TestCleanPluginCmd_NonExistentDir(t *testing.T) {
-	op := pendingOp{
-		Name: "ghost-plugin",
-		Path: "/tmp/nonexistent-tpm-test-dir-12345/",
-	}
-
-	result := runOperationCmd(t, cleanPluginCmd(op), OpClean)
-	// RemoveAll on nonexistent path succeeds.
-	if !result.Success {
-		t.Errorf("expected success for nonexistent dir, got failure: %s", result.Message)
-	}
-}
-
-func TestUninstallPluginCmd_Success(t *testing.T) {
-	rootDir := t.TempDir()
-	dir := filepath.Join(rootDir, "test-plugin")
-	if err := os.Mkdir(dir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	op := pendingOp{
-		Name:    "test-plugin",
-		DirName: "test-plugin",
-		Path:    dir,
-		Root:    mustRoot(t, rootDir),
-	}
-
-	result := runOperationCmd(t, uninstallPluginCmd(op), OpUninstall)
-	if !result.Success {
-		t.Errorf("expected success, got failure: %s", result.Message)
-	}
-	if result.Name != "test-plugin" {
-		t.Errorf("expected name test-plugin, got %s", result.Name)
-	}
-}
-
-func TestRemovePluginDirCmd_Success(t *testing.T) {
-	rootDir := t.TempDir()
-	dir := filepath.Join(rootDir, "test-plugin")
-	if err := os.Mkdir(dir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	op := pendingOp{
-		Name:    "test-plugin",
-		DirName: "test-plugin",
-		Path:    dir,
-		Root:    mustRoot(t, rootDir),
-	}
-
-	result := runOperationCmd(t, removePluginDirCmd(op), OpRemove)
-	if !result.Success {
-		t.Errorf("expected success, got failure: %s", result.Message)
-	}
-	if result.Name != "test-plugin" {
-		t.Errorf("expected name test-plugin, got %s", result.Name)
-	}
-}
-
-func TestRemovePluginDirCmd_NonExistentDir(t *testing.T) {
-	rootDir := t.TempDir()
-	op := pendingOp{
-		Name:    "ghost-plugin",
-		DirName: "ghost-plugin",
-		Path:    filepath.Join(rootDir, "ghost-plugin"),
-		Root:    mustRoot(t, rootDir),
-	}
-
-	result := runOperationCmd(t, removePluginDirCmd(op), OpRemove)
-	// RemoveAll on nonexistent path succeeds.
-	if !result.Success {
-		t.Errorf("expected success for nonexistent dir, got failure: %s", result.Message)
 	}
 }
 
@@ -434,64 +477,6 @@ func TestDestructiveOpsRejectRootSymlinkBeforeScheduling(t *testing.T) {
 			}
 			if m.plugins[0].Status != StatusLoadFailed {
 				t.Fatalf("status = %v, want %v", m.plugins[0].Status, StatusLoadFailed)
-			}
-		})
-	}
-}
-
-func TestDestructiveOpsResolveRootImmediatelyBeforeRemoval(t *testing.T) {
-	tests := []struct {
-		name      string
-		operation Operation
-		build     func(*Model) []pendingOp
-		run       func(pendingOp) tea.Cmd
-	}{
-		{
-			name:      "remove",
-			operation: OpRemove,
-			build:     (*Model).buildRemoveOps,
-			run:       removePluginDirCmd,
-		},
-		{
-			name:      "uninstall",
-			operation: OpUninstall,
-			build:     (*Model).buildUninstallOps,
-			run:       uninstallPluginCmd,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			base := t.TempDir()
-			pluginRoot := filepath.Join(base, "real-plugins")
-			pluginDir := filepath.Join(pluginRoot, "repo")
-			if err := os.MkdirAll(pluginDir, 0o755); err != nil {
-				t.Fatal(err)
-			}
-			marker := filepath.Join(pluginDir, "keep")
-			if err := os.WriteFile(marker, []byte("safe"), 0o600); err != nil {
-				t.Fatal(err)
-			}
-			rootLink := filepath.Join(base, "plugins")
-			if err := os.Symlink(pluginRoot, rootLink); err != nil {
-				t.Fatal(err)
-			}
-
-			m := newTestModel(t, nil)
-			m.cfg.PluginPath = mustRoot(t, rootLink)
-			m.plugins = []PluginItem{testPluginItem("repo", "user/repo", StatusInstalled)}
-			ops := tt.build(&m)
-			if len(ops) != 1 {
-				t.Fatalf("operations = %d, want 1", len(ops))
-			}
-			if err := os.Remove(rootLink); err != nil {
-				t.Fatal(err)
-			}
-
-			if result := runOperationCmd(t, tt.run(ops[0]), tt.operation); result.Success {
-				t.Fatalf("destructive operation succeeded after plugin root became unresolved: %#v", result)
-			}
-			if _, err := os.Stat(marker); err != nil {
-				t.Fatalf("fixture changed after root resolution failure: %v", err)
 			}
 		})
 	}
