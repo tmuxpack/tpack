@@ -144,6 +144,20 @@ func TestRemoveDirCmd(t *testing.T) {
 			},
 			wantMessage: `invalid plugin path from zero value "": path is empty`,
 		},
+		{
+			name:      "unsupported operation fails closed",
+			operation: OpInstall,
+			setup: func(t *testing.T) fixture {
+				root := t.TempDir()
+				kept := filepath.Join(root, "plugin")
+				mkdir(t, kept)
+				return fixture{
+					op:       pendingOp{Name: "plugin", DirName: "plugin", Path: kept, Root: mustRoot(t, root)},
+					wantKept: kept,
+				}
+			},
+			wantMessage: "unsupported directory removal operation: 1",
+		},
 	}
 	for _, operation := range []Operation{OpRemove, OpUninstall} {
 		tests = append(tests, testCase{

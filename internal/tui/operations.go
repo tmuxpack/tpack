@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"strings"
 	"sync"
@@ -156,8 +157,11 @@ func removeDirCmd(operation Operation, op pendingOp) tea.Cmd {
 				},
 			}
 		}
-		path := op.Path
-		if operation != OpClean {
+		var path string
+		switch operation {
+		case OpClean:
+			path = op.Path
+		case OpRemove, OpUninstall:
 			root, err := op.Root.Resolved()
 			if err != nil {
 				return result(false, err.Error())
@@ -166,6 +170,10 @@ func removeDirCmd(operation Operation, op pendingOp) tea.Cmd {
 			if err != nil {
 				return result(false, err.Error())
 			}
+		case OpNone, OpInstall, OpUpdate:
+			return result(false, fmt.Sprintf("unsupported directory removal operation: %d", operation))
+		default:
+			return result(false, fmt.Sprintf("unsupported directory removal operation: %d", operation))
 		}
 		if err := os.RemoveAll(path); err != nil {
 			return result(false, err.Error())
