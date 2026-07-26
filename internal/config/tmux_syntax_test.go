@@ -162,6 +162,31 @@ func TestSplitTmuxCommandLinePreservesWriterHashSemantics(t *testing.T) {
 	}
 }
 
+func TestScanTmuxCommandsBracePolicy(t *testing.T) {
+	t.Run("top-level unquoted braced command list is rejected", func(t *testing.T) {
+		_, err := scanTmuxCommands("tmux.conf", "if-shell true { source hidden.conf }\n", true)
+		assertConfigParseError(t, err, "tmux.conf", 1, "unquoted braced command lists are unsupported")
+	})
+
+	t.Run("quoted nested command list permits braces", func(t *testing.T) {
+		commands, err := scanTmuxCommands("", "if-shell true { source hidden.conf }", false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(commands) != 1 {
+			t.Fatalf("commands = %#v, want one command", commands)
+		}
+		var got []string
+		for _, token := range commands[0].tokens {
+			got = append(got, token.value)
+		}
+		want := []string{"if-shell", "true", "{", "source", "hidden.conf", "}"}
+		if !reflect.DeepEqual(got, want) {
+			t.Fatalf("token values = %#v, want %#v", got, want)
+		}
+	})
+}
+
 func TestParseSourceDirectivesExpandsDynamicConditions(t *testing.T) {
 	const balancedFormat = "#{&&:#{==:#{host},example}, #{==:#{pane_id},%1}}"
 	tests := []struct {

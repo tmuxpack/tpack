@@ -58,6 +58,7 @@ const (
 	conditionalElif      = "%elif"
 	conditionalElse      = "%else"
 	conditionalEndif     = "%endif"
+	ifShellCommand       = "if-shell"
 )
 
 func splitTmuxCommandLine(line string) ([]string, bool) {
@@ -72,13 +73,13 @@ func splitTmuxCommandLine(line string) ([]string, bool) {
 	return args, true
 }
 
-func scanTmuxCommands(path, content string) ([]tmuxCommand, error) {
+func scanTmuxCommands(path, content string, rejectBraces bool) ([]tmuxCommand, error) {
 	return scanTmuxSyntax(path, content, tmuxScanOptions{
 		commandSemicolons: true,
 		commandNewlines:   true,
 		commentAnywhere:   true,
 		lineContinuations: true,
-		rejectBraces:      true,
+		rejectBraces:      rejectBraces,
 	})
 }
 
@@ -120,7 +121,7 @@ func (s *tmuxScanner) scan() ([]tmuxCommand, error) {
 		at = next
 	}
 	if s.quote != 0 {
-		return nil, s.parseError(s.quoteLine, unmatchedQuoteMessage(s.quote))
+		return nil, configSyntaxError(s.path, s.quoteLine, unmatchedQuoteMessage(s.quote))
 	}
 	s.flushCommand()
 	return s.commands, nil
@@ -140,7 +141,7 @@ func (s *tmuxScanner) consume(at int) (int, error) {
 		return s.consumeConditionalFormat(at)
 	}
 	if s.options.rejectBraces && !s.inWord && (s.content[at] == '{' || s.content[at] == '}') {
-		return at, s.parseError(s.line, "unquoted braced command lists are unsupported")
+		return at, configSyntaxError(s.path, s.line, "unquoted braced command lists are unsupported")
 	}
 	return s.consumeUnquoted(at), nil
 }
@@ -184,7 +185,7 @@ func (s *tmuxScanner) consumeConditionalFormat(at int) (int, error) {
 			}
 		}
 	}
-	return at, s.parseError(startLine, "unmatched tmux format expression")
+	return at, configSyntaxError(s.path, startLine, "unmatched tmux format expression")
 }
 
 func (s *tmuxScanner) consumeLineContinuation(at int) (next int, handled bool, err error) {
@@ -192,7 +193,7 @@ func (s *tmuxScanner) consumeLineContinuation(at int) (next int, handled bool, e
 		return at, false, nil
 	}
 	if at+1 >= len(s.content) {
-		return at, true, s.parseError(s.line, "dangling line continuation")
+		return at, true, configSyntaxError(s.path, s.line, "dangling line continuation")
 	}
 	if s.content[at+1] != '\n' {
 		return at, false, nil
@@ -215,7 +216,7 @@ func (s *tmuxScanner) consumeComment(at int) int {
 func (s *tmuxScanner) consumeQuoted(at int) (int, error) {
 	char := s.content[at]
 	if char == '\n' && s.options.commandNewlines {
-		return at, s.parseError(s.quoteLine, unmatchedQuoteMessage(s.quote))
+		return at, configSyntaxError(s.path, s.quoteLine, unmatchedQuoteMessage(s.quote))
 	}
 	if char == s.quote {
 		s.quote = 0
@@ -223,13 +224,7 @@ func (s *tmuxScanner) consumeQuoted(at int) (int, error) {
 		return at + 1, nil
 	}
 	if char == '\\' && s.quote == '"' && at+1 < len(s.content) {
-		s.startWord(at, false)
-		s.word.WriteByte(s.content[at+1])
-		s.tokenEnd = at + 2
-		if s.content[at+1] == '\n' {
-			s.line++
-		}
-		return at + 2, nil
+		return s.consumeEscaped(at), nil
 	}
 	s.word.WriteByte(char)
 	s.tokenEnd = at + 1
@@ -253,13 +248,7 @@ func (s *tmuxScanner) consumeUnquoted(at int) int {
 		s.inComment = true
 		return at + 1
 	case char == '\\' && at+1 < len(s.content):
-		s.startWord(at, false)
-		s.word.WriteByte(s.content[at+1])
-		s.tokenEnd = at + 2
-		if s.content[at+1] == '\n' {
-			s.line++
-		}
-		return at + 2
+		return s.consumeEscaped(at)
 	case char == ';' && s.options.commandSemicolons:
 		s.flushCommand()
 		return at + 1
@@ -279,6 +268,16 @@ func (s *tmuxScanner) consumeUnquoted(at int) int {
 		s.tokenEnd = at + 1
 		return at + 1
 	}
+}
+
+func (s *tmuxScanner) consumeEscaped(at int) int {
+	s.startWord(at, false)
+	s.word.WriteByte(s.content[at+1])
+	s.tokenEnd = at + 2
+	if s.content[at+1] == '\n' {
+		s.line++
+	}
+	return at + 2
 }
 
 func (s *tmuxScanner) startsComment(at int) bool {
@@ -332,10 +331,6 @@ func (s *tmuxScanner) flushCommand() {
 	s.tokens = nil
 }
 
-func (s *tmuxScanner) parseError(line int, message string) error {
-	return &ConfigParseError{Path: s.path, Line: line, Msg: message}
-}
-
 func unmatchedQuoteMessage(quote byte) string {
 	if quote == '\'' {
 		return unmatchedSingleQuote
@@ -374,7 +369,7 @@ func parseLocatedSourceDirectives(
 	file, content string,
 	expandFormat func(string) (string, error),
 ) ([]locatedSourceDirective, error) {
-	commands, err := scanTmuxCommands(file, content)
+	commands, err := scanTmuxCommands(file, content, true)
 	if err != nil {
 		return nil, err
 	}
@@ -439,7 +434,7 @@ func isSourceCommand(command string) bool {
 }
 
 func rejectNestedExecutableSources(file, content string, tokens []tmuxToken) error {
-	if len(tokens) == 0 || !tokens[0].plain || (tokens[0].value != "if-shell" && tokens[0].value != "if") {
+	if len(tokens) == 0 || !tokens[0].plain || (tokens[0].value != ifShellCommand && tokens[0].value != "if") {
 		return nil
 	}
 
@@ -489,12 +484,7 @@ func isQuotedToken(content string, token tmuxToken) bool {
 }
 
 func commandListContainsSource(value string) bool {
-	commands, err := scanTmuxSyntax("", value, tmuxScanOptions{
-		commandSemicolons: true,
-		commandNewlines:   true,
-		commentAnywhere:   true,
-		lineContinuations: true,
-	})
+	commands, err := scanTmuxCommands("", value, false)
 	if err != nil {
 		return containsSourceWord(value)
 	}
@@ -505,7 +495,7 @@ func commandListContainsSource(value string) bool {
 		if isSourceCommand(command.tokens[0].value) {
 			return true
 		}
-		if command.tokens[0].value != "if-shell" && command.tokens[0].value != "if" {
+		if command.tokens[0].value != ifShellCommand && command.tokens[0].value != "if" {
 			continue
 		}
 		conditionAt := ifShellConditionIndex(command.tokens)
