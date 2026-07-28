@@ -216,9 +216,6 @@ func (s *tmuxScanner) consumeComment(at int) int {
 
 func (s *tmuxScanner) consumeQuoted(at int) (int, error) {
 	char := s.content[at]
-	if char == '\n' && s.options.commandNewlines {
-		return at, configSyntaxError(s.path, s.quoteLine, unmatchedQuoteMessage(s.quote))
-	}
 	if char == s.quote {
 		s.quote = 0
 		s.tokenEnd = at + 1

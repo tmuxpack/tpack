@@ -108,6 +108,46 @@ set -g @plugin "tmux-plugins/tmux-sensible"
 	}
 }
 
+func TestGatherPluginsAllowsMultilineQuotedCommands(t *testing.T) {
+	fs := config.NewMockFS()
+	fs.Files["/home/user/.tmux.conf"] = `set -g @plugin "owner/root"
+bind-key S run-shell "echo \"$(
+  echo hello
+)\""
+source plugins.conf
+`
+	fs.Files["/home/user/plugins.conf"] = `set -g @plugin "owner/sourced"`
+
+	plugins, err := config.GatherPlugins(tmux.NewMockRunner(), fs, testPaths(t), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var names []string
+	for _, plugin := range plugins {
+		names = append(names, plugin.Name)
+	}
+	want := []string{"owner/root", "owner/sourced"}
+	if !reflect.DeepEqual(names, want) {
+		t.Fatalf("plugin names = %v, want %v", names, want)
+	}
+}
+
+func TestGatherPluginsIgnoresPluginTextInsideMultilineQuotedCommand(t *testing.T) {
+	fs, paths := configWithPlugins(t, `set -g @plugin "owner/root"
+display-message "text
+set -g @plugin owner/not-a-plugin
+more text"
+`)
+
+	plugins, err := config.GatherPlugins(tmux.NewMockRunner(), fs, paths, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(plugins) != 1 || plugins[0].Name != "owner/root" {
+		t.Fatalf("plugins = %v, want only owner/root", plugins)
+	}
+}
+
 func TestGatherPluginsLegacySyntax(t *testing.T) {
 	m := tmux.NewMockRunner()
 	m.Options["@tpm_plugins"] = "tmux-plugins/tpm tmux-plugins/tmux-yank"

@@ -33,7 +33,11 @@ func GatherPlugins(runner tmux.Runner, fs FS, paths Paths, warn func(string)) ([
 		return nil, err
 	}
 	for _, content := range graph.execution {
-		specs = append(specs, plug.ExtractPluginsFromConfig(content)...)
+		executedSpecs, err := extractPluginSpecs(content)
+		if err != nil {
+			return nil, err
+		}
+		specs = append(specs, executedSpecs...)
 	}
 
 	// Parse all specs into Plugin structs.
@@ -54,4 +58,26 @@ func GatherPlugins(runner tmux.Runner, fs FS, paths Paths, warn func(string)) ([
 		plugins = append(plugins, plugin)
 	}
 	return plugins, nil
+}
+
+func extractPluginSpecs(content string) ([]string, error) {
+	commands, err := scanTmuxCommands("", content, false)
+	if err != nil {
+		return nil, err
+	}
+
+	normalized := []byte(content)
+	for _, command := range commands {
+		for _, token := range command.tokens {
+			if token.plain {
+				continue
+			}
+			for at := token.start; at < token.end; at++ {
+				if normalized[at] == '\n' {
+					normalized[at] = ' '
+				}
+			}
+		}
+	}
+	return plug.ExtractPluginsFromConfig(string(normalized)), nil
 }
