@@ -10,6 +10,8 @@ import (
 	"github.com/tmuxpack/tpack/internal/tmux"
 )
 
+const tmuxConfName = "tmux.conf"
+
 // PathSource identifies where a resolved path came from.
 type PathSource int
 
@@ -199,7 +201,8 @@ func activeTmuxConfs(runner tmux.Runner, fs FS, p Paths) (roots, searched []stri
 		seen[candidate] = true
 		searched = append(searched, candidate)
 		if !fs.IsRegularFile(candidate) {
-			if optionalDefaults[candidate] && !fs.FileExists(candidate) {
+			packagedSystemConfig := filepath.Base(candidate) == tmuxConfName && filepath.Base(filepath.Dir(candidate)) == "etc"
+			if !fs.FileExists(candidate) && (optionalDefaults[candidate] || packagedSystemConfig) {
 				continue
 			}
 			return nil, searched, true, fmt.Errorf("#{config_files} reported missing, unreadable, or non-regular config root %q", candidate)
@@ -223,8 +226,8 @@ func defaultTmuxConfCandidates(p Paths) []string {
 	return []string{
 		"/etc/tmux.conf",
 		filepath.Join(p.Home, ".tmux.conf"),
-		filepath.Join(p.XDGConfigHome, "tmux", "tmux.conf"),
-		filepath.Join(p.Home, ".config", "tmux", "tmux.conf"),
+		filepath.Join(p.XDGConfigHome, "tmux", tmuxConfName),
+		filepath.Join(p.Home, ".config", "tmux", tmuxConfName),
 	}
 }
 
@@ -244,8 +247,8 @@ func deduplicatePaths(candidates []string) []string {
 
 func chooseWritableTmuxConf(roots []string, p Paths) string {
 	preferences := []string{
-		filepath.Join(p.XDGConfigHome, "tmux", "tmux.conf"),
-		filepath.Join(p.Home, ".config", "tmux", "tmux.conf"),
+		filepath.Join(p.XDGConfigHome, "tmux", tmuxConfName),
+		filepath.Join(p.Home, ".config", "tmux", tmuxConfName),
 		filepath.Join(p.Home, ".tmux.conf"),
 	}
 	for _, preference := range preferences {

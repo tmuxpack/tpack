@@ -139,6 +139,22 @@ func TestResolvePathsAllowsMissingActiveDefaultCandidates(t *testing.T) {
 	}
 }
 
+func TestResolvePathsAllowsMissingPackagedSystemConfig(t *testing.T) {
+	runner := tmux.NewMockRunner()
+	runner.Formats["#{config_files}"] = "/home/linuxbrew/.linuxbrew/etc/tmux.conf,/home/user/.config/tmux/tmux.conf"
+	fs := config.NewMockFS()
+	fs.Files["/home/user/.config/tmux/tmux.conf"] = ""
+
+	paths, err := config.ResolvePaths(runner, fs, testEnv())
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"/home/user/.config/tmux/tmux.conf"}
+	if !reflect.DeepEqual(paths.TmuxConfs, want) || paths.TmuxConf != "/home/user/.config/tmux/tmux.conf" {
+		t.Fatalf("paths = %#v, want only existing XDG root", paths)
+	}
+}
+
 func TestResolvePathsActiveSystemConfigOnlyReturnsErrNoTmuxConf(t *testing.T) {
 	runner := tmux.NewMockRunner()
 	runner.Formats["#{config_files}"] = "/etc/tmux.conf"
