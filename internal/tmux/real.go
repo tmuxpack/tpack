@@ -43,7 +43,14 @@ func (r *RealRunner) ShowEnvironment(name string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	// Output format: NAME=value
+	if idx := strings.Index(out, "="); idx >= 0 {
+		return out[idx+1:], nil
+	}
+
+	out, err = r.runTmux("show-environment", "-gh", name)
+	if err != nil {
+		return "", err
+	}
 	if idx := strings.Index(out, "="); idx >= 0 {
 		return out[idx+1:], nil
 	}

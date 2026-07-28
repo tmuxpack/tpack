@@ -58,6 +58,7 @@ const (
 	conditionalElif      = "%elif"
 	conditionalElse      = "%else"
 	conditionalEndif     = "%endif"
+	hiddenDirective      = "%hidden"
 	ifShellCommand       = "if-shell"
 )
 
@@ -397,8 +398,8 @@ func parseLocatedSourceDirectives(
 				next++
 			}
 			segment := command.tokens[at:next]
-			if segment[0].plain && strings.HasPrefix(segment[0].value, "%") {
-				return nil, configSyntaxError(file, segment[0].line, "unsupported tmux directive "+segment[0].value)
+			if unsupported := unsupportedTmuxDirective(segment[0]); unsupported != "" {
+				return nil, configSyntaxError(file, segment[0].line, "unsupported tmux directive "+unsupported)
 			}
 			if !conditionalActive(conditionals) {
 				at = next
@@ -427,6 +428,13 @@ func parseLocatedSourceDirectives(
 		return nil, configSyntaxError(file, frame.line, "missing %endif")
 	}
 	return directives, nil
+}
+
+func unsupportedTmuxDirective(token tmuxToken) string {
+	if !token.plain || !strings.HasPrefix(token.value, "%") || token.value == hiddenDirective {
+		return ""
+	}
+	return token.value
 }
 
 func isSourceCommand(command string) bool {

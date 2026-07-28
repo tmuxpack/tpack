@@ -66,6 +66,13 @@ func TestParseSourceDirectives(t *testing.T) {
 			want:    []sourceDirective{{Paths: []string{"valid.conf"}, Line: 1, Text: "source valid.conf"}},
 		},
 		{
+			name:    "hidden assignment",
+			path:    "tmux.conf",
+			content: "%hidden SECRET=value\nsource active.conf\n",
+			expand:  noFormatExpansion,
+			want:    []sourceDirective{{Paths: []string{"active.conf"}, Line: 2, Text: "source active.conf"}},
+		},
+		{
 			name: "unrelated quoted source text",
 			path: "tmux.conf",
 			content: "run-shell 'printf source-file'\n" +
@@ -239,7 +246,7 @@ func TestParseSourceDirectivesReturnsErrors(t *testing.T) {
 		{name: "unmatched double quote", path: "/tmp/tmux.conf", content: "source \"one.conf\n", line: 1, message: "unmatched double quote"},
 		{name: "dangling continuation", path: "/tmp/tmux.conf", content: "source one.conf \\", line: 1, message: "dangling line continuation"},
 		{name: "braced argument", path: "/tmp/tmux.conf", content: "source {one.conf}\n", line: 1, message: "unquoted braced command lists are unsupported"},
-		{name: "unsupported directive", path: "/tmp/tmux.conf", content: "%hidden SECRET=value\n", line: 1, message: "unsupported tmux directive %hidden"},
+		{name: "unsupported directive", path: "/tmp/tmux.conf", content: "%unknown value\n", line: 1, message: "unsupported tmux directive %unknown"},
 		{name: "one-line braced command list", path: "tmux.conf", content: "if-shell true { source hidden.conf }\n", line: 1, message: "unquoted braced command lists are unsupported"},
 		{name: "multiline braced command list", path: "tmux.conf", content: "if-shell true {\nsource hidden.conf\n}\n", line: 1, message: "unquoted braced command lists are unsupported"},
 		{name: "nested braced command list", path: "tmux.conf", content: "if-shell true {\nif-shell true {\nsource hidden.conf\n}\n}\n", line: 1, message: "unquoted braced command lists are unsupported"},
