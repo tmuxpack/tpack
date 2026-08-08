@@ -32,11 +32,12 @@ func (e *ConfigParseError) Error() string {
 }
 
 type tmuxToken struct {
-	value string
-	start int
-	end   int
-	line  int
-	plain bool
+	value       string
+	start       int
+	end         int
+	line        int
+	plain       bool
+	commandList bool
 }
 
 type tmuxCommand struct {
@@ -48,7 +49,6 @@ type tmuxScanOptions struct {
 	commandNewlines   bool
 	commentAnywhere   bool
 	lineContinuations bool
-	rejectBraces      bool
 }
 
 const (
@@ -74,13 +74,12 @@ func splitTmuxCommandLine(line string) ([]string, bool) {
 	return args, true
 }
 
-func scanTmuxCommands(path, content string, rejectBraces bool) ([]tmuxCommand, error) {
+func scanTmuxCommands(path, content string) ([]tmuxCommand, error) {
 	return scanTmuxSyntax(path, content, tmuxScanOptions{
 		commandSemicolons: true,
 		commandNewlines:   true,
 		commentAnywhere:   true,
 		lineContinuations: true,
-		rejectBraces:      rejectBraces,
 	})
 }
 
@@ -110,6 +109,7 @@ type tmuxScanner struct {
 	tokenEnd   int
 	tokenLine  int
 	tokenPlain bool
+	wordBraces int
 	inComment  bool
 }
 
@@ -141,10 +141,54 @@ func (s *tmuxScanner) consume(at int) (int, error) {
 	if s.startsConditionalFormat(at) {
 		return s.consumeConditionalFormat(at)
 	}
-	if s.options.rejectBraces && !s.inWord && (s.content[at] == '{' || s.content[at] == '}') {
-		return at, configSyntaxError(s.path, s.line, "unquoted braced command lists are unsupported")
+	if !s.inWord && s.content[at] == '{' {
+		return s.consumeCommandList(at)
+	}
+	if !s.inWord && s.content[at] == '}' {
+		return at, configSyntaxError(s.path, s.line, "unexpected closing brace")
 	}
 	return s.consumeUnquoted(at), nil
+}
+
+func (s *tmuxScanner) consumeCommandList(at int) (int, error) {
+	openingLine := s.line
+	inner := tmuxScanner{
+		path:    s.path,
+		content: s.content,
+		options: s.options,
+		line:    s.line,
+	}
+	end, err := inner.scanCommandList(at+1, openingLine)
+	if err != nil {
+		return at, err
+	}
+	s.tokens = append(s.tokens, tmuxToken{
+		value:       s.content[at+1 : end-1],
+		start:       at,
+		end:         end,
+		line:        openingLine,
+		commandList: true,
+	})
+	s.line = inner.line
+	return end, nil
+}
+
+func (s *tmuxScanner) scanCommandList(at, openingLine int) (int, error) {
+	for at < len(s.content) {
+		if s.quote == 0 && !s.inComment && s.content[at] == '}' && (!s.inWord || s.wordBraces == 0) {
+			s.flushCommand()
+			return at + 1, nil
+		}
+		next, err := s.consume(at)
+		if err != nil {
+			return at, err
+		}
+		at = next
+	}
+	if s.quote != 0 {
+		return at, configSyntaxError(s.path, s.quoteLine, unmatchedQuoteMessage(s.quote))
+	}
+	return at, configSyntaxError(s.path, openingLine, "unterminated command list")
 }
 
 func (s *tmuxScanner) startsConditionalFormat(at int) bool {
@@ -261,11 +305,24 @@ func (s *tmuxScanner) consumeUnquoted(at int) int {
 		}
 		return at + 1
 	default:
-		s.startWord(at, true)
-		s.word.WriteByte(char)
-		s.tokenEnd = at + 1
-		return at + 1
+		return s.consumeUnquotedWord(at)
 	}
+}
+
+func (s *tmuxScanner) consumeUnquotedWord(at int) int {
+	char := s.content[at]
+	s.startWord(at, true)
+	switch char {
+	case '{':
+		s.wordBraces++
+	case '}':
+		if s.wordBraces > 0 {
+			s.wordBraces--
+		}
+	}
+	s.word.WriteByte(char)
+	s.tokenEnd = at + 1
+	return at + 1
 }
 
 func (s *tmuxScanner) consumeEscaped(at int) int {
@@ -280,6 +337,9 @@ func (s *tmuxScanner) consumeEscaped(at int) int {
 
 func (s *tmuxScanner) startsComment(at int) bool {
 	if s.content[at] != '#' {
+		return false
+	}
+	if s.inWord && at+1 < len(s.content) && s.content[at+1] == '{' {
 		return false
 	}
 	return s.options.commentAnywhere || !s.inWord
@@ -318,6 +378,7 @@ func (s *tmuxScanner) flushWord() {
 	})
 	s.word.Reset()
 	s.inWord = false
+	s.wordBraces = 0
 }
 
 func (s *tmuxScanner) flushCommand() {
@@ -367,7 +428,7 @@ func parseLocatedSourceDirectives(
 	file, content string,
 	expandFormat func(string) (string, error),
 ) ([]locatedSourceDirective, error) {
-	commands, err := scanTmuxCommands(file, content, true)
+	commands, err := scanTmuxCommands(file, content)
 	if err != nil {
 		return nil, err
 	}
@@ -448,10 +509,12 @@ func rejectNestedExecutableSources(file, content string, tokens []tmuxToken) err
 		return nil
 	}
 	for _, token := range tokens[at+1:] {
-		if !isQuotedToken(content, token) || !commandListContainsSource(token.value) {
+		if !token.commandList && !isQuotedToken(content, token) {
 			continue
 		}
-		return configSyntaxError(file, tokens[0].line, "executable quoted command list may contain source/source-file")
+		if commandListContainsSource(token.value) {
+			return configSyntaxError(file, tokens[0].line, "executable command list may contain source/source-file")
+		}
 	}
 	return nil
 }
@@ -484,7 +547,7 @@ func isQuotedToken(content string, token tmuxToken) bool {
 }
 
 func commandListContainsSource(value string) bool {
-	commands, err := scanTmuxCommands("", value, false)
+	commands, err := scanTmuxCommands("", value)
 	if err != nil {
 		return containsSourceWord(value)
 	}
@@ -601,7 +664,7 @@ func conditionalValue(
 	if len(tokens) < 2 || isConditionalToken(tokens[1]) {
 		return false, configSyntaxError(file, marker.line, marker.value+" requires a condition")
 	}
-	if tokens[1].plain && strings.HasPrefix(tokens[1].value, "{") {
+	if tokens[1].commandList {
 		return false, configSyntaxError(file, marker.line, "braced conditional expressions are unsupported")
 	}
 	value := tokens[1].value
@@ -654,8 +717,7 @@ func tmuxFormatSpans(value string) (hasFormats, balanced bool) {
 func parseSourceCommand(file, content string, tokens []tmuxToken) (sourceDirective, error) {
 	line := tokens[0].line
 	for _, token := range tokens {
-		raw := content[token.start:token.end]
-		if token.plain && strings.HasPrefix(raw, "{") {
+		if token.commandList {
 			return sourceDirective{}, configSyntaxError(file, line, "braced arguments are unsupported in source directives")
 		}
 	}

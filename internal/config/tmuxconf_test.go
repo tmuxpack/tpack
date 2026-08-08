@@ -108,6 +108,31 @@ set -g @plugin "tmux-plugins/tmux-sensible"
 	}
 }
 
+func TestGatherPluginsAllowsDeferredBracedCommands(t *testing.T) {
+	fs, paths := configWithPlugins(t, `set -g @plugin owner/before
+bind r {
+  display-message "Source conf file..."
+  source-file ~/.tmux.conf
+  set -g @plugin owner/deferred
+  display-message "Conf file reloaded"
+}
+set -g @plugin owner/after
+`)
+
+	plugins, err := config.GatherPlugins(tmux.NewMockRunner(), fs, paths, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var names []string
+	for _, plugin := range plugins {
+		names = append(names, plugin.Name)
+	}
+	want := []string{"owner/before", "owner/after"}
+	if !reflect.DeepEqual(names, want) {
+		t.Fatalf("plugin names = %v, want %v", names, want)
+	}
+}
+
 func TestGatherPluginsAllowsMultilineQuotedCommands(t *testing.T) {
 	fs := config.NewMockFS()
 	fs.Files["/home/user/.tmux.conf"] = `set -g @plugin "owner/root"

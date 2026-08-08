@@ -61,7 +61,7 @@ func GatherPlugins(runner tmux.Runner, fs FS, paths Paths, warn func(string)) ([
 }
 
 func extractPluginSpecs(content string) ([]string, error) {
-	commands, err := scanTmuxCommands("", content, false)
+	commands, err := scanTmuxCommands("", content)
 	if err != nil {
 		return nil, err
 	}

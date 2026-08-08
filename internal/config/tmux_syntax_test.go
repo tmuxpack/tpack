@@ -96,6 +96,38 @@ func TestParseSourceDirectives(t *testing.T) {
 			want:    []sourceDirective{{Paths: []string{"{literal}.conf"}, Line: 1, Text: "source '{literal}.conf'"}},
 		},
 		{
+			name: "deferred braced source is ignored",
+			path: "tmux.conf",
+			content: "bind r {\n" +
+				"  display-message reloading\n" +
+				"  source-file deferred.conf\n" +
+				"}\n" +
+				"source active.conf\n",
+			expand: noFormatExpansion,
+			want: []sourceDirective{
+				{Paths: []string{"active.conf"}, Line: 5, Text: "source active.conf"},
+			},
+		},
+		{
+			name: "source nested below deferred bind is ignored",
+			path: "tmux.conf",
+			content: "if-shell true {\n" +
+				"  bind x { source-file deferred.conf }\n" +
+				"}\n" +
+				"source active.conf\n",
+			expand: noFormatExpansion,
+			want: []sourceDirective{
+				{Paths: []string{"active.conf"}, Line: 4, Text: "source active.conf"},
+			},
+		},
+		{
+			name:    "executable braced list without source is allowed",
+			path:    "tmux.conf",
+			content: "if-shell true { display-message ready }\n",
+			expand:  noFormatExpansion,
+			want:    []sourceDirective{},
+		},
+		{
 			name:    "inactive branch",
 			path:    "tmux.conf",
 			content: "%if 0\nsource missing.conf\n%else\nsource active.conf\n%endif\n",
@@ -169,29 +201,107 @@ func TestSplitTmuxCommandLinePreservesWriterHashSemantics(t *testing.T) {
 	}
 }
 
-func TestScanTmuxCommandsBracePolicy(t *testing.T) {
-	t.Run("top-level unquoted braced command list is rejected", func(t *testing.T) {
-		_, err := scanTmuxCommands("tmux.conf", "if-shell true { source hidden.conf }\n", true)
-		assertConfigParseError(t, err, "tmux.conf", 1, "unquoted braced command lists are unsupported")
-	})
+func TestScanTmuxCommandsParsesCommandLists(t *testing.T) {
+	const block = `{
+  display-message "literal } and {"
+  # ignored closing brace }
+  bind x { display-message nested }
+}`
+	content := "bind r " + block + "\nsource after.conf\n"
 
-	t.Run("quoted nested command list permits braces", func(t *testing.T) {
-		commands, err := scanTmuxCommands("", "if-shell true { source hidden.conf }", false)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if len(commands) != 1 {
-			t.Fatalf("commands = %#v, want one command", commands)
-		}
-		var got []string
-		for _, token := range commands[0].tokens {
-			got = append(got, token.value)
-		}
-		want := []string{"if-shell", "true", "{", "source", "hidden.conf", "}"}
-		if !reflect.DeepEqual(got, want) {
-			t.Fatalf("token values = %#v, want %#v", got, want)
-		}
-	})
+	commands, err := scanTmuxCommands("tmux.conf", content)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(commands) != 2 {
+		t.Fatalf("commands = %#v, want bind and source commands", commands)
+	}
+	if got := len(commands[0].tokens); got != 3 {
+		t.Fatalf("bind token count = %d, want 3", got)
+	}
+	list := commands[0].tokens[2]
+	if !list.commandList {
+		t.Fatalf("bind argument = %#v, want command-list token", list)
+	}
+	wantValue := strings.TrimSuffix(strings.TrimPrefix(block, "{"), "}")
+	if list.value != wantValue {
+		t.Fatalf("command-list value = %q, want %q", list.value, wantValue)
+	}
+	if got := commands[1].tokens[0].value; got != "source" {
+		t.Fatalf("following command = %q, want source", got)
+	}
+}
+
+func TestScanTmuxCommandsPreservesBracesWithinCommandListWords(t *testing.T) {
+	tests := []struct {
+		name    string
+		content string
+		want    string
+	}{
+		{
+			name:    "environment expansion",
+			content: "bind r { display-message ${TPACK_SOURCE_DIR} }",
+			want:    " display-message ${TPACK_SOURCE_DIR} ",
+		},
+		{
+			name:    "format inside word",
+			content: "bind r { display-message foo#{bar} }",
+			want:    " display-message foo#{bar} ",
+		},
+		{
+			name:    "compact command-list close",
+			content: "bind r { display-message ready}",
+			want:    " display-message ready",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			commands, err := scanTmuxCommands("tmux.conf", tt.content)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(commands) != 1 || len(commands[0].tokens) != 3 {
+				t.Fatalf("commands = %#v, want one bind command with one list", commands)
+			}
+			list := commands[0].tokens[2]
+			if !list.commandList {
+				t.Fatalf("bind argument = %#v, want command-list token", list)
+			}
+			if list.value != tt.want {
+				t.Fatalf("command-list value = %q, want %q", list.value, tt.want)
+			}
+		})
+	}
+}
+
+func TestScanTmuxCommandsReturnsBraceErrors(t *testing.T) {
+	tests := []struct {
+		name    string
+		content string
+		line    int
+		message string
+	}{
+		{
+			name:    "unterminated list",
+			content: "bind r {\n  display-message reloading\n",
+			line:    1,
+			message: "unterminated command list",
+		},
+		{
+			name:    "unexpected closing brace",
+			content: "display-message ready\n}\n",
+			line:    2,
+			message: "unexpected closing brace",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := scanTmuxCommands("tmux.conf", tt.content)
+			assertConfigParseError(t, err, "tmux.conf", tt.line, tt.message)
+		})
+	}
 }
 
 func TestParseSourceDirectivesExpandsDynamicConditions(t *testing.T) {
@@ -245,14 +355,14 @@ func TestParseSourceDirectivesReturnsErrors(t *testing.T) {
 		{name: "unmatched single quote", path: "/tmp/tmux.conf", content: "source 'one.conf\n", line: 1, message: "unmatched single quote"},
 		{name: "unmatched double quote", path: "/tmp/tmux.conf", content: "source \"one.conf\n", line: 1, message: "unmatched double quote"},
 		{name: "dangling continuation", path: "/tmp/tmux.conf", content: "source one.conf \\", line: 1, message: "dangling line continuation"},
-		{name: "braced argument", path: "/tmp/tmux.conf", content: "source {one.conf}\n", line: 1, message: "unquoted braced command lists are unsupported"},
+		{name: "braced argument", path: "/tmp/tmux.conf", content: "source {one.conf}\n", line: 1, message: "braced arguments are unsupported in source directives"},
 		{name: "unsupported directive", path: "/tmp/tmux.conf", content: "%unknown value\n", line: 1, message: "unsupported tmux directive %unknown"},
-		{name: "one-line braced command list", path: "tmux.conf", content: "if-shell true { source hidden.conf }\n", line: 1, message: "unquoted braced command lists are unsupported"},
-		{name: "multiline braced command list", path: "tmux.conf", content: "if-shell true {\nsource hidden.conf\n}\n", line: 1, message: "unquoted braced command lists are unsupported"},
-		{name: "nested braced command list", path: "tmux.conf", content: "if-shell true {\nif-shell true {\nsource hidden.conf\n}\n}\n", line: 1, message: "unquoted braced command lists are unsupported"},
-		{name: "source in then branch", path: "/tmp/tmux.conf", content: "if-shell 'test -f ~/.tmux/local.conf' 'source-file ~/.tmux/local.conf'\n", line: 1, message: "executable quoted command list may contain source"},
-		{name: "source in else branch with options", path: "/tmp/tmux.conf", content: "if-shell -bF -t %1 '#{enabled}' 'display-message enabled' 'source -q fallback.conf'\n", line: 1, message: "executable quoted command list may contain source"},
-		{name: "source in nested if-shell branch", path: "/tmp/tmux.conf", content: `if-shell true "if-shell true 'source-file nested.conf'"` + "\n", line: 1, message: "executable quoted command list may contain source"},
+		{name: "one-line braced command list", path: "tmux.conf", content: "if-shell true { source hidden.conf }\n", line: 1, message: "executable command list may contain source/source-file"},
+		{name: "multiline braced command list", path: "tmux.conf", content: "if-shell true {\nsource hidden.conf\n}\n", line: 1, message: "executable command list may contain source/source-file"},
+		{name: "nested braced command list", path: "tmux.conf", content: "if-shell true {\nif-shell true {\nsource hidden.conf\n}\n}\n", line: 1, message: "executable command list may contain source/source-file"},
+		{name: "source in then branch", path: "/tmp/tmux.conf", content: "if-shell 'test -f ~/.tmux/local.conf' 'source-file ~/.tmux/local.conf'\n", line: 1, message: "executable command list may contain source/source-file"},
+		{name: "source in else branch with options", path: "/tmp/tmux.conf", content: "if-shell -bF -t %1 '#{enabled}' 'display-message enabled' 'source -q fallback.conf'\n", line: 1, message: "executable command list may contain source/source-file"},
+		{name: "source in nested if-shell branch", path: "/tmp/tmux.conf", content: `if-shell true "if-shell true 'source-file nested.conf'"` + "\n", line: 1, message: "executable command list may contain source/source-file"},
 		{name: "unclosed format span", path: "/tmp/tmux.conf", content: "%if '#{first' source wrong.conf %endif\n", line: 1, message: "unbalanced tmux format span"},
 		{name: "unclosed second format span", path: "/tmp/tmux.conf", content: "%if '#{first}#{second' source wrong.conf %endif\n", line: 1, message: "unbalanced tmux format span"},
 		{name: "unclosed nested format span", path: "/tmp/tmux.conf", content: "%if '#{outer:#{inner}' source wrong.conf %endif\n", line: 1, message: "unbalanced tmux format span"},
@@ -273,7 +383,7 @@ func TestParseSourceDirectivesReturnsErrors(t *testing.T) {
 		{name: "unmatched else", path: "tmux.conf", content: "%else\n", line: 1, message: "unexpected %else"},
 		{name: "missing endif", path: "tmux.conf", content: "%if 1\nsource one.conf\n", line: 1, message: "missing %endif"},
 		{name: "missing if condition", path: "tmux.conf", content: "%if\n", line: 1, message: "%if requires a condition"},
-		{name: "braced condition", path: "tmux.conf", content: "%if {1}\n%endif\n", line: 1, message: "unquoted braced command lists are unsupported"},
+		{name: "braced condition", path: "tmux.conf", content: "%if {1}\n%endif\n", line: 1, message: "braced conditional expressions are unsupported"},
 		{name: "missing elif condition", path: "tmux.conf", content: "%if 0\n%elif\n%endif\n", line: 2, message: "%elif requires a condition"},
 		{name: "elif after else", path: "tmux.conf", content: "%if 0\n%else\n%elif 1\n%endif\n", line: 3, message: "%elif after %else"},
 		{name: "duplicate else", path: "tmux.conf", content: "%if 0\n%else\n%else\n%endif\n", line: 3, message: "duplicate %else"},

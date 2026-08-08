@@ -201,6 +201,6 @@ func TestCleanPreservesPluginsWhenNestedSourceCannotBeEvaluated(t *testing.T) {
 	if exitCode != 1 {
 		t.Fatalf("expected exit code 1, got %d\noutput: %s", exitCode, output)
 	}
-	assertContains(t, output, "executable quoted command list may contain source")
+	assertContains(t, output, "executable command list may contain source")
 	assertDirExists(t, installedDir)
 }
