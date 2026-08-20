@@ -24,7 +24,7 @@ _download_tpack() {
 	# Detect architecture
 	local arch
 	case "$(uname -m)" in
-		x86_64)  arch="amd64" ;;
+		amd64|x86_64)  arch="amd64" ;;
 		aarch64|arm64) arch="arm64" ;;
 		*) return 1 ;;
 	esac
