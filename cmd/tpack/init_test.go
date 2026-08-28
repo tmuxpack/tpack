@@ -14,6 +14,14 @@ import (
 	"github.com/tmuxpack/tpack/internal/ui"
 )
 
+func TestNewSelfUpdateProcessMarksInvocationScheduled(t *testing.T) {
+	cmd := newSelfUpdateProcess("/tmp/tpack")
+	want := []string{"/tmp/tpack", "self-update", "--scheduled"}
+	if !reflect.DeepEqual(cmd.Args, want) {
+		t.Errorf("command args = %q, want %q", cmd.Args, want)
+	}
+}
+
 func TestInitOutputRoutesBySeverity(t *testing.T) {
 	shell := ui.NewMockSink()
 	status := ui.NewMockSink()

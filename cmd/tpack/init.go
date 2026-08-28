@@ -166,13 +166,18 @@ func shouldSpawnSelfUpdate(binary, pluginPath, pinnedVersion string) bool {
 
 // Launches `tpack self-update` as a detached background process.
 func spawnSelfUpdate(binary string, out ui.Output) {
-	cmd := exec.Command(binary, "self-update") //nolint:noctx // intentionally detached, no cancellation
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	cmd.Stdout = nil
-	cmd.Stderr = nil
+	cmd := newSelfUpdateProcess(binary)
 	if err := cmd.Start(); err != nil {
 		out.Warn("failed to spawn self-update: " + err.Error())
 	}
+}
+
+func newSelfUpdateProcess(binary string) *exec.Cmd {
+	cmd := exec.Command(binary, "self-update", "--scheduled") //nolint:noctx // intentionally detached, no cancellation
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.Stdout = nil
+	cmd.Stderr = nil
+	return cmd
 }
 
 // Returns true if update checks are configured.

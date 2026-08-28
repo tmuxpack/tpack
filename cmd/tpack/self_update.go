@@ -29,8 +29,19 @@ var selfUpdateCmd = &cobra.Command{
 	Use:   "self-update",
 	Short: "Update the tpack binary to the latest release",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return runSelfUpdate()
+		scheduled, err := cmd.Flags().GetBool("scheduled")
+		if err != nil {
+			return err
+		}
+		return runSelfUpdate(scheduled)
 	},
+}
+
+func init() {
+	selfUpdateCmd.Flags().Bool("scheduled", false, "run as a scheduled background check")
+	if err := selfUpdateCmd.Flags().MarkHidden("scheduled"); err != nil {
+		panic(err)
+	}
 }
 
 const (
@@ -59,6 +70,7 @@ type selfUpdateParams struct {
 	downloadURL string // download URL template (overridable for tests)
 	repoDir     string // tpack repo directory for git sync
 	skipGitSync bool   // skip git checkout (for tests)
+	scheduled   bool   // whether this is a scheduled background check
 }
 
 // Represents the relevant fields from the GitHub releases API.
@@ -67,7 +79,7 @@ type githubRelease struct {
 }
 
 // Entry point for the `tpack self-update` command.
-func runSelfUpdate() error {
+func runSelfUpdate(scheduled bool) error {
 	runner := tmux.NewRealRunner()
 	output := ui.NewStatusOutput(runner)
 
@@ -87,6 +99,7 @@ func runSelfUpdate() error {
 		apiURL:      githubAPIURL,
 		downloadURL: githubDownloadURL,
 		repoDir:     repoDir,
+		scheduled:   scheduled,
 	}
 
 	result := selfUpdateCheck(p, output)
@@ -120,11 +133,54 @@ func formatSelfUpdateReplaceError(err error) string {
 	return fmt.Sprintf("self-update failed (replace binary: %v)", err)
 }
 
+func stageSelfUpdateBinary(sourcePath, targetPath string) (string, func(), error) {
+	source, err := os.Open(sourcePath)
+	if err != nil {
+		return "", nil, fmt.Errorf("open source binary: %w", err)
+	}
+	defer source.Close()
+
+	staged, err := os.CreateTemp(filepath.Dir(targetPath), ".tpack-update-*")
+	if err != nil {
+		return "", nil, fmt.Errorf("create staging file: %w", err)
+	}
+	stagedPath := staged.Name()
+	cleanupStaging := func() {
+		_ = staged.Close()
+		_ = os.Remove(stagedPath)
+	}
+
+	if _, err := io.Copy(staged, source); err != nil {
+		cleanupStaging()
+		return "", nil, fmt.Errorf("copy binary to staging file: %w", err)
+	}
+	if err := staged.Chmod(0o755); err != nil {
+		cleanupStaging()
+		return "", nil, fmt.Errorf("chmod staging file: %w", err)
+	}
+	if err := staged.Close(); err != nil {
+		_ = os.Remove(stagedPath)
+		return "", nil, fmt.Errorf("close staging file: %w", err)
+	}
+
+	return stagedPath, func() { _ = os.Remove(stagedPath) }, nil
+}
+
+func replaceSelfUpdateBinary(sourcePath, targetPath string) error {
+	stagedPath, cleanup, err := stageSelfUpdateBinary(sourcePath, targetPath)
+	if err != nil {
+		return err
+	}
+	defer cleanup()
+
+	return os.Rename(stagedPath, targetPath)
+}
+
 // Orchestrates the self-update flow.
 func selfUpdateCheck(p selfUpdateParams, output ui.Output) selfUpdateResult {
 	// 1. Load state, check LastSelfUpdateCheck -- if <24h ago, skip.
 	st := state.Load(p.statePath, nil)
-	if !st.LastSelfUpdateCheck.IsZero() && time.Since(st.LastSelfUpdateCheck) < selfUpdateInterval {
+	if p.scheduled && !st.LastSelfUpdateCheck.IsZero() && time.Since(st.LastSelfUpdateCheck) < selfUpdateInterval {
 		return selfUpdateSkipped
 	}
 
@@ -169,8 +225,8 @@ func selfUpdateCheck(p selfUpdateParams, output ui.Output) selfUpdateResult {
 	}
 	defer cleanup()
 
-	// 7. Atomic replace: rename temp binary over current binary.
-	if err := os.Rename(newBinaryPath, p.binaryPath); err != nil {
+	// 7. Stage beside the installed binary, then atomically replace it.
+	if err := replaceSelfUpdateBinary(newBinaryPath, p.binaryPath); err != nil {
 		output.Err(formatSelfUpdateReplaceError(err))
 		return selfUpdateFailed
 	}

@@ -16,6 +16,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"syscall"
 	"testing"
 	"time"
@@ -202,6 +203,7 @@ func createTestArchive(t *testing.T, content string) []byte {
 
 func TestSelfUpdateSkipsWhenRecent(t *testing.T) {
 	p := newSelfUpdateParams(t, "http://unused")
+	p.scheduled = true
 
 	// Save a recent timestamp.
 	st := state.State{LastSelfUpdateCheck: time.Now()}
@@ -221,6 +223,40 @@ func TestSelfUpdateSkipsWhenRecent(t *testing.T) {
 		if call.Method == "DisplayMessage" {
 			t.Errorf("unexpected DisplayMessage call: %v", call.Args)
 		}
+	}
+}
+
+func TestManualSelfUpdateChecksWhenRecent(t *testing.T) {
+	var requests atomic.Int32
+	apiURL := newTestServer(t, func(w http.ResponseWriter, _ *http.Request) {
+		requests.Add(1)
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(githubRelease{TagName: "v1.0.0"}); err != nil {
+			t.Fatalf("failed to encode release: %v", err)
+		}
+	})
+	p := newSelfUpdateParams(t, apiURL)
+
+	if err := state.Save(p.statePath, state.State{LastSelfUpdateCheck: time.Now()}); err != nil {
+		t.Fatalf("failed to save state: %v", err)
+	}
+
+	result := selfUpdateCheck(p, ui.NewStatusOutput(tmux.NewMockRunner()))
+	if result != selfUpdateSkipped {
+		t.Errorf("expected selfUpdateSkipped, got %d", result)
+	}
+	if got := requests.Load(); got != 1 {
+		t.Errorf("release API requests = %d, want 1", got)
+	}
+}
+
+func TestSelfUpdateScheduledFlagIsHidden(t *testing.T) {
+	flag := selfUpdateCmd.Flags().Lookup("scheduled")
+	if flag == nil {
+		t.Fatal("scheduled flag not registered")
+	}
+	if !flag.Hidden {
+		t.Error("scheduled flag is visible, want hidden")
 	}
 }
 
@@ -430,21 +466,146 @@ func TestSelfUpdateDisplaysExtractError(t *testing.T) {
 	assertDisplayMessage(t, runner, "tpack: error: self-update failed (extract error)")
 }
 
-func TestFormatSelfUpdateReplaceErrorUnwrapsPathError(t *testing.T) {
-	err := &os.PathError{
-		Op:   "rename",
-		Path: "/tmp/sensitive-source",
-		Err:  syscall.EXDEV,
+func TestFormatSelfUpdateReplaceError(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want string
+	}{
+		{
+			name: "path error",
+			err: &os.PathError{
+				Op:   "rename",
+				Path: "/tmp/sensitive-path",
+				Err:  syscall.EXDEV,
+			},
+			want: "self-update failed (replace binary: " + syscall.EXDEV.Error() + ")",
+		},
+		{
+			name: "link error",
+			err: &os.LinkError{
+				Op:  "rename",
+				Old: "/tmp/sensitive-old-path",
+				New: "/tmp/sensitive-new-path",
+				Err: syscall.EXDEV,
+			},
+			want: "self-update failed (replace binary: " + syscall.EXDEV.Error() + ")",
+		},
 	}
 
-	got := formatSelfUpdateReplaceError(err)
-	want := "self-update failed (replace binary: " + syscall.EXDEV.Error() + ")"
-	if got != want {
-		t.Errorf("formatSelfUpdateReplaceError() = %q, want %q", got, want)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := formatSelfUpdateReplaceError(tt.err)
+			if got != tt.want {
+				t.Errorf("formatSelfUpdateReplaceError() = %q, want %q", got, tt.want)
+			}
+			if strings.Contains(got, "/tmp/sensitive-old-path") || strings.Contains(got, "/tmp/sensitive-new-path") {
+				t.Errorf("formatSelfUpdateReplaceError() exposed a sensitive path: %q", got)
+			}
+		})
 	}
-	if strings.Contains(got, err.Path) {
-		t.Errorf("formatSelfUpdateReplaceError() exposed path %q", err.Path)
+}
+
+func TestStageSelfUpdateBinary(t *testing.T) {
+	sourceDir := t.TempDir()
+	targetDir := t.TempDir()
+	sourcePath := filepath.Join(sourceDir, "tpack")
+	targetPath := filepath.Join(targetDir, "tpack")
+	wantContent := []byte("new-binary")
+	if err := os.WriteFile(sourcePath, wantContent, 0o600); err != nil {
+		t.Fatal(err)
 	}
+
+	stagedPath, cleanup, err := stageSelfUpdateBinary(sourcePath, targetPath)
+	if err != nil {
+		t.Fatalf("stageSelfUpdateBinary() error = %v", err)
+	}
+	if filepath.Dir(stagedPath) != targetDir {
+		t.Errorf("staged binary directory = %q, want %q", filepath.Dir(stagedPath), targetDir)
+	}
+
+	gotContent, err := os.ReadFile(stagedPath)
+	if err != nil {
+		t.Fatalf("reading staged binary: %v", err)
+	}
+	if string(gotContent) != string(wantContent) {
+		t.Errorf("staged binary content = %q, want %q", gotContent, wantContent)
+	}
+
+	info, err := os.Stat(stagedPath)
+	if err != nil {
+		t.Fatalf("stating staged binary: %v", err)
+	}
+	if got, want := info.Mode().Perm(), os.FileMode(0o755); got != want {
+		t.Errorf("staged binary mode = %o, want %o", got, want)
+	}
+
+	cleanup()
+	if _, err := os.Stat(stagedPath); !os.IsNotExist(err) {
+		t.Errorf("staged binary still exists after cleanup, stat error = %v", err)
+	}
+}
+
+func TestReplaceSelfUpdateBinary(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		sourceDir := t.TempDir()
+		targetDir := t.TempDir()
+		sourcePath := filepath.Join(sourceDir, "tpack")
+		targetPath := filepath.Join(targetDir, "tpack")
+		wantContent := []byte("new-binary")
+		if err := os.WriteFile(sourcePath, wantContent, 0o600); err != nil {
+			t.Fatal(err)
+		}
+
+		if err := replaceSelfUpdateBinary(sourcePath, targetPath); err != nil {
+			t.Fatalf("replaceSelfUpdateBinary() error = %v", err)
+		}
+		gotContent, err := os.ReadFile(targetPath)
+		if err != nil {
+			t.Fatalf("reading replaced binary: %v", err)
+		}
+		if string(gotContent) != string(wantContent) {
+			t.Errorf("replaced binary content = %q, want %q", gotContent, wantContent)
+		}
+		info, err := os.Stat(targetPath)
+		if err != nil {
+			t.Fatalf("stating replaced binary: %v", err)
+		}
+		if got, want := info.Mode().Perm(), os.FileMode(0o755); got != want {
+			t.Errorf("replaced binary mode = %o, want %o", got, want)
+		}
+		matches, err := filepath.Glob(filepath.Join(targetDir, ".tpack-update-*"))
+		if err != nil {
+			t.Fatalf("glob staging files: %v", err)
+		}
+		if len(matches) != 0 {
+			t.Errorf("staging files after successful replacement = %v, want none", matches)
+		}
+	})
+
+	t.Run("failure cleans staging file", func(t *testing.T) {
+		sourceDir := t.TempDir()
+		targetDir := t.TempDir()
+		sourcePath := filepath.Join(sourceDir, "tpack")
+		targetPath := filepath.Join(targetDir, "existing-directory")
+		if err := os.WriteFile(sourcePath, []byte("new-binary"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Mkdir(targetPath, 0o755); err != nil {
+			t.Fatal(err)
+		}
+
+		if err := replaceSelfUpdateBinary(sourcePath, targetPath); err == nil {
+			t.Fatal("replaceSelfUpdateBinary() error = nil, want error")
+		}
+		matches, err := filepath.Glob(filepath.Join(targetDir, ".tpack-update-*"))
+		if err != nil {
+			t.Fatalf("glob staging files: %v", err)
+		}
+		if len(matches) != 0 {
+			t.Errorf("staging files after failed replacement = %v, want none", matches)
+		}
+	})
 }
 
 func TestSelfUpdateDisplaysReplaceError(t *testing.T) {
@@ -527,6 +688,7 @@ func TestSelfUpdateIntegration(t *testing.T) {
 
 	downloadServer := newDownloadServer(t, "3.1.0", archive)
 	p := newSelfUpdateParams(t, apiServer.URL)
+	p.scheduled = true
 	p.downloadURL = downloadServer
 
 	// Create the existing binary file.
