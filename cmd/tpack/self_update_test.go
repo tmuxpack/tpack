@@ -16,6 +16,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -429,7 +430,24 @@ func TestSelfUpdateDisplaysExtractError(t *testing.T) {
 	assertDisplayMessage(t, runner, "tpack: error: self-update failed (extract error)")
 }
 
-func TestSelfUpdateDisplaysPermissionError(t *testing.T) {
+func TestFormatSelfUpdateReplaceErrorUnwrapsPathError(t *testing.T) {
+	err := &os.PathError{
+		Op:   "rename",
+		Path: "/tmp/sensitive-source",
+		Err:  syscall.EXDEV,
+	}
+
+	got := formatSelfUpdateReplaceError(err)
+	want := "self-update failed (replace binary: " + syscall.EXDEV.Error() + ")"
+	if got != want {
+		t.Errorf("formatSelfUpdateReplaceError() = %q, want %q", got, want)
+	}
+	if strings.Contains(got, err.Path) {
+		t.Errorf("formatSelfUpdateReplaceError() exposed path %q", err.Path)
+	}
+}
+
+func TestSelfUpdateDisplaysReplaceError(t *testing.T) {
 	newContent := "new-binary"
 	archive := createTestArchive(t, newContent)
 
@@ -450,7 +468,7 @@ func TestSelfUpdateDisplaysPermissionError(t *testing.T) {
 		t.Errorf("expected selfUpdateFailed, got %d", result)
 	}
 
-	assertDisplayMessage(t, runner, "tpack: error: self-update failed (permission error)")
+	assertDisplayMessage(t, runner, "tpack: error: self-update failed (replace binary: "+syscall.ENOENT.Error()+")")
 }
 
 func TestSelfUpdateTimestampSavedBeforeCheck(t *testing.T) {

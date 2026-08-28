@@ -107,6 +107,19 @@ func selfUpdateCommandResult(result selfUpdateResult, output ui.Output) error {
 	return errSilent
 }
 
+func formatSelfUpdateReplaceError(err error) string {
+	var pathErr *os.PathError
+	if errors.As(err, &pathErr) {
+		err = pathErr.Err
+	}
+	var linkErr *os.LinkError
+	if errors.As(err, &linkErr) {
+		err = linkErr.Err
+	}
+
+	return fmt.Sprintf("self-update failed (replace binary: %v)", err)
+}
+
 // Orchestrates the self-update flow.
 func selfUpdateCheck(p selfUpdateParams, output ui.Output) selfUpdateResult {
 	// 1. Load state, check LastSelfUpdateCheck -- if <24h ago, skip.
@@ -158,7 +171,7 @@ func selfUpdateCheck(p selfUpdateParams, output ui.Output) selfUpdateResult {
 
 	// 7. Atomic replace: rename temp binary over current binary.
 	if err := os.Rename(newBinaryPath, p.binaryPath); err != nil {
-		output.Err("self-update failed (permission error)")
+		output.Err(formatSelfUpdateReplaceError(err))
 		return selfUpdateFailed
 	}
 
