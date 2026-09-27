@@ -14,7 +14,7 @@ import (
 //
 // Returns a non-nil error if the resolved user tmux.conf or any required source
 // cannot be read. /etc/tmux.conf and source-file -q directives are optional.
-// TODO: Move to a separate config structure down the line, mayybe something akin to LazyVim
+// TODO: Move to a separate config structure down the line, maybe something akin to LazyVim
 // warn, if non-nil, receives non-fatal parse warnings; a nil warn drops them.
 func GatherPlugins(runner tmux.Runner, fs FS, paths Paths, warn func(string)) ([]plug.Plugin, error) {
 	var specs []string
