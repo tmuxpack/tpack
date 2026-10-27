@@ -23,7 +23,14 @@ func NewRealRunner() *RealRunner {
 func (r *RealRunner) runTmux(args ...string) (string, error) {
 	cmd := exec.Command("tmux", args...) //nolint:noctx // tmux calls are local, no cancellation needed
 	out, err := cmd.CombinedOutput()
-	return strings.TrimSpace(string(out)), err
+	output := strings.TrimSpace(string(out))
+	if err != nil {
+		if output != "" {
+			return output, fmt.Errorf("tmux %s: %w: %s", args[0], err, output)
+		}
+		return output, fmt.Errorf("tmux %s: %w", args[0], err)
+	}
+	return output, nil
 }
 
 func (r *RealRunner) ShowOption(option string) (string, bool, error) {
